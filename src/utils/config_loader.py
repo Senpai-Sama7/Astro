@@ -86,3 +86,8 @@ class ConfigLoader:
                     self.agent_configs = yaml.safe_load(f) or {}
             except Exception as e:
                 logger.error(f"Failed to load agent configs: {e}")
+
+    def load_agent_configs(self) -> Dict[str, Any]:
+        """Public method to load and return agent configurations"""
+        self._load_agent_configs()
+        return self.agent_configs

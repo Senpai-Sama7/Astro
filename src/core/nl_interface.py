@@ -4,8 +4,16 @@ Natural Language Interface for Autonomous Agent Ecosystem
 import logging
 import json
 import uuid
+import asyncio
 from typing import Dict, Any, List, Optional
 from core.engine import AgentEngine, Workflow, Task, WorkflowPriority
+
+try:
+    from openai import AsyncOpenAI
+    HAS_ASYNC_OPENAI = True
+except ImportError:
+    AsyncOpenAI = None
+    HAS_ASYNC_OPENAI = False
 
 logger = logging.getLogger("NaturalLanguageInterface")
 
@@ -67,14 +75,32 @@ class NaturalLanguageInterface:
         - FileSystem: {"operation": "write_file"|"read_file"|"list_dir", "path": "...", "content": "..."}
         """
         
-        response = self.llm_client.chat.completions.create(
-            model=self.model_name,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_input}
-            ],
-            response_format={"type": "json_object"}
-        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_input}
+        ]
+        
+        # Check if client is async
+        is_async = HAS_ASYNC_OPENAI and isinstance(self.llm_client, AsyncOpenAI)
+        
+        if is_async:
+            response = await self.llm_client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                response_format={"type": "json_object"}
+            )
+        else:
+            # Fallback to sync call (wrapped in thread if needed, but here we assume sync client is ok)
+            # Ideally, we should run sync client in a thread to avoid blocking
+            if hasattr(self.llm_client.chat.completions, 'create'):
+                response = await asyncio.to_thread(
+                    self.llm_client.chat.completions.create,
+                    model=self.model_name,
+                    messages=messages,
+                    response_format={"type": "json_object"}
+                )
+            else:
+                raise ValueError("Invalid LLM client provided")
         
         return json.loads(response.choices[0].message.content)
 

@@ -58,7 +58,11 @@ def test_filesystem_agent():
         
         async def test():
             agent = FileSystemAgent("test_fs", {"root_dir": "./test_workspace"})
-            result = agent._write_file({"path": "test.txt", "content": "Hello, World!"})
+            # Create workspace first
+            if not os.path.exists("./test_workspace"):
+                os.makedirs("./test_workspace")
+                
+            result = await agent._write_file({"path": "test.txt", "content": "Hello, World!"})
             
             # Cleanup
             import shutil
@@ -119,12 +123,17 @@ def verify_config_files():
     try:
         import yaml
         
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_dir = os.path.join(base_dir, "config")
+        
         # Check system_config.yaml
-        with open('../config/system_config.yaml', 'r') as f:
+        sys_config_path = os.path.join(config_dir, 'system_config.yaml')
+        with open(sys_config_path, 'r') as f:
             sys_config = yaml.safe_load(f)
         
         # Check agents.yaml
-        with open('../config/agents.yaml', 'r') as f:
+        agents_config_path = os.path.join(config_dir, 'agents.yaml')
+        with open(agents_config_path, 'r') as f:
             agents_config = yaml.safe_load(f)
             
         print(f"✅ Config files valid. Found {len(agents_config)} agent configs")

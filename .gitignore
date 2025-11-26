@@ -57,3 +57,5 @@ htmlcov/
 # Distribution
 *.exe
 *.app
+*.deb
+debian/usr/share/astro/

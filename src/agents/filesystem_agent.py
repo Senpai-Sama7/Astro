@@ -31,7 +31,11 @@ class FileSystemAgent(BaseAgent):
         """Check if path is within the allowed root directory"""
         # Resolve absolute path
         abs_path = os.path.abspath(os.path.join(self.root_dir, path))
-        return abs_path.startswith(self.root_dir)
+        # Use commonpath to ensure it's truly a subpath
+        try:
+            return os.path.commonpath([self.root_dir, abs_path]) == self.root_dir
+        except ValueError:
+            return False
 
     async def execute_task(self, task: Dict[str, Any], context: AgentContext) -> TaskResult:
         try:
@@ -78,8 +82,10 @@ class FileSystemAgent(BaseAgent):
              return TaskResult(success=False, error_message=f"Access denied: Extension {ext} not allowed")
 
         try:
-            # Ensure parent dir exists (blocking but fast, usually cached)
-            os.makedirs(os.path.dirname(full_path), exist_ok=True)
+            # Ensure parent dir exists (async)
+            parent_dir = os.path.dirname(full_path)
+            if not os.path.exists(parent_dir):
+                await asyncio.get_event_loop().run_in_executor(None, os.makedirs, parent_dir, 0o777, True)
             
             async with aiofiles.open(full_path, 'w', encoding='utf-8') as f:
                 await f.write(content)

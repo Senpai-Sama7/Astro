@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=ASTRO
+Comment=Your Personal AI Team
+Exec=/usr/bin/astro
+Icon=astro
+Terminal=false
+Type=Application
+Categories=Utility;Development;
+Keywords=AI;Agent;Assistant;Automation;

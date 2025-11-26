@@ -20,6 +20,7 @@ from agents.research_agent import ResearchAgent
 from agents.code_agent import CodeAgent
 from agents.filesystem_agent import FileSystemAgent
 from monitoring.monitoring_dashboard import MonitoringDashboard
+from core.llm_factory import LLMFactory
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -49,6 +50,13 @@ class AutonomousAgentEcosystem:
         config_loader = ConfigLoader()
         agent_configs = config_loader.load_agent_configs()
         
+        # Create shared LLM client
+        llm_client = LLMFactory.create_client(
+            provider=self.config.get('llm_provider', 'openai'),
+            api_key=self.config.get('api_key'),
+            base_url=self.config.get('api_base')
+        )
+        
         # Research Agent
         research_config_dict = agent_configs.get('research_agent_001', {})
         research_agent = ResearchAgent(
@@ -68,7 +76,8 @@ class AutonomousAgentEcosystem:
         
         code_agent = CodeAgent(
             agent_id="code_agent_001",
-            config=code_config_dict
+            config=code_config_dict,
+            llm_client=llm_client
         )
 
         # FileSystem Agent
@@ -300,7 +309,6 @@ class AutonomousAgentEcosystem:
         logger.info("✨ AUTONOMOUS AGENT ECOSYSTEM EXECUTION COMPLETE")
         logger.info("=" * 60)
 
-from core.llm_factory import LLMFactory
 
 def parse_arguments():
     """Parse command line arguments"""
@@ -354,6 +362,7 @@ async def main():
                 base_url=args.api_base
             )
 
+            # Explicitly use the configured model
             nl_interface = NaturalLanguageInterface(
                 engine=ecosystem.engine, 
                 llm_client=llm_client,

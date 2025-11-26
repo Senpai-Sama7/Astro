@@ -16,6 +16,7 @@ import shutil
 import sys
 from typing import Dict, Any, Optional, List
 from .base_agent import BaseAgent, AgentCapability, AgentContext, TaskResult, AgentState
+from core.llm_factory import LLMFactory
 
 # Try to import openai with async support
 try:
@@ -32,7 +33,7 @@ HAS_DOCKER = shutil.which('docker') is not None
 logger = logging.getLogger("CodeAgent")
 
 class CodeAgent(BaseAgent):
-    def __init__(self, agent_id: str, config: Dict[str, Any]):
+    def __init__(self, agent_id: str, config: Dict[str, Any], llm_client: Any = None):
         super().__init__(agent_id, [AgentCapability.OPTIMIZATION], config)
         
         self.safe_mode = config.get("safe_mode", True)
@@ -49,10 +50,20 @@ class CodeAgent(BaseAgent):
         self.async_client: Optional[AsyncOpenAI] = None
         self.sync_client: Optional[OpenAI] = None  # Fallback
         
-        if HAS_OPENAI:
-            self._initialize_client(config)
+        # Use injected client if provided, otherwise initialize
+        if llm_client:
+            if HAS_OPENAI and isinstance(llm_client, AsyncOpenAI):
+                self.async_client = llm_client
+            elif HAS_OPENAI and isinstance(llm_client, OpenAI):
+                self.sync_client = llm_client
+            else:
+                # Try to detect type if imports failed or check type name
+                if "AsyncOpenAI" in str(type(llm_client)):
+                     self.async_client = llm_client
+                else:
+                     self.sync_client = llm_client
         else:
-            logger.warning("OpenAI library not found. Code generation will be disabled.")
+            self._initialize_clients(config)
         
         if self.use_docker:
             logger.info(f"Docker sandbox enabled with image: {self.docker_image}")
@@ -61,43 +72,31 @@ class CodeAgent(BaseAgent):
         elif config.get("use_docker_sandbox", False):
             logger.warning("Docker sandbox requested but Docker is not available")
 
-    def _initialize_client(self, config: Dict[str, Any]):
-        """Initialize the async LLM client based on provider"""
-        api_key = None
-        base_url = None
+    def _initialize_clients(self, config: Dict[str, Any]):
+        """Initialize LLM clients using Factory"""
+        api_key = config.get("api_key")
+        base_url = config.get("api_base")
         
-        if self.provider == "openai":
-            api_key = config.get("api_key") or os.getenv("OPENAI_API_KEY")
-            # Default base_url
-            
-        elif self.provider == "openrouter":
-            api_key = config.get("api_key") or os.getenv("OPENROUTER_API_KEY")
-            base_url = "https://openrouter.ai/api/v1"
-            if not self.model_name:
-                self.model_name = "openai/gpt-3.5-turbo" # Default for OpenRouter
-                
-        elif self.provider == "ollama":
-            api_key = "ollama" # Dummy key required by client
-            base_url = config.get("api_base") or "http://localhost:11434/v1"
-            if not self.model_name or self.model_name == "gpt-3.5-turbo":
-                self.model_name = "llama3" # Default to llama3 if not specified
-                
+        # Create Async Client (Primary)
+        self.async_client = LLMFactory.create_client(
+            provider=self.provider,
+            api_key=api_key,
+            base_url=base_url
+        )
+        
+        # Create Sync Client (Fallback)
+        self.sync_client = LLMFactory.create_sync_client(
+            provider=self.provider,
+            api_key=api_key,
+            base_url=base_url
+        )
+        
+        if self.async_client:
+            logger.info(f"Initialized CodeAgent with async client for provider: {self.provider}")
+        elif self.sync_client:
+            logger.info(f"Initialized CodeAgent with sync client for provider: {self.provider}")
         else:
-            logger.warning(f"Unknown provider {self.provider}, defaulting to OpenAI")
-            api_key = os.getenv("OPENAI_API_KEY")
-
-        if api_key or self.provider == "ollama":
-            try:
-                # Initialize async client (preferred)
-                if AsyncOpenAI:
-                    self.async_client = AsyncOpenAI(api_key=api_key, base_url=base_url)
-                # Also keep sync client as fallback
-                self.sync_client = OpenAI(api_key=api_key, base_url=base_url)
-                logger.info(f"Initialized CodeAgent with async client for provider: {self.provider}, model: {self.model_name}")
-            except Exception as e:
-                logger.error(f"Failed to initialize OpenAI client: {e}")
-        else:
-            logger.warning(f"No API key found for provider {self.provider}")
+            logger.warning(f"Failed to initialize any LLM client for {self.provider}")
 
     async def execute_task(self, task: Dict[str, Any], context: AgentContext) -> TaskResult:
         try:
