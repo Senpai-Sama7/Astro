@@ -60,32 +60,77 @@ COLORS = {
     "text_muted": "#71717a",      # Zinc 500
 }
 
-# Tutorial Steps
+# Tutorial Steps - Interactive walkthrough with element targeting
 TUTORIAL_STEPS = [
     {
-        "title": "Welcome to ASTRO! 🚀",
-        "content": "Your personal AI assistant team that can research the web, write code, and manage files - all through simple conversation.",
-        "icon": "✨"
+        "title": "Welcome to ASTRO! ",
+        "content": "Let me give you a quick tour of your AI assistant team.\n\nClick 'Next' to start the guided walkthrough.",
+        "icon": "",
+        "target": None,  # No highlight for welcome
+        "position": "center"
     },
     {
-        "title": "Step 1: Configure Your AI",
-        "content": "Click 'Settings' in the top menu to choose your AI provider. You can use OpenAI, run models locally with Ollama, or access many models through OpenRouter.",
-        "icon": "⚙️"
+        "title": "Menu Bar",
+        "content": "This is the top menu bar.\n\n'Help' - Opens the help guide\n'Settings' - Configure your AI provider",
+        "icon": "",
+        "target": "menu_bar",
+        "position": "below"
     },
     {
-        "title": "Step 2: Start the System",
-        "content": "Click the 'Start' button to wake up your AI agents. You'll see them come online in the sidebar.",
-        "icon": "▶️"
+        "title": "Settings - Configure AI",
+        "content": "Click 'Settings' to set up your AI:\n\n1. Choose a provider (OpenAI, Ollama, OpenRouter)\n2. Select a model\n3. Enter your API key (if needed)\n\nOllama is FREE and runs locally!",
+        "icon": "",
+        "target": "settings_btn",
+        "position": "below"
     },
     {
-        "title": "Step 3: Give Commands",
-        "content": "Type what you want in plain English! Try things like:\n• 'Research quantum computing'\n• 'Write a Python script to sort files'\n• 'Save my notes to a file'",
-        "icon": "💬"
+        "title": "System Controls",
+        "content": "The sidebar contains your main controls:\n\nStatus indicator shows system state\n'Start' activates your AI agents\n'Stop' turns them off when done",
+        "icon": "",
+        "target": "sidebar_controls",
+        "position": "right"
     },
     {
-        "title": "You're Ready!",
-        "content": "That's it! Your AI team will work together to complete your requests. Check the Activity panel to see what they're doing.",
-        "icon": "🎉"
+        "title": "Start Button",
+        "content": "Click this button to start the AI system.\n\nOnce started, your agents will come online and be ready to help you.",
+        "icon": "",
+        "target": "start_btn",
+        "position": "right"
+    },
+    {
+        "title": "Agent Status",
+        "content": "Your AI team members appear here:\n\n Research Agent - Searches the web\n Code Agent - Writes programs\n File Agent - Manages files\n\nGreen dot = Active, Gray = Idle",
+        "icon": "",
+        "target": "agents_frame",
+        "position": "right"
+    },
+    {
+        "title": "Command Input",
+        "content": "Type your request here in plain English!\n\nExamples:\n'Research the latest AI news'\n'Write a Python calculator'\n'Create a todo list file'\n\nPress 'Go' or Enter to execute.",
+        "icon": "",
+        "target": "input_area",
+        "position": "below"
+    },
+    {
+        "title": "Activity Log",
+        "content": "Watch what's happening in real-time!\n\nThis panel shows:\nAgent actions\nProgress updates\nResults and errors\n\nUse 'Clear' to clean it up.",
+        "icon": "",
+        "target": "log_panel",
+        "position": "above"
+    },
+    {
+        "title": "Task History",
+        "content": "Your completed tasks appear here.\n\nTrack what you've asked and what was accomplished.",
+        "icon": "",
+        "target": "history_panel",
+        "position": "left"
+    },
+    {
+        "title": "You're All Set! ",
+        "content": "You now know everything you need!\n\nQuick Start:\n1. Click 'Settings' to configure AI\n2. Click 'Start' to activate agents\n3. Type a command and press 'Go'\n\nHave fun with your AI team!",
+        "icon": "",
+        "target": None,
+        "position": "center"
     }
 ]
 
@@ -232,7 +277,7 @@ WorkflowItem = TaskItem
 
 
 class TutorialOverlay(ctk.CTkToplevel):
-    """Interactive tutorial walkthrough"""
+    """Interactive spotlight walkthrough tour"""
     
     def __init__(self, parent, on_complete=None):
         super().__init__(parent)
@@ -240,74 +285,233 @@ class TutorialOverlay(ctk.CTkToplevel):
         self.on_complete = on_complete
         self.current_step = 0
         
+        # Window setup - transparent overlay
         self.title("")
         self.overrideredirect(True)
-        self.configure(fg_color=COLORS["bg_primary"])
-        self.attributes("-alpha", 0.98)
-        self.geometry(f"{parent.winfo_width()}x{parent.winfo_height()}+{parent.winfo_x()}+{parent.winfo_y()}")
+        self.attributes("-topmost", True)
         
-        self._build_ui()
+        # Wait for parent to be ready
+        self.after(100, self._initialize)
+    
+    def _initialize(self):
+        """Initialize after parent is ready"""
+        self.parent.update_idletasks()
+        
+        # Get parent geometry
+        px, py = self.parent.winfo_rootx(), self.parent.winfo_rooty()
+        pw, ph = self.parent.winfo_width(), self.parent.winfo_height()
+        self.geometry(f"{pw}x{ph}+{px}+{py}")
+        
+        # Create dark overlay background
+        self.configure(fg_color="#000000")
+        self.attributes("-alpha", 0.85)
+        
+        # Create floating tooltip card
+        self.tooltip = ctk.CTkFrame(
+            self,
+            fg_color=COLORS["bg_card"],
+            corner_radius=16,
+            border_width=2,
+            border_color=COLORS["accent"]
+        )
+        
+        # Build tooltip content
+        self._build_tooltip()
+        
+        # Show first step
+        self._show_step()
+        
         self.lift()
         self.focus_force()
-        
-    def _build_ui(self):
-        container = ctk.CTkFrame(self, fg_color="transparent")
-        container.place(relx=0.5, rely=0.5, anchor="center")
-        
-        card = ctk.CTkFrame(container, fg_color=COLORS["bg_card"], corner_radius=24, border_width=1, border_color=COLORS["border"])
-        card.pack(padx=40, pady=40)
-        
-        content = ctk.CTkFrame(card, fg_color="transparent")
-        content.pack(padx=48, pady=48)
-        
-        self.icon_label = ctk.CTkLabel(content, text=TUTORIAL_STEPS[0]["icon"], font=ctk.CTkFont(size=48))
-        self.icon_label.pack(pady=(0, 16))
-        
-        self.title_label = ctk.CTkLabel(content, text=TUTORIAL_STEPS[0]["title"], font=ctk.CTkFont(size=28, weight="bold"), text_color=COLORS["text"])
-        self.title_label.pack(pady=(0, 12))
-        
-        self.content_label = ctk.CTkLabel(content, text=TUTORIAL_STEPS[0]["content"], font=ctk.CTkFont(size=15), text_color=COLORS["text_secondary"], wraplength=400, justify="center")
-        self.content_label.pack(pady=(0, 32))
-        
-        self.dots_frame = ctk.CTkFrame(content, fg_color="transparent")
-        self.dots_frame.pack(pady=(0, 24))
-        self.dots = []
-        for i in range(len(TUTORIAL_STEPS)):
-            dot = ctk.CTkLabel(self.dots_frame, text="●", font=ctk.CTkFont(size=10), text_color=COLORS["accent"] if i == 0 else COLORS["text_muted"])
-            dot.pack(side="left", padx=4)
-            self.dots.append(dot)
-        
-        btn_frame = ctk.CTkFrame(content, fg_color="transparent")
-        btn_frame.pack()
-        
-        self.skip_btn = ctk.CTkButton(btn_frame, text="Skip", command=self._skip, fg_color="transparent", hover_color=COLORS["bg_hover"], text_color=COLORS["text_muted"], width=100, height=44, corner_radius=10)
-        self.skip_btn.pack(side="left", padx=(0, 12))
-        
-        self.next_btn = ctk.CTkButton(btn_frame, text="Next →", command=self._next, fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"], width=140, height=44, corner_radius=10, font=ctk.CTkFont(size=14, weight="bold"))
-        self.next_btn.pack(side="left")
     
-    def _next(self):
-        self.current_step += 1
+    def _build_tooltip(self):
+        """Build the tooltip UI"""
+        content = ctk.CTkFrame(self.tooltip, fg_color="transparent")
+        content.pack(padx=24, pady=20)
+        
+        # Step counter
+        self.step_label = ctk.CTkLabel(
+            content,
+            text="Step 1 of 10",
+            font=ctk.CTkFont(size=11),
+            text_color=COLORS["accent"]
+        )
+        self.step_label.pack(anchor="w")
+        
+        # Title
+        self.title_label = ctk.CTkLabel(
+            content,
+            text="",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color=COLORS["text"]
+        )
+        self.title_label.pack(anchor="w", pady=(8, 6))
+        
+        # Content
+        self.content_label = ctk.CTkLabel(
+            content,
+            text="",
+            font=ctk.CTkFont(size=13),
+            text_color=COLORS["text_secondary"],
+            wraplength=320,
+            justify="left"
+        )
+        self.content_label.pack(anchor="w", pady=(0, 16))
+        
+        # Progress bar
+        progress_bg = ctk.CTkFrame(content, fg_color=COLORS["border"], height=4, corner_radius=2)
+        progress_bg.pack(fill="x", pady=(0, 16))
+        
+        self.progress_bar = ctk.CTkFrame(progress_bg, fg_color=COLORS["accent"], height=4, corner_radius=2)
+        self.progress_bar.place(relx=0, rely=0, relheight=1, relwidth=0.1)
+        
+        # Buttons
+        btn_frame = ctk.CTkFrame(content, fg_color="transparent")
+        btn_frame.pack(fill="x")
+        
+        self.skip_btn = ctk.CTkButton(
+            btn_frame,
+            text="Skip Tour",
+            command=self._skip,
+            fg_color="transparent",
+            hover_color=COLORS["bg_hover"],
+            text_color=COLORS["text_muted"],
+            width=90,
+            height=36,
+            corner_radius=8,
+            font=ctk.CTkFont(size=12)
+        )
+        self.skip_btn.pack(side="left")
+        
+        self.next_btn = ctk.CTkButton(
+            btn_frame,
+            text="Next →",
+            command=self._next,
+            fg_color=COLORS["accent"],
+            hover_color=COLORS["accent_hover"],
+            width=100,
+            height=36,
+            corner_radius=8,
+            font=ctk.CTkFont(size=13, weight="bold")
+        )
+        self.next_btn.pack(side="right")
+    
+    def _get_widget_for_target(self, target):
+        """Get the widget reference for a target name"""
+        if target is None:
+            return None
+        
+        p = self.parent  # Shorthand
+        
+        widget_map = {
+            "menu_bar": lambda: getattr(p, 'menu_bar', None),
+            "settings_btn": lambda: getattr(p, 'settings_btn', None),
+            "sidebar_controls": lambda: p.start_btn.master if hasattr(p, 'start_btn') else None,
+            "start_btn": lambda: getattr(p, 'start_btn', None),
+            "agents_frame": lambda: getattr(p, 'agents_frame', None),
+            "input_area": lambda: p.input_entry.master.master if hasattr(p, 'input_entry') else None,
+            "log_panel": lambda: p.log_text.master if hasattr(p, 'log_text') else None,
+            "history_panel": lambda: p.history_frame.master if hasattr(p, 'history_frame') else None,
+        }
+        
+        getter = widget_map.get(target)
+        if getter:
+            try:
+                return getter()
+            except:
+                return None
+        return None
+    
+    def _show_step(self):
+        """Display the current step"""
         if self.current_step >= len(TUTORIAL_STEPS):
             self._complete()
-        else:
-            self._update_step()
-    
-    def _update_step(self):
+            return
+        
         step = TUTORIAL_STEPS[self.current_step]
-        self.icon_label.configure(text=step["icon"])
+        
+        # Update text
+        self.step_label.configure(text=f"Step {self.current_step + 1} of {len(TUTORIAL_STEPS)}")
         self.title_label.configure(text=step["title"])
         self.content_label.configure(text=step["content"])
-        for i, dot in enumerate(self.dots):
-            dot.configure(text_color=COLORS["accent"] if i == self.current_step else COLORS["text_muted"])
+        
+        # Update progress bar
+        progress = (self.current_step + 1) / len(TUTORIAL_STEPS)
+        self.progress_bar.place(relx=0, rely=0, relheight=1, relwidth=progress)
+        
+        # Update button text
         if self.current_step == len(TUTORIAL_STEPS) - 1:
-            self.next_btn.configure(text="Get Started!")
+            self.next_btn.configure(text="Finish!")
             self.skip_btn.pack_forget()
+        else:
+            self.next_btn.configure(text="Next →")
+        
+        # Position tooltip near target
+        target = step.get("target")
+        position = step.get("position", "center")
+        
+        widget = self._get_widget_for_target(target)
+        self._position_tooltip(widget, position)
+    
+    def _position_tooltip(self, widget, position):
+        """Position the tooltip relative to target widget"""
+        self.tooltip.update_idletasks()
+        tw = self.tooltip.winfo_reqwidth()
+        th = self.tooltip.winfo_reqheight()
+        
+        # Get overlay dimensions
+        ow = self.winfo_width()
+        oh = self.winfo_height()
+        
+        if widget is None or position == "center":
+            # Center in overlay
+            x = (ow - tw) // 2
+            y = (oh - th) // 2
+        else:
+            try:
+                # Get widget position relative to parent
+                wx = widget.winfo_rootx() - self.parent.winfo_rootx()
+                wy = widget.winfo_rooty() - self.parent.winfo_rooty()
+                ww = widget.winfo_width()
+                wh = widget.winfo_height()
+                
+                if position == "below":
+                    x = wx + (ww - tw) // 2
+                    y = wy + wh + 20
+                elif position == "above":
+                    x = wx + (ww - tw) // 2
+                    y = wy - th - 20
+                elif position == "right":
+                    x = wx + ww + 20
+                    y = wy + (wh - th) // 2
+                elif position == "left":
+                    x = wx - tw - 20
+                    y = wy + (wh - th) // 2
+                else:
+                    x = (ow - tw) // 2
+                    y = (oh - th) // 2
+                
+                # Keep tooltip in bounds
+                x = max(20, min(x, ow - tw - 20))
+                y = max(20, min(y, oh - th - 20))
+                
+            except:
+                x = (ow - tw) // 2
+                y = (oh - th) // 2
+        
+        self.tooltip.place(x=x, y=y)
+    
+    def _next(self):
+        """Go to next step"""
+        self.current_step += 1
+        self._show_step()
     
     def _skip(self):
+        """Skip the tutorial"""
         self._complete()
     
     def _complete(self):
+        """Complete the tutorial"""
         AppState().mark_first_run_complete()
         if self.on_complete:
             self.on_complete()
@@ -406,19 +610,22 @@ class EnhancedGUI(ctk.CTk):
     
     def _create_menu_bar(self):
         """Top menu bar"""
-        menu = ctk.CTkFrame(self, height=48, fg_color=COLORS["bg_secondary"], corner_radius=0)
-        menu.grid(row=0, column=0, columnspan=2, sticky="ew")
-        menu.grid_propagate(False)
+        self.menu_bar = ctk.CTkFrame(self, height=48, fg_color=COLORS["bg_secondary"], corner_radius=0)
+        self.menu_bar.grid(row=0, column=0, columnspan=2, sticky="ew")
+        self.menu_bar.grid_propagate(False)
         
         # Logo
-        ctk.CTkLabel(menu, text="✨ ASTRO", font=ctk.CTkFont(size=16, weight="bold"), text_color=COLORS["text"]).pack(side="left", padx=20)
+        ctk.CTkLabel(self.menu_bar, text="ASTRO", font=ctk.CTkFont(size=16, weight="bold"), text_color=COLORS["text"]).pack(side="left", padx=20)
         
         # Menu buttons
-        right = ctk.CTkFrame(menu, fg_color="transparent")
+        right = ctk.CTkFrame(self.menu_bar, fg_color="transparent")
         right.pack(side="right", padx=16)
         
-        ctk.CTkButton(right, text="Help", command=self.open_help, fg_color="transparent", hover_color=COLORS["bg_hover"], text_color=COLORS["text_secondary"], width=60, height=30, corner_radius=6).pack(side="left", padx=4)
-        ctk.CTkButton(right, text="Settings", command=self.open_settings, fg_color="transparent", hover_color=COLORS["bg_hover"], text_color=COLORS["text_secondary"], width=70, height=30, corner_radius=6).pack(side="left", padx=4)
+        self.help_btn = ctk.CTkButton(right, text="Help", command=self.open_help, fg_color="transparent", hover_color=COLORS["bg_hover"], text_color=COLORS["text_secondary"], width=60, height=30, corner_radius=6)
+        self.help_btn.pack(side="left", padx=4)
+        
+        self.settings_btn = ctk.CTkButton(right, text="Settings", command=self.open_settings, fg_color="transparent", hover_color=COLORS["bg_hover"], text_color=COLORS["text_secondary"], width=70, height=30, corner_radius=6)
+        self.settings_btn.pack(side="left", padx=4)
 
     def _create_sidebar(self):
         """Sidebar with controls"""
