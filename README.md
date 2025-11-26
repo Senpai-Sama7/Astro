@@ -396,6 +396,203 @@ filesystem_agent_001:
 
 ---
 
+## 🧠 Enterprise Advanced Systems
+
+ASTRO includes cutting-edge enterprise-grade systems for production deployments:
+
+### 🔌 MCP (Model Context Protocol) Integration
+
+Connect to external tools and resources via the standardized MCP protocol:
+
+```python
+from core.mcp_integration import MCPRegistry, MCPServerConfig
+
+# Register an MCP server
+registry = MCPRegistry()
+await registry.register_server(MCPServerConfig(
+    name="my_server",
+    transport="http",
+    url="http://localhost:3000"
+))
+
+# Call tools from any registered server
+result = await registry.call_tool("search", {"query": "AI trends"})
+```
+
+**Features:**
+- Multi-server support with automatic tool routing
+- JSON-RPC 2.0 compliant protocol
+- Retry logic with exponential backoff
+- Tool discovery and capability negotiation
+
+### 🤝 A2A (Agent-to-Agent) Protocol
+
+Enable direct communication between agents using Google's A2A protocol:
+
+```python
+from core.a2a_protocol import A2ACoordinator, AgentCard, A2ATask
+
+# Agents can discover and delegate tasks
+coordinator = get_a2a_coordinator()
+await coordinator.start()
+
+# Request another agent to perform a task
+task = A2ATask(task_id="001", name="research", input_data={"topic": "AI"})
+capable_agent = coordinator.find_capable_agent(["research", "web_search"])
+```
+
+**Features:**
+- Async message bus for agent communication
+- Capability-based agent discovery
+- Task delegation and collaboration
+- Heartbeat and status monitoring
+
+### 🏥 Self-Healing System
+
+Automatic failure detection, recovery, and resilience:
+
+```python
+from core.self_healing import get_self_healing_system, CircuitBreaker
+
+healing = get_self_healing_system()
+await healing.start()
+
+# Register components for monitoring
+healing.register_component(
+    "api_service",
+    health_check=check_api_health,
+    recovery_callback=restart_api
+)
+
+# Execute with full protection
+success, result = await healing.execute_with_protection(
+    "api_service", api_call, params
+)
+```
+
+**Features:**
+- Circuit breaker pattern (prevents cascade failures)
+- Configurable retry policies with exponential backoff
+- Health monitoring with latency tracking
+- Automatic recovery strategies
+
+### 🧮 Absolute Zero Reasoning Engine
+
+First-principles reasoning without prior examples:
+
+```python
+from core.zero_reasoning import create_reasoner, ReasoningMode
+
+reasoner = create_reasoner()
+
+# Chain-of-thought reasoning
+result = await reasoner.reason(
+    "What are the implications of quantum computing for cryptography?",
+    mode=ReasoningMode.DEDUCTIVE
+)
+
+# First-principles analysis
+analysis = await reasoner.reason_from_first_principles(
+    "How to design a scalable distributed system?"
+)
+```
+
+**Features:**
+- Chain-of-Thought (CoT) reasoning
+- Tree-of-Thought (ToT) for complex problems
+- Meta-cognitive self-evaluation
+- Dynamic knowledge base with axioms
+
+### 📚 Recursive Learning Framework
+
+Continuous self-improvement through experience:
+
+```python
+from core.recursive_learning import get_recursive_learner, ExperienceType
+
+learner = get_recursive_learner()
+
+# Record experiences
+learner.record_experience(
+    experience_type=ExperienceType.TASK_COMPLETION,
+    context={"task": "research"},
+    action="web_search",
+    outcome={"success": True},
+    reward=0.9
+)
+
+# Learn from experiences
+await learner.learn_batch(batch_size=32)
+
+# Get action suggestions
+action, confidence = learner.suggest_action({"task": "research"})
+```
+
+**Features:**
+- Experience replay buffer with priority sampling
+- Automatic pattern extraction
+- Skill building from patterns
+- Persistent knowledge storage
+
+### 🔄 Refactory Feedback Loop
+
+Automated code quality improvement:
+
+```python
+from core.refactory_loop import get_feedback_loop
+
+loop = get_feedback_loop()
+
+# Analyze and get suggestions
+result = await loop.run_iteration(source_code, auto_apply=False)
+
+print(f"Quality score: {result['before_score']:.2f} → {result['after_score']:.2f}")
+print(f"Suggestions: {result['suggestion_count']}")
+```
+
+**Features:**
+- Static code analysis (complexity, coverage, documentation)
+- Automated refactoring suggestions
+- Quality metrics tracking over time
+- LLM-powered code transformation
+
+### ⚡ Self-Adapting JIT Optimizer
+
+Runtime optimization that adapts to usage patterns:
+
+```python
+from core.adaptive_jit import get_adaptive_jit, jit_profile, jit_memoize
+
+jit = get_adaptive_jit()
+await jit.start()
+
+@jit.profile
+def frequently_called(x):
+    return expensive_computation(x)
+
+@jit.memoize(ttl=300)
+async def cached_api_call(query):
+    return await api.search(query)
+```
+
+**Features:**
+- Hot path detection
+- Automatic memoization
+- Adaptive caching strategies (LRU, LFU, TTL)
+- Performance profiling and statistics
+
+### 🧪 Running Enterprise Tests
+
+```bash
+# Run all advanced system tests
+python tests/test_advanced_systems.py
+
+# Expected output:
+# ✅ ALL TESTS PASSED - SYSTEM IS PRODUCTION READY
+```
+
+---
+
 ## 📁 Project Structure
 
 ```
@@ -410,9 +607,16 @@ astro/
 │   │   ├── code_agent.py     # Writes code
 │   │   └── filesystem_agent.py # Manages files
 │   │
-│   ├── 📁 core/              # The brain
+│   ├── 📁 core/              # The brain + Enterprise systems
 │   │   ├── engine.py         # Task manager
-│   │   └── nl_interface.py   # Understands you
+│   │   ├── nl_interface.py   # Understands you
+│   │   ├── mcp_integration.py # MCP protocol support
+│   │   ├── a2a_protocol.py   # Agent-to-Agent comms
+│   │   ├── self_healing.py   # Fault tolerance
+│   │   ├── zero_reasoning.py # First-principles AI
+│   │   ├── recursive_learning.py # Self-improvement
+│   │   ├── refactory_loop.py # Code quality
+│   │   └── adaptive_jit.py   # Runtime optimization
 │   │
 │   ├── main.py               # Command-line version
 │   └── gui_app.py            # Desktop app
