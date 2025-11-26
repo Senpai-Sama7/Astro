@@ -112,8 +112,8 @@ TUTORIAL_STEPS = [
         "position": "below"
     },
     {
-        "title": "Activity Log",
-        "content": "Watch what's happening in real-time!\n\nThis panel shows:\nAgent actions\nProgress updates\nResults and errors\n\nUse 'Clear' to clean it up.",
+        "title": "Reasoning Panel",
+        "content": "Watch AI thinking in real-time!\n\nThe 'Reasoning' tab shows:\n- Chain of Thought steps\n- Decision making process\n- Action results\n\nSwitch to 'Logs' for technical details.",
         "icon": "",
         "target": "log_panel",
         "position": "above"
@@ -610,21 +610,32 @@ class EnhancedGUI(ctk.CTk):
     
     def _create_menu_bar(self):
         """Top menu bar"""
-        self.menu_bar = ctk.CTkFrame(self, height=48, fg_color=COLORS["bg_secondary"], corner_radius=0)
+        self.menu_bar = ctk.CTkFrame(self, height=52, fg_color=COLORS["bg_secondary"], corner_radius=0)
         self.menu_bar.grid(row=0, column=0, columnspan=2, sticky="ew")
         self.menu_bar.grid_propagate(False)
         
         # Logo
-        ctk.CTkLabel(self.menu_bar, text="ASTRO", font=ctk.CTkFont(size=16, weight="bold"), text_color=COLORS["text"]).pack(side="left", padx=20)
+        ctk.CTkLabel(self.menu_bar, text="ASTRO", font=ctk.CTkFont(size=18, weight="bold"), text_color=COLORS["text"]).pack(side="left", padx=20)
         
         # Menu buttons
         right = ctk.CTkFrame(self.menu_bar, fg_color="transparent")
         right.pack(side="right", padx=16)
         
-        self.help_btn = ctk.CTkButton(right, text="Help", command=self.open_help, fg_color="transparent", hover_color=COLORS["bg_hover"], text_color=COLORS["text_secondary"], width=60, height=30, corner_radius=6)
+        self.help_btn = ctk.CTkButton(
+            right, text="? Help", command=self.open_help,
+            fg_color=COLORS["bg_card"], hover_color=COLORS["bg_hover"],
+            text_color=COLORS["text_secondary"], width=80, height=34, corner_radius=8,
+            font=ctk.CTkFont(size=13)
+        )
         self.help_btn.pack(side="left", padx=4)
         
-        self.settings_btn = ctk.CTkButton(right, text="Settings", command=self.open_settings, fg_color="transparent", hover_color=COLORS["bg_hover"], text_color=COLORS["text_secondary"], width=70, height=30, corner_radius=6)
+        # Settings button - More prominent with accent color
+        self.settings_btn = ctk.CTkButton(
+            right, text="Settings", command=self.open_settings,
+            fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"],
+            text_color="#ffffff", width=90, height=34, corner_radius=8,
+            font=ctk.CTkFont(size=13, weight="bold")
+        )
         self.settings_btn.pack(side="left", padx=4)
 
     def _create_sidebar(self):
@@ -717,50 +728,76 @@ class EnhancedGUI(ctk.CTk):
         activity.grid_columnconfigure(1, weight=1)
         activity.grid_rowconfigure(0, weight=1)
         
-        # Log panel
-        log_panel = GlassPanel(activity)
-        log_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        # Left panel with tabs (CoT + Logs)
+        left_panel = GlassPanel(activity)
+        left_panel.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
         
-        log_header = ctk.CTkFrame(log_panel, fg_color="transparent")
-        log_header.pack(fill="x", padx=20, pady=(16, 8))
+        # Tab header
+        tab_header = ctk.CTkFrame(left_panel, fg_color="transparent")
+        tab_header.pack(fill="x", padx=16, pady=(12, 0))
         
-        ctk.CTkLabel(
-            log_header,
-            text="Activity",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color=COLORS["text"]
-        ).pack(side="left")
+        self.active_tab = ctk.StringVar(value="cot")
         
+        self.cot_tab_btn = ctk.CTkButton(
+            tab_header, text="Reasoning", width=90, height=32,
+            corner_radius=8, font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color=COLORS["accent"], hover_color=COLORS["accent_hover"],
+            command=lambda: self._switch_tab("cot")
+        )
+        self.cot_tab_btn.pack(side="left", padx=(0, 4))
+        
+        self.logs_tab_btn = ctk.CTkButton(
+            tab_header, text="Logs", width=70, height=32,
+            corner_radius=8, font=ctk.CTkFont(size=12),
+            fg_color=COLORS["bg_card"], hover_color=COLORS["bg_hover"],
+            text_color=COLORS["text_secondary"],
+            command=lambda: self._switch_tab("logs")
+        )
+        self.logs_tab_btn.pack(side="left", padx=(0, 8))
+        
+        # Clear button
         ctk.CTkButton(
-            log_header,
-            text="Clear",
-            command=self.clear_logs,
-            fg_color="transparent",
-            hover_color=COLORS["bg_hover"],
-            width=50,
-            height=24,
-            corner_radius=6,
-            font=ctk.CTkFont(size=11),
-            text_color=COLORS["text_muted"]
+            tab_header, text="Clear", command=self.clear_logs,
+            fg_color="transparent", hover_color=COLORS["bg_hover"],
+            width=50, height=28, corner_radius=6,
+            font=ctk.CTkFont(size=11), text_color=COLORS["text_muted"]
         ).pack(side="right")
         
+        # CoT (Chain of Thought) view - shows reasoning steps
+        self.cot_frame = ctk.CTkFrame(left_panel, fg_color="transparent")
+        self.cot_frame.pack(fill="both", expand=True, padx=16, pady=(8, 16))
+        
+        self.cot_text = ctk.CTkTextbox(
+            self.cot_frame,
+            fg_color=COLORS["bg_input"],
+            text_color=COLORS["text"],
+            font=ctk.CTkFont(size=12),
+            wrap="word",
+            corner_radius=8
+        )
+        self.cot_text.pack(fill="both", expand=True)
+        self.cot_text.insert("end", "Reasoning steps will appear here...\n\n")
+        self.cot_text.configure(state="disabled")
+        
+        # Logs view - hidden by default
+        self.logs_frame = ctk.CTkFrame(left_panel, fg_color="transparent")
+        
         self.log_text = ctk.CTkTextbox(
-            log_panel,
+            self.logs_frame,
             fg_color=COLORS["bg_input"],
             text_color=COLORS["text"],
             font=("SF Mono", 11),
             wrap="word",
             corner_radius=8
         )
-        self.log_text.pack(fill="both", expand=True, padx=16, pady=(0, 16))
+        self.log_text.pack(fill="both", expand=True)
         
-        # Tasks panel
+        # Tasks panel (right side)
         tasks_panel = GlassPanel(activity)
         tasks_panel.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
         
         ctk.CTkLabel(
-            tasks_panel,
-            text="Tasks",
+            tasks_panel, text="Tasks",
             font=ctk.CTkFont(size=13, weight="bold"),
             text_color=COLORS["text"]
         ).pack(anchor="w", padx=20, pady=(16, 8))
@@ -773,12 +810,169 @@ class EnhancedGUI(ctk.CTk):
         )
         self.history_frame.pack(fill="both", expand=True, padx=12, pady=(0, 12))
 
+    def _switch_tab(self, tab):
+        """Switch between CoT and Logs tabs"""
+        self.active_tab.set(tab)
+        
+        if tab == "cot":
+            self.cot_tab_btn.configure(
+                fg_color=COLORS["accent"], 
+                text_color="#ffffff",
+                font=ctk.CTkFont(size=12, weight="bold")
+            )
+            self.logs_tab_btn.configure(
+                fg_color=COLORS["bg_card"],
+                text_color=COLORS["text_secondary"],
+                font=ctk.CTkFont(size=12)
+            )
+            self.logs_frame.pack_forget()
+            self.cot_frame.pack(fill="both", expand=True, padx=16, pady=(8, 16))
+        else:
+            self.logs_tab_btn.configure(
+                fg_color=COLORS["accent"],
+                text_color="#ffffff",
+                font=ctk.CTkFont(size=12, weight="bold")
+            )
+            self.cot_tab_btn.configure(
+                fg_color=COLORS["bg_card"],
+                text_color=COLORS["text_secondary"],
+                font=ctk.CTkFont(size=12)
+            )
+            self.cot_frame.pack_forget()
+            self.logs_frame.pack(fill="both", expand=True, padx=16, pady=(8, 16))
+    
+    def add_reasoning_step(self, step_text, step_type="thought"):
+        """Add a reasoning step to the CoT display"""
+        self.cot_text.configure(state="normal")
+        
+        # Add icon based on type
+        icons = {
+            "thought": "Thinking",
+            "action": "Action",
+            "observation": "Result",
+            "error": "Error"
+        }
+        icon = icons.get(step_type, "")
+        
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        self.cot_text.insert("end", f"[{timestamp}] {icon}\n")
+        self.cot_text.insert("end", f"{step_text}\n\n")
+        self.cot_text.see("end")
+        self.cot_text.configure(state="disabled")
+    
+    def show_error_popup(self, error_message, suggested_fixes=None):
+        """Show error popup with actionable fixes"""
+        ErrorPopup(self, error_message, suggested_fixes)
+    
     def open_settings(self):
         """Open settings dialog"""
         if not hasattr(self, 'settings_window') or not self.settings_window.winfo_exists():
             self.settings_window = SettingsDialog(self)
         else:
             self.settings_window.focus()
+
+
+class ErrorPopup(ctk.CTkToplevel):
+    """Popup dialog for errors with actionable fixes"""
+    
+    def __init__(self, parent, error_message, suggested_fixes=None):
+        super().__init__(parent)
+        self.parent = parent
+        self.suggested_fixes = suggested_fixes or []
+        
+        self.title("Error")
+        self.geometry("450x350")
+        self.resizable(False, False)
+        self.configure(fg_color=COLORS["bg_primary"])
+        
+        self.transient(parent)
+        self.grab_set()
+        
+        self._build_ui(error_message)
+        
+        self.focus_force()
+        self.lift()
+    
+    def _build_ui(self, error_message):
+        """Build error popup UI"""
+        content = ctk.CTkFrame(self, fg_color="transparent")
+        content.pack(fill="both", expand=True, padx=24, pady=24)
+        
+        # Error header
+        header = ctk.CTkFrame(content, fg_color=COLORS["error"], corner_radius=12, height=60)
+        header.pack(fill="x", pady=(0, 16))
+        header.pack_propagate(False)
+        
+        header_content = ctk.CTkFrame(header, fg_color="transparent")
+        header_content.pack(expand=True, fill="both", padx=16, pady=12)
+        
+        ctk.CTkLabel(
+            header_content,
+            text="! Error Occurred",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="#ffffff"
+        ).pack(side="left")
+        
+        # Error message
+        msg_frame = ctk.CTkFrame(content, fg_color=COLORS["bg_card"], corner_radius=10)
+        msg_frame.pack(fill="x", pady=(0, 16))
+        
+        ctk.CTkLabel(
+            msg_frame,
+            text=error_message,
+            font=ctk.CTkFont(size=13),
+            text_color=COLORS["text"],
+            wraplength=380,
+            justify="left"
+        ).pack(padx=16, pady=12, anchor="w")
+        
+        # Suggested fixes
+        if self.suggested_fixes:
+            ctk.CTkLabel(
+                content,
+                text="Suggested Fixes:",
+                font=ctk.CTkFont(size=13, weight="bold"),
+                text_color=COLORS["text"]
+            ).pack(anchor="w", pady=(0, 8))
+            
+            fixes_frame = ctk.CTkScrollableFrame(
+                content, 
+                fg_color="transparent",
+                height=100
+            )
+            fixes_frame.pack(fill="x", pady=(0, 16))
+            
+            for i, fix in enumerate(self.suggested_fixes, 1):
+                fix_btn = ctk.CTkButton(
+                    fixes_frame,
+                    text=f"{i}. {fix['label']}",
+                    command=lambda f=fix: self._apply_fix(f),
+                    fg_color=COLORS["bg_card"],
+                    hover_color=COLORS["bg_hover"],
+                    text_color=COLORS["text"],
+                    anchor="w",
+                    height=36,
+                    corner_radius=8
+                )
+                fix_btn.pack(fill="x", pady=2)
+        
+        # Dismiss button
+        ctk.CTkButton(
+            content,
+            text="Dismiss",
+            command=self.destroy,
+            fg_color=COLORS["bg_card"],
+            hover_color=COLORS["bg_hover"],
+            text_color=COLORS["text"],
+            height=40,
+            corner_radius=8
+        ).pack(fill="x")
+    
+    def _apply_fix(self, fix):
+        """Apply a suggested fix"""
+        if "action" in fix and callable(fix["action"]):
+            fix["action"]()
+        self.destroy()
 
 
 class SettingsDialog(ctk.CTkToplevel):
@@ -988,7 +1182,7 @@ class SettingsDialog(ctk.CTkToplevel):
             value=value,
             fg_color=COLORS["accent"],
             border_color=COLORS["border"],
-            hover_color=COLORS["accent_soft"]
+            hover_color=COLORS["accent_hover"]
         )
         radio.pack(side="left")
         
@@ -1146,11 +1340,72 @@ def _setup_logging_impl(self):
 
 
 def _process_logs_impl(self):
-    """Process log queue"""
+    """Process log queue - route to CoT or Logs based on content"""
+    # Keywords that indicate reasoning/CoT content
+    cot_keywords = ["thinking", "reasoning", "analyzing", "considering", "step", 
+                    "thought", "chain", "plan", "approach", "strategy", "decision"]
+    error_keywords = ["error", "exception", "failed", "failure", "traceback"]
+    
     while not self.log_queue.empty():
         msg = self.log_queue.get()
+        msg_lower = msg.lower()
+        
+        # Check if it's an error - show popup
+        if any(kw in msg_lower for kw in error_keywords) and "ERROR" in msg:
+            # Extract error message
+            error_msg = msg.split("│")[-1].strip() if "│" in msg else msg
+            
+            # Generate suggested fixes based on error type
+            fixes = []
+            if "api key" in msg_lower or "authentication" in msg_lower:
+                fixes.append({
+                    "label": "Open Settings to configure API key",
+                    "action": lambda: self.open_settings()
+                })
+            if "connection" in msg_lower or "network" in msg_lower:
+                fixes.append({
+                    "label": "Check your internet connection",
+                    "action": None
+                })
+            if "ollama" in msg_lower:
+                fixes.append({
+                    "label": "Start Ollama server (ollama serve)",
+                    "action": None
+                })
+                fixes.append({
+                    "label": "Pull a model (ollama pull llama3.2)",
+                    "action": None
+                })
+            if "model" in msg_lower and "not found" in msg_lower:
+                fixes.append({
+                    "label": "Open Settings to select a different model",
+                    "action": lambda: self.open_settings()
+                })
+            
+            # Show error popup (but don't block, just schedule it)
+            self.after(100, lambda m=error_msg, f=fixes: self.show_error_popup(m, f) if f else None)
+            
+            # Also add to CoT as error
+            self.add_reasoning_step(error_msg, "error")
+        
+        # Check if it's reasoning/CoT content
+        elif any(kw in msg_lower for kw in cot_keywords):
+            # Extract the message content
+            content = msg.split("│")[-1].strip() if "│" in msg else msg
+            
+            # Determine step type
+            if "action" in msg_lower or "executing" in msg_lower:
+                step_type = "action"
+            elif "result" in msg_lower or "observation" in msg_lower or "found" in msg_lower:
+                step_type = "observation"
+            else:
+                step_type = "thought"
+            
+            self.add_reasoning_step(content, step_type)
+        
+        # All messages go to logs
         self.log_text.insert("end", msg + "\n")
-        self.log_text.see("end")  # Always auto-scroll
+        self.log_text.see("end")
             
     self.after(100, self.process_logs)
 
@@ -1215,9 +1470,17 @@ def _stop_system_impl(self):
 
 
 def _clear_logs_impl(self):
-    """Clear log display"""
+    """Clear both CoT and log displays"""
+    # Clear logs
     self.log_text.delete("1.0", "end")
-    logging.info("🗑️ Logs cleared")
+    
+    # Clear CoT
+    self.cot_text.configure(state="normal")
+    self.cot_text.delete("1.0", "end")
+    self.cot_text.insert("end", "Reasoning steps will appear here...\n\n")
+    self.cot_text.configure(state="disabled")
+    
+    logging.info("Cleared")
 
 
 def _run_async_loop_impl(self):
