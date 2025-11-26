@@ -7,6 +7,7 @@ import sys
 import os
 import logging
 from datetime import datetime
+import pytest
 
 # Add src to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
@@ -15,7 +16,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 
-class TestResult:
+class IntegrationTestResult:
     def __init__(self, name: str):
         self.name = name
         self.passed = False
@@ -27,9 +28,10 @@ class TestResult:
         return f"{status} - {self.name} ({self.duration_ms:.1f}ms)"
 
 
+@pytest.mark.asyncio
 async def test_mcp_integration():
     """Test MCP Integration Module"""
-    result = TestResult("MCP Integration")
+    result = IntegrationTestResult("MCP Integration")
     start = datetime.now()
     
     try:
@@ -76,9 +78,10 @@ async def test_mcp_integration():
     return result
 
 
+@pytest.mark.asyncio
 async def test_a2a_protocol():
     """Test A2A Protocol"""
-    result = TestResult("A2A Protocol")
+    result = IntegrationTestResult("A2A Protocol")
     start = datetime.now()
     
     try:
@@ -162,9 +165,10 @@ async def test_a2a_protocol():
     return result
 
 
+@pytest.mark.asyncio
 async def test_self_healing():
     """Test Self-Healing System"""
-    result = TestResult("Self-Healing System")
+    result = IntegrationTestResult("Self-Healing System")
     start = datetime.now()
     
     try:
@@ -237,9 +241,10 @@ async def test_self_healing():
     return result
 
 
+@pytest.mark.asyncio
 async def test_zero_reasoning():
     """Test Absolute Zero Reasoning Engine"""
-    result = TestResult("Zero Reasoning Engine")
+    result = IntegrationTestResult("Zero Reasoning Engine")
     start = datetime.now()
     
     try:
@@ -302,9 +307,10 @@ async def test_zero_reasoning():
     return result
 
 
+@pytest.mark.asyncio
 async def test_recursive_learning():
     """Test Recursive Learning Framework"""
-    result = TestResult("Recursive Learning")
+    result = IntegrationTestResult("Recursive Learning")
     start = datetime.now()
     
     try:
@@ -386,9 +392,10 @@ async def test_recursive_learning():
     return result
 
 
+@pytest.mark.asyncio
 async def test_refactory_loop():
     """Test Refactory Feedback Loop"""
-    result = TestResult("Refactory Feedback Loop")
+    result = IntegrationTestResult("Refactory Feedback Loop")
     start = datetime.now()
     
     try:
@@ -469,9 +476,10 @@ def another_function(a, b, c, d, e):
     return result
 
 
+@pytest.mark.asyncio
 async def test_adaptive_jit():
     """Test Self-Adapting JIT"""
-    result = TestResult("Adaptive JIT")
+    result = IntegrationTestResult("Adaptive JIT")
     start = datetime.now()
     
     try:
