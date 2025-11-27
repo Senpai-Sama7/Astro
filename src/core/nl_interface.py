@@ -1,10 +1,14 @@
 """
 Natural Language Interface for Autonomous Agent Ecosystem
+
+SECURITY: This module includes prompt injection defenses.
+All user input is sanitized before LLM processing.
 """
 import logging
 import json
 import uuid
 import asyncio
+import re
 from typing import Dict, Any, List, Optional
 from core.engine import AgentEngine, Workflow, Task, WorkflowPriority
 
@@ -17,6 +21,40 @@ except ImportError:
 
 logger = logging.getLogger("NaturalLanguageInterface")
 
+
+class SecurityException(Exception):
+    """Raised when a security violation is detected (e.g., prompt injection attempt)"""
+    pass
+
+
+# Hostile prompt patterns - case-insensitive regex patterns
+# These detect common prompt injection techniques
+HOSTILE_PATTERNS = [
+    r"ignore\s+(all\s+)?previous\s+instructions?",
+    r"ignore\s+(all\s+)?prior\s+instructions?",
+    r"disregard\s+(all\s+)?previous",
+    r"forget\s+(all\s+)?previous",
+    r"system\s*override",
+    r"admin\s*mode",
+    r"developer\s*mode",
+    r"bypass\s+(all\s+)?restrictions?",
+    r"bypass\s+(all\s+)?safety",
+    r"bypass\s+(all\s+)?security",
+    r"you\s+are\s+now\s+(a|an)",  # "You are now a DAN"
+    r"pretend\s+you\s+are",
+    r"act\s+as\s+if\s+you\s+have\s+no\s+restrictions",
+    r"jailbreak",
+    r"do\s+anything\s+now",
+    r"\bdan\b",  # DAN prompt
+    r"ignore\s+ethical\s+guidelines",
+    r"ignore\s+safety\s+guidelines",
+    r"new\s+instructions?:\s*",
+    r"\[\s*system\s*\]",  # [SYSTEM] injection
+    r"<\s*system\s*>",   # <system> injection
+    r"\{\{.*\}\}",       # Template injection {{...}}
+]
+
+
 class NaturalLanguageInterface:
     """
     Translates natural language user requests into structured workflows and tasks.
@@ -28,20 +66,72 @@ class NaturalLanguageInterface:
         self.llm_client = llm_client
         self.model_name = model_name
         
+    def _sanitize_input(self, input_str: str) -> str:
+        """
+        Sanitize user input to prevent prompt injection attacks.
+        
+        SECURITY: This is a defense-in-depth layer. It detects known hostile
+        patterns that attempt to manipulate LLM behavior (jailbreaks, system
+        overrides, instruction ignoring, etc.).
+        
+        Args:
+            input_str: Raw user input
+            
+        Returns:
+            Sanitized input string
+            
+        Raises:
+            SecurityException: If hostile prompt injection is detected
+        """
+        if not input_str:
+            return ""
+        
+        # Normalize input for pattern matching
+        normalized = input_str.strip()
+        
+        # Check against hostile patterns
+        for pattern in HOSTILE_PATTERNS:
+            if re.search(pattern, normalized, re.IGNORECASE):
+                logger.warning(f"SECURITY: Blocked prompt injection attempt. Pattern: {pattern}")
+                raise SecurityException(
+                    "Your request was blocked for security reasons. "
+                    "Please rephrase your request without attempting to modify system behavior."
+                )
+        
+        # Length limit to prevent token exhaustion attacks
+        max_length = 10000
+        if len(normalized) > max_length:
+            logger.warning(f"SECURITY: Input truncated from {len(normalized)} to {max_length} chars")
+            normalized = normalized[:max_length]
+        
+        # Strip potential control characters (except newlines/tabs)
+        normalized = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]', '', normalized)
+        
+        return normalized
+    
     async def process_request(self, user_input: str) -> str:
         """
         Process a natural language request and submit a workflow.
         Returns the workflow ID.
+        
+        SECURITY: Input is sanitized before any LLM interaction.
         """
-        logger.info(f"Processing NL request: {user_input}")
+        # SECURITY: Sanitize input FIRST, before any processing
+        try:
+            sanitized_input = self._sanitize_input(user_input)
+        except SecurityException as e:
+            logger.warning(f"Security exception during input sanitization: {e}")
+            return f"BLOCKED: {e}"
+        
+        logger.info(f"Processing NL request: {sanitized_input[:100]}...")
         
         if not self.llm_client:
             # Fallback for when no LLM is configured - simple keyword matching
-            return await self._process_keyword_request(user_input)
+            return await self._process_keyword_request(sanitized_input)
             
         try:
-            # Use LLM to parse request
-            workflow_plan = await self._parse_intent_with_llm(user_input)
+            # Use LLM to parse request (with sanitized input)
+            workflow_plan = await self._parse_intent_with_llm(sanitized_input)
             return await self._submit_parsed_workflow(workflow_plan)
         except Exception as e:
             logger.error(f"Failed to process NL request: {e}")

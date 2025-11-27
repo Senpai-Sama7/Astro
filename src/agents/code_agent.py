@@ -270,14 +270,27 @@ class CodeAgent(BaseAgent):
         """
         Execute code in an ephemeral Docker container for security isolation.
         
+        SECURITY: Container is completely isolated with NO network access.
+        This is hardcoded and CANNOT be overridden by configuration.
+        
         Container features:
-        - No network access (--network none)
+        - No network access (--network none) - HARDCODED, NON-NEGOTIABLE
         - Read-only filesystem (--read-only)
         - Limited memory (--memory 128m)
         - Limited CPU (--cpus 0.5)
         - Dropped capabilities (--cap-drop ALL)
+        - No new privileges (--security-opt no-new-privileges)
         - Auto-removed after execution (--rm)
         """
+        # SECURITY: These flags are HARDCODED and cannot be overridden
+        # Even if config attempts to pass network arguments, they are ignored
+        HARDCODED_SECURITY_FLAGS = [
+            '--network', 'none',             # MANDATORY: No network access
+            '--read-only',                   # MANDATORY: Read-only filesystem
+            '--cap-drop', 'ALL',             # MANDATORY: Drop all capabilities
+            '--security-opt', 'no-new-privileges',  # MANDATORY: No privilege escalation
+        ]
+        
         temp_path = None
         try:
             # Write code to temp file
@@ -289,23 +302,28 @@ class CodeAgent(BaseAgent):
             if sys.platform != 'win32':
                 os.chmod(temp_path, 0o644)
             
-            # Docker command with security constraints
-            docker_cmd = [
-                'docker', 'run',
-                '--rm',                          # Auto-remove container
-                '--network', 'none',             # No network access
-                '--read-only',                   # Read-only filesystem
+            # Build Docker command - security flags are ALWAYS applied first
+            docker_cmd = ['docker', 'run', '--rm']
+            
+            # SECURITY: Add hardcoded security flags (non-overridable)
+            docker_cmd.extend(HARDCODED_SECURITY_FLAGS)
+            
+            # Add configurable resource limits (safe to customize)
+            docker_cmd.extend([
                 '--memory', '128m',              # Memory limit
                 '--cpus', '0.5',                 # CPU limit
-                '--cap-drop', 'ALL',             # Drop all capabilities
-                '--security-opt', 'no-new-privileges',
+            ])
+            
+            # Add volume mount and working directory
+            docker_cmd.extend([
                 '-v', f'{temp_path}:/code/script.py:ro',  # Mount code read-only
                 '-w', '/code',                   # Working directory
                 self.docker_image,
                 'python', '/code/script.py'
-            ]
+            ])
             
-            logger.info(f"Executing code in Docker sandbox ({self.docker_image})")
+            # SECURITY: Log that we're using enforced isolation
+            logger.info(f"Executing code in Docker sandbox ({self.docker_image}) with enforced network isolation")
             
             proc = await asyncio.create_subprocess_exec(
                 *docker_cmd,

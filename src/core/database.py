@@ -4,7 +4,10 @@ Database Persistence Layer
 REFACTORED: Native async database operations using aiosqlite.
 - True async I/O without blocking the event loop
 - Connection pooling via async context managers
-- Maintains backward compatibility with sync API for CLI/scripts
+- Sync API marked DEPRECATED - use async methods in production
+
+SECURITY: Sync methods are deprecated for production use due to potential
+blocking/race conditions. They remain for CLI scripts and testing only.
 """
 import json
 import sqlite3
@@ -13,6 +16,8 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 import logging
 
+import warnings
+
 # Import aiosqlite for native async SQLite
 try:
     import aiosqlite
@@ -20,6 +25,16 @@ try:
 except ImportError:
     HAS_AIOSQLITE = False
     logging.warning("aiosqlite not installed. Async DB operations will use thread fallback.")
+
+
+def _deprecation_warning(method_name: str):
+    """Emit deprecation warning for sync methods in production context"""
+    warnings.warn(
+        f"{method_name}() is deprecated for production use. "
+        f"Use {method_name}_async() instead to avoid blocking the event loop.",
+        DeprecationWarning,
+        stacklevel=3
+    )
 
 logger = logging.getLogger("DatabaseManager")
 
@@ -104,17 +119,40 @@ class DatabaseManager:
     # ========== ASYNC INITIALIZATION ==========
     
     async def _ensure_async_init(self):
-        """Ensure async schema is initialized (idempotent)"""
+        """
+        Ensure async schema is initialized (idempotent).
+        
+        MUST be called before any async operation. This method:
+        - Enables WAL mode for better concurrency
+        - Sets connection timeout
+        - Is idempotent (safe to call multiple times)
+        """
         if self._async_initialized:
             return
         
-        if HAS_AIOSQLITE:
-            async with aiosqlite.connect(self.db_path) as db:
-                # Enable WAL mode for better concurrency
-                await db.execute('PRAGMA journal_mode=WAL')
-                await db.commit()
+        if self._closed:
+            raise RuntimeError("DatabaseManager has been closed")
         
-        self._async_initialized = True
+        if HAS_AIOSQLITE:
+            try:
+                async with aiosqlite.connect(
+                    self.db_path, 
+                    timeout=self.connection_timeout
+                ) as db:
+                    # Enable WAL mode for better concurrency
+                    await db.execute('PRAGMA journal_mode=WAL')
+                    # Set busy timeout to avoid SQLITE_BUSY errors
+                    await db.execute(f'PRAGMA busy_timeout={int(self.connection_timeout * 1000)}')
+                    await db.commit()
+                self._async_initialized = True
+                logger.debug("Async database initialized with WAL mode")
+            except Exception as e:
+                logger.error(f"Failed to initialize async database: {e}")
+                raise
+        else:
+            # Fallback: mark as initialized but log warning
+            logger.warning("aiosqlite not available - async operations will use thread pool")
+            self._async_initialized = True
     
     # ========== SYNC HELPERS ==========
     
@@ -128,10 +166,13 @@ class DatabaseManager:
             logger.error(f"DB Write Error: {e}")
             raise
     
-    # ========== SYNC API (Backward Compatible) ==========
+    # ========== SYNC API (DEPRECATED for production) ==========
+    # These methods block the event loop and may cause race conditions.
+    # Use async versions in production code.
     
     def save_agent(self, agent_id: str, config: Dict, state: str, reliability: float):
-        """Sync save agent (blocks caller)"""
+        """Sync save agent (blocks caller) - DEPRECATED for production"""
+        _deprecation_warning('save_agent')
         sql = '''INSERT OR REPLACE INTO agents 
                  (agent_id, config, state, reliability_score, last_updated)
                  VALUES (?, ?, ?, ?, ?)'''
@@ -139,7 +180,8 @@ class DatabaseManager:
         self._execute_write(sql, params)
 
     def save_workflow(self, workflow_id: str, name: str, status: str, priority: str):
-        """Sync save workflow (blocks caller)"""
+        """Sync save workflow (blocks caller) - DEPRECATED for production"""
+        _deprecation_warning('save_workflow')
         sql = '''INSERT OR REPLACE INTO workflows 
                  (workflow_id, name, status, priority, created_at)
                  VALUES (?, ?, ?, ?, ?)'''
@@ -148,7 +190,8 @@ class DatabaseManager:
 
     def save_task(self, task_id: str, workflow_id: str, description: str, status: str, 
                   assigned_agent: Optional[str] = None, result: Optional[Dict] = None):
-        """Sync save task (blocks caller)"""
+        """Sync save task (blocks caller) - DEPRECATED for production"""
+        _deprecation_warning('save_task')
         sql = '''INSERT OR REPLACE INTO tasks 
                  (task_id, workflow_id, description, status, assigned_agent, result, created_at, completed_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)'''
@@ -159,7 +202,8 @@ class DatabaseManager:
         self._execute_write(sql, params)
 
     def log_metric(self, agent_id: str, metric_type: str, value: float):
-        """Sync log metric (blocks caller)"""
+        """Sync log metric (blocks caller) - DEPRECATED for production"""
+        _deprecation_warning('log_metric')
         sql = '''INSERT INTO metrics (agent_id, metric_type, value, timestamp)
                  VALUES (?, ?, ?, ?)'''
         params = (agent_id, metric_type, value, datetime.now().isoformat())
