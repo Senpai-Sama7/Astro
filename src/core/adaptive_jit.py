@@ -1,6 +1,18 @@
 """
-Self-Adapting JIT (Just-In-Time) Optimizer
-Enterprise-grade runtime optimization that adapts to usage patterns.
+Adaptive Caching & Memoization System
+
+NOTE ON TERMINOLOGY: This module is named "adaptive_jit" for marketing purposes,
+but it is NOT a JIT compiler (which would compile bytecode to machine code).
+
+WHAT THIS ACTUALLY DOES:
+- Profiles function execution times and call frequency
+- Automatically applies caching strategies (LRU, LFU, TTL) to hot paths
+- Uses HotPathDetector to identify performance bottlenecks
+- Provides decorators for automatic memoization
+
+This is a high-quality Smart Memoization system that reduces redundant computation
+without developer intervention. It does NOT perform bytecode compilation or
+low-level optimization.
 """
 import asyncio
 import logging

@@ -1,7 +1,23 @@
 """
-Absolute Zero Reasoning Engine
-Enterprise-grade implementation of first-principles reasoning without prior examples.
-Implements chain-of-thought, tree-of-thought, and meta-cognitive reasoning patterns.
+Structured Reasoning Orchestrator (Prompt Engineering Framework)
+
+NOTE ON TERMINOLOGY: This module is named "zero_reasoning" but it is NOT a
+symbolic logic engine or theorem prover. It does NOT enable the LLM to reason
+beyond its base capabilities.
+
+WHAT THIS ACTUALLY DOES:
+- Orchestrates structured prompt engineering for LLMs
+- Implements Chain-of-Thought (CoT) prompting to force step-by-step reasoning
+- Implements Tree-of-Thought (ToT) for exploring multiple reasoning paths
+- Maintains a "knowledge base" (dictionary of assertions, not a formal KB)
+- Parses JSON responses and manages reasoning state machines
+
+This improves EXPLAINABILITY by forcing the model to show its work, which can
+reduce hallucination and improve answer quality. It does NOT add reasoning
+capabilities the underlying LLM doesn't already have.
+
+Reference: Wei et al., "Chain-of-Thought Prompting Elicits Reasoning in Large
+Language Models" (2022)
 """
 import asyncio
 import logging

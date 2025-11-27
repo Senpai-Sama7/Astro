@@ -4,8 +4,13 @@ Code Agent with Real Generation and Execution Capabilities
 REFACTORED: Full async implementation.
 - Async subprocess execution (asyncio.create_subprocess_exec)
 - Async LLM API calls (AsyncOpenAI)
-- Optional Docker sandbox for secure code execution
-- Improved security validation with regex patterns
+- Docker sandbox REQUIRED for code execution in production
+- Local execution disabled by default (security risk)
+
+SECURITY WARNING:
+    Regex-based blocklisting is fundamentally insecure. Attackers can bypass
+    string matching via getattr(__import__('os'), 'system'), base64 encoding,
+    or other dynamic execution paths. Always use Docker sandbox in production.
 """
 import asyncio
 import logging
@@ -37,7 +42,11 @@ class CodeAgent(BaseAgent):
         super().__init__(agent_id, [AgentCapability.OPTIMIZATION], config)
         
         self.safe_mode = config.get("safe_mode", True)
-        self.use_docker = config.get("use_docker_sandbox", False) and HAS_DOCKER
+        
+        # SECURITY: Docker sandbox is now REQUIRED by default for code execution
+        # Set allow_local_execution=True explicitly to enable insecure local mode
+        self.allow_local_execution = config.get("allow_local_execution", False)
+        self.use_docker = config.get("use_docker_sandbox", True) and HAS_DOCKER
         self.docker_image = config.get("docker_image", "python:3.11-slim")
         self.provider = config.get("llm_provider", "openai").lower()
         self.model_name = config.get("model_name", "gpt-3.5-turbo")
@@ -179,16 +188,31 @@ class CodeAgent(BaseAgent):
         return code
 
     async def _execute_code(self, code: str) -> TaskResult:
-        """Execute Python code - uses Docker sandbox if enabled, otherwise async subprocess"""
+        """Execute Python code - uses Docker sandbox (required), falls back to local only if explicitly allowed"""
         if not code:
             return TaskResult(success=False, error_message="No code provided for execution")
         
-        # Use Docker sandbox if enabled (more secure)
+        # SECURITY: Docker sandbox is the ONLY secure option
         if self.use_docker:
             return await self._execute_code_docker(code)
         
-        # Otherwise use local subprocess with security checks
-        # Enhanced Security Check (still naive - production should use Docker/Wasm sandboxing)
+        # Docker not available - check if local execution is explicitly allowed
+        if not self.allow_local_execution:
+            return TaskResult(
+                success=False,
+                error_message=(
+                    "SECURITY: Code execution blocked. Docker is required for secure execution. "
+                    "Install Docker and ensure it's running, OR set allow_local_execution=True "
+                    "in config (NOT RECOMMENDED for untrusted code). "
+                    "See: https://docs.docker.com/get-docker/"
+                )
+            )
+        
+        # Local execution explicitly allowed - apply security checks (WARNING: bypassable)
+        logger.warning(
+            "SECURITY WARNING: Executing code locally without Docker sandbox. "
+            "Regex-based security checks can be bypassed. Use Docker for untrusted code."
+        )
         security_result = self._security_check(code)
         if security_result:
             return security_result
@@ -328,10 +352,15 @@ class CodeAgent(BaseAgent):
         """
         Perform security validation on code.
         
-        WARNING: This is still naive string matching. Production systems should:
-        - Execute in ephemeral Docker containers
-        - Use WebAssembly (Wasm) sandboxes
-        - Implement proper AST-based analysis
+        CRITICAL WARNING: This is fundamentally insecure.
+        
+        Regex blocklisting CANNOT prevent malicious code execution. Bypass examples:
+        - getattr(__import__('os'), 'system')('malicious command')
+        - exec(base64.b64decode('encoded_payload'))
+        - eval(chr(111)+chr(115))  # spells 'os'
+        
+        This check exists ONLY as a minimal filter for obviously dangerous code.
+        It provides NO SECURITY GUARANTEE. Always use Docker sandbox for untrusted code.
         """
         if not self.safe_mode:
             return None

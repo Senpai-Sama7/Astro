@@ -71,6 +71,25 @@ class DatabaseManager:
                       metric_type TEXT,
                       value REAL,
                       timestamp TIMESTAMP)''')
+        
+        # Learning patterns table (for recursive_learning.py)
+        c.execute('''CREATE TABLE IF NOT EXISTS learning_patterns
+                     (pattern_id TEXT PRIMARY KEY,
+                      pattern_type TEXT,
+                      conditions TEXT,
+                      action TEXT,
+                      expected_outcome TEXT,
+                      confidence REAL,
+                      usage_count INTEGER DEFAULT 0,
+                      success_count INTEGER DEFAULT 0,
+                      last_used TIMESTAMP,
+                      created_at TIMESTAMP)''')
+        
+        # Learning metadata table
+        c.execute('''CREATE TABLE IF NOT EXISTS learning_metadata
+                     (key TEXT PRIMARY KEY,
+                      value TEXT,
+                      updated_at TIMESTAMP)''')
                       
         # Create Indices
         c.execute('CREATE INDEX IF NOT EXISTS idx_tasks_workflow_id ON tasks(workflow_id)')
@@ -336,6 +355,64 @@ class DatabaseManager:
                 stats[f'{table}_count'] = await asyncio.to_thread(_sync_count)
         
         return stats
+    
+    # ========== LEARNING PATTERN PERSISTENCE ==========
+    
+    def save_learning_pattern(self, pattern_id: str, pattern_type: str, conditions: List[Dict],
+                               action: str, expected_outcome: str, confidence: float,
+                               usage_count: int = 0, success_count: int = 0, last_used: str = None):
+        """Save a learning pattern to the database"""
+        sql = '''INSERT OR REPLACE INTO learning_patterns 
+                 (pattern_id, pattern_type, conditions, action, expected_outcome, 
+                  confidence, usage_count, success_count, last_used, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'''
+        now = datetime.now().isoformat()
+        params = (pattern_id, pattern_type, json.dumps(conditions), action, 
+                  expected_outcome, confidence, usage_count, success_count, 
+                  last_used or now, now)
+        self._execute_write(sql, params)
+    
+    def load_learning_patterns(self) -> List[Dict[str, Any]]:
+        """Load all learning patterns from the database"""
+        try:
+            with sqlite3.connect(self.db_path, timeout=self.connection_timeout) as conn:
+                conn.row_factory = sqlite3.Row
+                cursor = conn.execute('SELECT * FROM learning_patterns')
+                patterns = []
+                for row in cursor.fetchall():
+                    patterns.append({
+                        "pattern_id": row["pattern_id"],
+                        "pattern_type": row["pattern_type"],
+                        "conditions": json.loads(row["conditions"]) if row["conditions"] else [],
+                        "action": row["action"],
+                        "expected_outcome": row["expected_outcome"],
+                        "confidence": row["confidence"],
+                        "usage_count": row["usage_count"],
+                        "success_count": row["success_count"],
+                        "last_used": row["last_used"]
+                    })
+                return patterns
+        except Exception as e:
+            logger.error(f"Failed to load learning patterns: {e}")
+            return []
+    
+    def save_learning_metadata(self, key: str, value: Any):
+        """Save learning metadata (e.g., iteration count)"""
+        sql = '''INSERT OR REPLACE INTO learning_metadata (key, value, updated_at)
+                 VALUES (?, ?, ?)'''
+        params = (key, json.dumps(value), datetime.now().isoformat())
+        self._execute_write(sql, params)
+    
+    def load_learning_metadata(self, key: str, default: Any = None) -> Any:
+        """Load learning metadata by key"""
+        try:
+            with sqlite3.connect(self.db_path, timeout=self.connection_timeout) as conn:
+                cursor = conn.execute('SELECT value FROM learning_metadata WHERE key = ?', (key,))
+                row = cursor.fetchone()
+                return json.loads(row[0]) if row else default
+        except Exception as e:
+            logger.error(f"Failed to load learning metadata '{key}': {e}")
+            return default
     
     def backup(self, backup_path: str):
         """Create a backup of the database"""

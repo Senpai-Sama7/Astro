@@ -1,6 +1,22 @@
 """
-Recursive Learning Framework
-Enterprise-grade implementation for continuous self-improvement through output analysis.
+Contextual Memory & Experience Retrieval System (RAG-like Pattern Matching)
+
+NOTE ON TERMINOLOGY: This module is named "recursive_learning" but it does NOT
+perform gradient-based learning (SGD) or update model weights. The LLM itself
+does not "learn" or improve from this system.
+
+WHAT THIS ACTUALLY DOES:
+- Stores successful task inputs/outputs in a persistent knowledge store
+- Retrieves similar past experiences via context hashing when new tasks arrive
+- Tracks patterns of successful actions for different contexts
+- Builds "skills" by aggregating patterns (metadata, not neural updates)
+
+This is effectively a Retrieval-Augmented Generation (RAG) pattern for agent
+memory. It creates a persistent "memory" of what worked, enabling the agent to
+suggest actions based on past successes WITHOUT modifying the underlying LLM.
+
+The term "learning" here refers to accumulating experience data, not machine
+learning in the SGD sense.
 """
 import asyncio
 import logging
@@ -350,6 +366,10 @@ class RecursiveLearner:
         self.storage_path = storage_path or Path.home() / ".astro" / "learning"
         self.storage_path.mkdir(parents=True, exist_ok=True)
         
+        # Use SQLite for scalable persistence instead of JSON
+        from core.database import DatabaseManager
+        self._db = DatabaseManager()
+        
         self.experience_buffer = ExperienceBuffer(max_size=buffer_size)
         self.pattern_extractor = PatternExtractor()
         self.skill_builder = SkillBuilder()
@@ -567,54 +587,56 @@ class RecursiveLearner:
         }
     
     def _save_knowledge(self):
-        """Persist learned knowledge"""
+        """Persist learned knowledge to SQLite database (scalable)"""
         try:
-            data = {
-                "patterns": {k: {
-                    "pattern_id": v.pattern_id,
-                    "pattern_type": v.pattern_type,
-                    "conditions": v.conditions,
-                    "action": v.action,
-                    "expected_outcome": v.expected_outcome,
-                    "confidence": v.confidence,
-                    "usage_count": v.usage_count,
-                    "success_count": v.success_count
-                } for k, v in self._patterns.items()},
-                "learning_iterations": self._learning_iterations,
-                "timestamp": datetime.now().isoformat()
-            }
+            # Save each pattern to database
+            for pattern_id, pattern in self._patterns.items():
+                self._db.save_learning_pattern(
+                    pattern_id=pattern.pattern_id,
+                    pattern_type=pattern.pattern_type,
+                    conditions=pattern.conditions,
+                    action=pattern.action,
+                    expected_outcome=pattern.expected_outcome,
+                    confidence=pattern.confidence,
+                    usage_count=pattern.usage_count,
+                    success_count=pattern.success_count,
+                    last_used=pattern.last_used
+                )
             
-            with open(self.storage_path / "knowledge.json", "w") as f:
-                json.dump(data, f, indent=2)
+            # Save metadata
+            self._db.save_learning_metadata("learning_iterations", self._learning_iterations)
+            self._db.save_learning_metadata("last_save", datetime.now().isoformat())
             
-            logger.debug("Knowledge saved")
+            logger.debug(f"Knowledge saved to SQLite ({len(self._patterns)} patterns)")
         except Exception as e:
-            logger.error(f"Failed to save knowledge: {e}")
+            logger.error(f"Failed to save knowledge to database: {e}")
     
     def _load_knowledge(self):
-        """Load previously learned knowledge"""
+        """Load previously learned knowledge from SQLite database"""
         try:
-            knowledge_file = self.storage_path / "knowledge.json"
-            if knowledge_file.exists():
-                with open(knowledge_file, "r") as f:
-                    data = json.load(f)
-                
-                for k, v in data.get("patterns", {}).items():
-                    self._patterns[k] = Pattern(
-                        pattern_id=v["pattern_id"],
-                        pattern_type=v["pattern_type"],
-                        conditions=v["conditions"],
-                        action=v["action"],
-                        expected_outcome=v["expected_outcome"],
-                        confidence=v["confidence"],
-                        usage_count=v.get("usage_count", 0),
-                        success_count=v.get("success_count", 0)
-                    )
-                
-                self._learning_iterations = data.get("learning_iterations", 0)
-                logger.info(f"Loaded {len(self._patterns)} patterns")
+            # Load patterns from database
+            patterns_data = self._db.load_learning_patterns()
+            
+            for p in patterns_data:
+                self._patterns[p["pattern_id"]] = Pattern(
+                    pattern_id=p["pattern_id"],
+                    pattern_type=p["pattern_type"],
+                    conditions=p["conditions"],
+                    action=p["action"],
+                    expected_outcome=p["expected_outcome"],
+                    confidence=p["confidence"],
+                    usage_count=p.get("usage_count", 0),
+                    success_count=p.get("success_count", 0),
+                    last_used=p.get("last_used")
+                )
+            
+            # Load metadata
+            self._learning_iterations = self._db.load_learning_metadata("learning_iterations", 0)
+            
+            if self._patterns:
+                logger.info(f"Loaded {len(self._patterns)} patterns from SQLite")
         except Exception as e:
-            logger.error(f"Failed to load knowledge: {e}")
+            logger.error(f"Failed to load knowledge from database: {e}")
 
 
 # Singleton instance
