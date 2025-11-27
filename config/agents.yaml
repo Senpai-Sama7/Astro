@@ -1,6 +1,6 @@
 research_agent_001:
   max_search_results: 6
-  max_pages_to_scrape: 4
+  max_scrape_results: 4
   quality_threshold: 0.7
   preferred_domains:
     - arxiv.org

@@ -44,7 +44,7 @@ You: "Research the latest trends in AI and create a summary report"
 ### 🔬 Research Agent
 **Your Personal Researcher**
 
-- Searches the entire internet
+- Searches the web via DuckDuckGo
 - Reads and summarizes articles
 - Finds the information you need
 
@@ -58,7 +58,7 @@ You: "Research the latest trends in AI and create a summary report"
 
 - Writes Python code for you
 - Runs and tests the code
-- Fixes bugs automatically
+- Helps debug with suggestions
 
 *"Create a script to organize my photos"*
 
@@ -270,10 +270,10 @@ The system has built-in safety measures and won't:
 <summary><b>Is my data safe?</b></summary>
 
 Yes! ASTRO:
-- Only accesses files in the `workspace` folder
-- Never sends your files to the internet
-- Keeps API keys encrypted locally
-- Runs code in a secure sandbox
+- Only accesses files in the `workspace` folder (enforced by path validation)
+- Never uploads your files to the internet (only sends search queries)
+- API keys are stored locally in `.env` file (keep this file private)
+- Code execution is sandboxed via Docker when enabled (`use_docker_sandbox: true`)
 
 </details>
 
@@ -385,8 +385,8 @@ Edit `config/agents.yaml`:
 
 ```yaml
 research_agent_001:
-  max_search_results: 10      # More results = more thorough
-  max_pages_to_scrape: 5      # Pages to read in full
+  max_search_results: 6       # Number of search results to fetch
+  max_scrape_results: 4       # Pages to read in full (actual config key)
 
 code_agent_001:
   safe_mode: true             # Keep this ON for security
