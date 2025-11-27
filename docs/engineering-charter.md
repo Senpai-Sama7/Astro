@@ -135,9 +135,25 @@ api_key = "sk-..."  # NEVER DO THIS
 ### Input Validation
 
 - All user inputs sanitized before processing
-- File paths restricted to workspace directory
-- Code execution sandboxed (optional Docker)
+- File paths restricted to workspace directory (`os.path.commonpath` validation)
 - SQL queries parameterized
+
+### Code Execution Security
+
+| Layer | Description | Default |
+|-------|-------------|---------|
+| Docker Sandbox | Isolated container, no network, 128MB RAM limit | **Required** |
+| AST Validation | Blocks `exec()`, `eval()`, dangerous imports | Enabled |
+| Regex Fallback | Catches `getattr(__`, `globals()`, base64 obfuscation | Enabled |
+| Local Execution | Subprocess fallback (insecure) | **Disabled** |
+
+```yaml
+# config/agents.yaml - Production Settings
+code_agent_001:
+  use_docker_sandbox: true       # Required for untrusted code
+  allow_local_execution: false   # Never enable in production
+  safe_mode: true                # AST + regex validation
+```
 
 ### Network Security
 

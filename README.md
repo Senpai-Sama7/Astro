@@ -269,11 +269,12 @@ The system has built-in safety measures and won't:
 <details>
 <summary><b>Is my data safe?</b></summary>
 
-Yes! ASTRO:
-- Only accesses files in the `workspace` folder (enforced by path validation)
-- Never uploads your files to the internet (only sends search queries)
-- API keys are stored locally in `.env` file (keep this file private)
-- Code execution is sandboxed via Docker when enabled (`use_docker_sandbox: true`)
+Yes! ASTRO has multiple security layers:
+- **Path Protection**: Files restricted to `workspace` folder (enforced via `os.path.commonpath`)
+- **Code Sandbox**: Docker sandbox **required by default** for code execution
+- **AST Validation**: Code is analyzed for dangerous patterns before execution
+- **No Data Upload**: Your files never leave your computer (only search queries sent)
+- **Local Secrets**: API keys stored in `.env` file (keep private, not encrypted)
 
 </details>
 
@@ -321,6 +322,45 @@ pip install -r requirements.txt
 Or download the latest ZIP from GitHub.
 
 </details>
+
+---
+
+## 🔒 Security Model
+
+ASTRO implements defense-in-depth security for code execution:
+
+| Layer | Protection | Status |
+|-------|------------|--------|
+| **Docker Sandbox** | Isolated container with no network, read-only FS, memory limits | ✅ Default |
+| **AST Validation** | Parses code to block `exec()`, `eval()`, dangerous imports | ✅ Enabled |
+| **Regex Fallback** | Catches `getattr(__`, `globals()`, base64 obfuscation | ✅ Enabled |
+| **Path Validation** | Prevents directory traversal via `os.path.commonpath` | ✅ Enabled |
+| **Extension Whitelist** | Only `.txt`, `.py`, `.md`, `.json`, `.csv`, `.log`, `.yaml` | ✅ Enabled |
+
+### Code Execution Flow
+
+```
+User Request → LLM Generates Code → AST Check → Regex Check → Docker Sandbox → Result
+                                      ↓              ↓              ↓
+                                   BLOCKED       BLOCKED      ISOLATED
+                                  (if dangerous) (if suspicious) (no system access)
+```
+
+### For Developers
+
+```yaml
+# config/agents.yaml - Security Settings
+code_agent_001:
+  safe_mode: true                # Enable AST + regex validation
+  use_docker_sandbox: true       # REQUIRED for production
+  allow_local_execution: false   # Only enable for trusted code
+  docker_image: "python:3.11-slim"
+  docker_execution_timeout: 30   # Seconds before kill
+```
+
+> ⚠️ **Warning**: Setting `allow_local_execution: true` bypasses Docker sandbox.
+> The AST/regex checks provide defense-in-depth but can be bypassed by
+> sophisticated attacks. Only use for code you trust completely.
 
 ---
 
@@ -389,8 +429,11 @@ research_agent_001:
   max_scrape_results: 4       # Pages to read in full (actual config key)
 
 code_agent_001:
-  safe_mode: true             # Keep this ON for security
-  max_code_length: 10000      # Maximum code size
+  safe_mode: true               # AST + regex security validation
+  use_docker_sandbox: true      # REQUIRED for secure execution (default: true)
+  allow_local_execution: false  # Set true ONLY for trusted code
+  docker_image: "python:3.11-slim"
+  max_code_length: 10000
 
 filesystem_agent_001:
   root_dir: "./workspace"     # Where files are saved
@@ -483,9 +526,9 @@ success, result = await healing.execute_with_protection(
 - Health monitoring with latency tracking
 - Automatic recovery strategies
 
-### 🧮 Absolute Zero Reasoning Engine
+### 🧮 Structured Reasoning Engine
 
-First-principles reasoning without prior examples:
+> **What This Actually Does**: Orchestrates structured prompts (Chain-of-Thought, Tree-of-Thought) to improve LLM response quality. It does NOT add reasoning capabilities beyond the base model—it forces the model to show its work, reducing hallucination.
 
 ```python
 from core.zero_reasoning import create_reasoner, ReasoningMode
@@ -510,9 +553,9 @@ analysis = await reasoner.reason_from_first_principles(
 - Meta-cognitive self-evaluation
 - Dynamic knowledge base with axioms
 
-### 📚 Recursive Learning Framework
+### 📚 Contextual Memory System
 
-Continuous self-improvement through experience:
+> **What This Actually Does**: A RAG-like pattern that stores successful task outcomes in SQLite and retrieves them for similar future tasks. The LLM does NOT learn or update weights—this creates persistent "memory" of what worked.
 
 ```python
 from core.recursive_learning import get_recursive_learner, ExperienceType
@@ -563,9 +606,9 @@ print(f"Suggestions: {result['suggestion_count']}")
 - Quality metrics tracking over time
 - LLM-powered code transformation
 
-### ⚡ Self-Adapting JIT Optimizer
+### ⚡ Adaptive Caching System
 
-Runtime optimization that adapts to usage patterns:
+> **What This Actually Does**: Smart memoization that profiles function calls and automatically caches hot paths. This is NOT a JIT compiler (no bytecode compilation)—it's intelligent caching with LRU/LFU/TTL strategies.
 
 ```python
 from core.adaptive_jit import get_adaptive_jit, jit_profile, jit_memoize
