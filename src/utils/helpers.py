@@ -18,13 +18,32 @@ def calculate_checksum(data: Any) -> str:
         content = str(data)
     return hashlib.sha256(content.encode()).hexdigest()
 
-def validate_json_schema(data: Dict, schema: Dict) -> bool:
-    """Simple JSON schema validation (placeholder for jsonschema library)"""
-    # In a real production system, use 'jsonschema' library
-    for key, type_ in schema.items():
+def validate_json_schema(data: Dict, schema: Dict[str, type]) -> bool:
+    """
+    Validate that data conforms to a simple type schema.
+    
+    Args:
+        data: Dictionary to validate
+        schema: Dict mapping required keys to their expected Python types
+        
+    Returns:
+        True if all required keys exist with correct types, False otherwise
+        
+    Example:
+        >>> schema = {"name": str, "age": int}
+        >>> validate_json_schema({"name": "Alice", "age": 30}, schema)
+        True
+        >>> validate_json_schema({"name": "Alice"}, schema)
+        False
+    
+    Note:
+        For complex JSON Schema validation (draft-07, etc.), consider using
+        the 'jsonschema' library: pip install jsonschema
+    """
+    for key, expected_type in schema.items():
         if key not in data:
             return False
-        if not isinstance(data[key], type_):
+        if not isinstance(data[key], expected_type):
             return False
     return True
 
