@@ -36,29 +36,79 @@ class SecurityException(Exception):
 # Hostile prompt patterns - case-insensitive regex patterns
 # These detect common prompt injection techniques
 HOSTILE_PATTERNS = [
+    # Instruction override attempts
     r"ignore\s+(all\s+)?previous\s+instructions?",
     r"ignore\s+(all\s+)?prior\s+instructions?",
     r"disregard\s+(all\s+)?previous",
     r"forget\s+(all\s+)?previous",
+    r"override\s+(all\s+)?instructions?",
+    r"new\s+instructions?:\s*",
+    
+    # Mode switching attempts
     r"system\s*override",
     r"admin\s*mode",
     r"developer\s*mode",
+    r"debug\s*mode",
+    r"maintenance\s*mode",
+    r"god\s*mode",
+    r"unrestricted\s*mode",
+    
+    # Bypass attempts
     r"bypass\s+(all\s+)?restrictions?",
     r"bypass\s+(all\s+)?safety",
     r"bypass\s+(all\s+)?security",
+    r"bypass\s+(all\s+)?filters?",
+    r"bypass\s+(all\s+)?guidelines",
+    r"remove\s+(all\s+)?restrictions?",
+    r"disable\s+(all\s+)?restrictions?",
+    
+    # Role-playing jailbreaks
     r"you\s+are\s+now\s+(a|an)",  # "You are now a DAN"
     r"pretend\s+you\s+are",
     r"act\s+as\s+if\s+you\s+have\s+no\s+restrictions",
+    r"roleplay\s+as",
+    r"imagine\s+you\s+are\s+a\s+different",
+    
+    # Known jailbreak patterns
     r"jailbreak",
     r"do\s+anything\s+now",
     r"\bdan\b",  # DAN prompt
+    r"\bdeveloper\s*mode\s*enabled\b",
+    r"stay\s+in\s+character",
+    
+    # Guideline bypass
     r"ignore\s+ethical\s+guidelines",
     r"ignore\s+safety\s+guidelines",
-    r"new\s+instructions?:\s*",
+    r"ignore\s+your\s+(rules|guidelines|constraints)",
+    r"don'?t\s+follow\s+your\s+(rules|guidelines)",
+    
+    # Injection markers
     r"\[\s*system\s*\]",  # [SYSTEM] injection
     r"<\s*system\s*>",   # <system> injection
     r"\{\{.*\}\}",       # Template injection {{...}}
+    r"<\|.*\|>",         # Special token injection
+    r"###\s*instruction",  # Markdown-style injection
+    
+    # Prompt leaking attempts
+    r"reveal\s+(your\s+)?(system\s+)?prompt",
+    r"show\s+(me\s+)?(your\s+)?instructions",
+    r"what\s+are\s+your\s+instructions",
+    r"repeat\s+(your\s+)?system\s+prompt",
 ]
+
+# Additional heuristic checks when ML classifier is not available
+INJECTION_HEURISTICS = {
+    "instruction_ratio": 0.15,       # Max ratio of instruction-like words
+    "special_char_ratio": 0.10,      # Max ratio of special characters
+    "repeated_pattern_threshold": 3,  # Max times a suspicious phrase can repeat
+}
+
+# Words commonly used in injection attempts
+INJECTION_KEYWORDS = {
+    "ignore", "override", "bypass", "disable", "forget", "disregard",
+    "pretend", "roleplay", "jailbreak", "unrestricted", "uncensored",
+    "admin", "system", "developer", "instruction", "prompt", "constraint"
+}
 
 
 class NaturalLanguageInterface:

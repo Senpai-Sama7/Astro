@@ -25,6 +25,7 @@ from monitoring.monitoring_dashboard import MonitoringDashboard
 from main import AutonomousAgentEcosystem
 from utils.model_manager import ModelManager
 from utils.app_state import AppState
+from utils.helpers import sanitize_display_text
 
 # Configure CustomTkinter
 ctk.set_appearance_mode("Dark")
@@ -843,6 +844,9 @@ class EnhancedGUI(ctk.CTk):
     
     def add_reasoning_step(self, step_text, step_type="thought"):
         """Add a reasoning step to the CoT display"""
+        # SECURITY: Sanitize step text before display
+        safe_text = sanitize_display_text(step_text, max_length=2000)
+        
         self.cot_text.configure(state="normal")
         
         # Add icon based on type
@@ -856,7 +860,7 @@ class EnhancedGUI(ctk.CTk):
         
         timestamp = datetime.now().strftime("%H:%M:%S")
         self.cot_text.insert("end", f"[{timestamp}] {icon}\n")
-        self.cot_text.insert("end", f"{step_text}\n\n")
+        self.cot_text.insert("end", f"{safe_text}\n\n")
         self.cot_text.see("end")
         self.cot_text.configure(state="disabled")
     
@@ -1347,7 +1351,9 @@ def _process_logs_impl(self):
     error_keywords = ["error", "exception", "failed", "failure", "traceback"]
     
     while not self.log_queue.empty():
-        msg = self.log_queue.get()
+        raw_msg = self.log_queue.get()
+        # SECURITY: Sanitize all log messages before display to prevent UI corruption
+        msg = sanitize_display_text(raw_msg, max_length=5000)
         msg_lower = msg.lower()
         
         # Check if it's an error - show popup
