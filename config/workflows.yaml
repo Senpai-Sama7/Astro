@@ -1,32 +1,45 @@
-# Declarative Workflow Definitions
 workflows:
   research_topic:
-    description: "Deep research on a specific topic"
+    description: "Execute deep web research and summarize findings"
     priority: "high"
+    budget: 50.0
     tasks:
       - id: "search"
-        agent: "research_agent_001"
         capability: "web_search"
-        instruction: "Search for: {{ query }}"
-      - id: "summarize"
-        agent: "research_agent_001"
-        capability: "knowledge_synthesis"
-        instruction: "Summarize the findings from the search results."
+        instruction: "Search the web for detailed information on: {{ query }}"
+        payload:
+          query: "{{ query }}"
+          
+      - id: "extract"
+        capability: "content_extraction"
+        instruction: "Extract key facts and statistics from the search results."
         dependencies: ["search"]
+        
+      - id: "summarize"
+        capability: "knowledge_synthesis"
+        instruction: "Synthesize the extracted information into a comprehensive briefing."
+        dependencies: ["extract"]
+        
       - id: "save"
-        agent: "filesystem_agent_001"
         capability: "file_operations"
-        instruction: "Save summary to {{ query }}_report.md"
+        instruction: "Save the briefing to '{{ query }}_brief.md'."
         dependencies: ["summarize"]
+        payload:
+          operation: "write_file"
+          path: "{{ query }}_brief.md"
 
-  code_feature:
-    description: "Implement a new feature"
+  code_generator:
+    description: "Generate and audit code for a specific requirement"
     priority: "medium"
     tasks:
       - id: "plan"
-        agent: "code_agent_001"
-        instruction: "Create an implementation plan for: {{ requirement }}"
-      - id: "code"
-        agent: "code_agent_001"
-        instruction: "Write the code based on the plan."
+        capability: "optimization"
+        instruction: "Create an implementation plan for: {{ requirement }}. Outline classes and functions."
+        
+      - id: "implement"
+        capability: "code_generation"
+        instruction: "Generate Python code based on the plan."
         dependencies: ["plan"]
+        payload:
+          code_task_type: "generate_code"
+          requirements: "{{ requirement }}"
