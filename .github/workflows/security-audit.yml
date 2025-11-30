@@ -1,0 +1,23 @@
+name: Security Audit
+
+on: [push, pull_request]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install Security Tools
+        run: pip install bandit pip-audit
+        
+      - name: Scan for Secrets & Vulnerabilities (Bandit)
+        # Excludes assert checks (B101) common in tests
+        run: bandit -r src/ -x tests/ -s B101
+        
+      - name: Scan Dependencies (Pip Audit)
+        run: pip-audit -r requirements.txt
