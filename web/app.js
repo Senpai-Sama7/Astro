@@ -1186,11 +1186,7 @@ async function loadAgents() {
     state.set('agents', agents);
   } catch (error) {
     console.error('Failed to load agents', error);
-    state.set('agents', [
-      { id: 'research_agent_001', name: 'Research · 001', icon: '🔬', status: 'idle', description: 'Deepcrawl / Contextual synthesis' },
-      { id: 'code_agent_001', name: 'Code · 001', icon: '💻', status: 'idle', description: 'Python · QA harness' },
-      { id: 'filesystem_agent_001', name: 'File · 001', icon: '📁', status: 'idle', description: 'Structured storage / Render' },
-    ]);
+    state.set('agents', []);
   }
 }
 
@@ -1229,12 +1225,8 @@ async function loadTelemetry() {
     const telemetry = await api.getTelemetry();
     state.set('telemetry', telemetry);
   } catch (error) {
-    state.set('telemetry', {
-      signalIntegrity: 99.3,
-      bandwidth: 4.6,
-      load: 31,
-      latency: 1.4,
-    });
+    console.error('Failed to load telemetry', error);
+    // Keep existing telemetry state (defaults to zeros) rather than simulating data
   }
 }
 
