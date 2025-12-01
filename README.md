@@ -1,16 +1,12 @@
-<p align="center">
-  <img src="astro-logo.png" alt="ASTRO" width="300"/>
-</p>
-
 <div align="center">
 
 # 🌟 ASTRO - Autonomous Agent Ecosystem
 
-### *Your Personal AI Team That Actually Gets Things Done*
+### _Your Personal AI Team That Actually Gets Things Done_
 
 [![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Senpai-Sama7/Astrom/pulls)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Senpai-Sama7/Astro/pulls)
 
 <img src="https://img.shields.io/badge/AI%20Powered-OpenAI%20|%20Ollama%20|%20OpenRouter-purple" alt="AI Powered">
 
@@ -46,37 +42,40 @@ You: "Research the latest trends in AI and create a summary report"
 <td width="33%" align="center">
 
 ### 🔬 Research Agent
+
 **Your Personal Researcher**
 
 - Searches the web via DuckDuckGo
 - Reads and summarizes articles
 - Finds the information you need
 
-*"Find me the best pizza recipe"*
+_"Find me the best pizza recipe"_
 
 </td>
 <td width="33%" align="center">
 
 ### 💻 Code Agent
+
 **Your AI Programmer**
 
 - Writes Python code for you
 - Runs and tests the code
 - Helps debug with suggestions
 
-*"Create a script to organize my photos"*
+_"Create a script to organize my photos"_
 
 </td>
 <td width="33%" align="center">
 
 ### 📁 File Agent
+
 **Your Digital Secretary**
 
 - Creates and edits files
 - Organizes your documents
 - Saves reports and summaries
 
-*"Save this summary to my reports folder"*
+_"Save this summary to my reports folder"_
 
 </td>
 </tr>
@@ -95,14 +94,16 @@ You: "Research the latest trends in AI and create a summary report"
 ### Step 1: Download ASTRO
 
 **Option A: Download ZIP** (Easiest)
+
 1. Click the green "Code" button above
 2. Click "Download ZIP"
 3. Extract the folder to your Desktop
 
 **Option B: Use Git** (For developers)
+
 ```bash
-git clone https://github.com/Senpai-Sama7/Astro.git
-cd Astro
+git clone https://github.com/Senpai-Sama7/autonomous-agent-ecosystem.git
+cd autonomous-agent-ecosystem
 ```
 
 ### Step 2: Install Requirements
@@ -136,6 +137,7 @@ Choose ONE of these options:
 2. Create an account and add billing
 3. Go to API Keys and create a new key
 4. Create a file named `.env` in the ASTRO folder with:
+
 ```
 OPENAI_API_KEY=sk-your-key-here
 ```
@@ -149,6 +151,7 @@ OPENAI_API_KEY=sk-your-key-here
 2. Create an account
 3. Get your API key
 4. Create a file named `.env` in the ASTRO folder with:
+
 ```
 OPENROUTER_API_KEY=your-key-here
 ```
@@ -158,11 +161,13 @@ OPENROUTER_API_KEY=your-key-here
 ### Step 4: Launch ASTRO!
 
 **For the Beautiful GUI (Recommended):**
+
 ```bash
 python src/gui_app.py
 ```
 
 **For Command Line:**
+
 ```bash
 python src/main.py --interactive
 ```
@@ -205,23 +210,23 @@ When you launch `gui_app.py`, you'll see a beautiful dark-themed interface:
 
 ### Example Commands You Can Try
 
-| What You Want | What to Type |
-|---------------|--------------|
-| Search the web | *"Search for the best laptop under $1000"* |
-| Create a file | *"Create a file called notes.txt with my meeting notes"* |
-| Write code | *"Write a Python script that calculates my monthly budget"* |
-| Research + Save | *"Research climate change and save a summary to climate_report.md"* |
-| Complex tasks | *"Find Python tutorials, summarize the best ones, and save to learning_path.md"* |
+| What You Want   | What to Type                                                                     |
+| --------------- | -------------------------------------------------------------------------------- |
+| Search the web  | _"Search for the best laptop under $1000"_                                       |
+| Create a file   | _"Create a file called notes.txt with my meeting notes"_                         |
+| Write code      | _"Write a Python script that calculates my monthly budget"_                      |
+| Research + Save | _"Research climate change and save a summary to climate_report.md"_              |
+| Complex tasks   | _"Find Python tutorials, summarize the best ones, and save to learning_path.md"_ |
 
 ### Understanding the Interface
 
-| Section | What It Shows |
-|---------|---------------|
-| **System Status** (top-left) | 🟢 Green = Running, ⚫ Gray = Offline |
-| **Agent Cards** (left sidebar) | Shows each AI agent and what it's doing |
-| **Command Input** (top) | Where you type your requests |
-| **Reasoning & Logs** (bottom-left) | AI chain-of-thought and detailed system logs |
-| **Workflow History** (bottom-right) | List of your past commands |
+| Section                             | What It Shows                                |
+| ----------------------------------- | -------------------------------------------- |
+| **System Status** (top-left)        | 🟢 Green = Running, ⚫ Gray = Offline        |
+| **Agent Cards** (left sidebar)      | Shows each AI agent and what it's doing      |
+| **Command Input** (top)             | Where you type your requests                 |
+| **Reasoning & Logs** (bottom-left)  | AI chain-of-thought and detailed system logs |
+| **Workflow History** (bottom-right) | List of your past commands                   |
 
 ### Settings & Configuration
 
@@ -243,12 +248,14 @@ Click **"⚙️ Settings"** to configure:
 ## 🎯 Tips for Best Results
 
 ### ✅ DO: Be Specific
+
 ```
 Good: "Search for Python tutorials for beginners and save the top 5 to tutorials.md"
 Bad:  "Find stuff"
 ```
 
 ### ✅ DO: Use Natural Language
+
 ```
 Good: "Create a summary of today's tech news"
 Good: "Help me write code to sort a list of names"
@@ -256,12 +263,15 @@ Bad:  "RUN_SEARCH --query='tech' --output=summary"
 ```
 
 ### ✅ DO: Chain Tasks Together
+
 ```
 "Research machine learning, then create a Python example, and save everything to ml_notes.md"
 ```
 
 ### ❌ DON'T: Ask for Harmful Content
+
 The system has built-in safety measures and won't:
+
 - Access files outside the workspace folder
 - Run dangerous code
 - Perform harmful searches
@@ -274,6 +284,7 @@ The system has built-in safety measures and won't:
 <summary><b>Is my data safe?</b></summary>
 
 Yes! ASTRO has multiple security layers:
+
 - **Path Protection**: Files restricted to `workspace` folder (enforced via `os.path.commonpath`)
 - **Code Sandbox**: Docker sandbox **required by default** for code execution
 - **AST Validation**: Code is analyzed for dangerous patterns before execution
@@ -286,6 +297,7 @@ Yes! ASTRO has multiple security layers:
 <summary><b>Do I need to pay?</b></summary>
 
 Not necessarily! You have free options:
+
 - **Ollama**: Completely free, runs on your computer
 - **OpenAI**: Pay-per-use, usually pennies per request
 - **OpenRouter**: Some free models available
@@ -308,6 +320,7 @@ Try these fixes:
 <summary><b>Can I use this for my business?</b></summary>
 
 Yes! ASTRO is MIT licensed, meaning you can:
+
 - ✅ Use it commercially
 - ✅ Modify it for your needs
 - ✅ Distribute it
@@ -333,13 +346,13 @@ Or download the latest ZIP from GitHub.
 
 ASTRO implements defense-in-depth security for code execution:
 
-| Layer | Protection | Status |
-|-------|------------|--------|
-| **Docker Sandbox** | Isolated container with no network, read-only FS, memory limits | ✅ Default |
-| **AST Validation** | Parses code to block `exec()`, `eval()`, dangerous imports | ✅ Enabled |
-| **Regex Fallback** | Catches `getattr(__`, `globals()`, base64 obfuscation | ✅ Enabled |
-| **Path Validation** | Prevents directory traversal via `os.path.commonpath` | ✅ Enabled |
-| **Extension Whitelist** | Only `.txt`, `.py`, `.md`, `.json`, `.csv`, `.log`, `.yaml` | ✅ Enabled |
+| Layer                   | Protection                                                      | Status     |
+| ----------------------- | --------------------------------------------------------------- | ---------- |
+| **Docker Sandbox**      | Isolated container with no network, read-only FS, memory limits | ✅ Default |
+| **AST Validation**      | Parses code to block `exec()`, `eval()`, dangerous imports      | ✅ Enabled |
+| **Regex Fallback**      | Catches `getattr(__`, `globals()`, base64 obfuscation           | ✅ Enabled |
+| **Path Validation**     | Prevents directory traversal via `os.path.commonpath`           | ✅ Enabled |
+| **Extension Whitelist** | Only `.txt`, `.py`, `.md`, `.json`, `.csv`, `.log`, `.yaml`     | ✅ Enabled |
 
 ### Code Execution Flow
 
@@ -355,11 +368,11 @@ User Request → LLM Generates Code → AST Check → Regex Check → Docker San
 ```yaml
 # config/agents.yaml - Security Settings
 code_agent_001:
-  safe_mode: true                # Enable AST + regex validation
-  use_docker_sandbox: true       # REQUIRED for production
-  allow_local_execution: false   # Only enable for trusted code
+  safe_mode: true # Enable AST + regex validation
+  use_docker_sandbox: true # REQUIRED for production
+  allow_local_execution: false # Only enable for trusted code
   docker_image: "python:3.11-slim"
-  docker_execution_timeout: 30   # Seconds before kill
+  docker_execution_timeout: 30 # Seconds before kill
 ```
 
 > ⚠️ **Warning**: Setting `allow_local_execution: true` bypasses Docker sandbox.
@@ -413,14 +426,14 @@ Edit `config/system_config.yaml`:
 
 ```yaml
 system:
-  environment: "production"    # or "development" for more logs
-  log_level: "INFO"           # DEBUG, INFO, WARNING, ERROR
+  environment: "production" # or "development" for more logs
+  log_level: "INFO" # DEBUG, INFO, WARNING, ERROR
   max_concurrent_workflows: 10 # How many tasks at once
 
 llm:
-  provider: "openai"          # openai, ollama, openrouter
-  model_name: "gpt-4"         # Your preferred model
-  timeout: 60                 # Seconds to wait for response
+  provider: "openai" # openai, ollama, openrouter
+  model_name: "gpt-4" # Your preferred model
+  timeout: 60 # Seconds to wait for response
 ```
 
 ### Agent-Specific Settings
@@ -429,19 +442,19 @@ Edit `config/agents.yaml`:
 
 ```yaml
 research_agent_001:
-  max_search_results: 6       # Number of search results to fetch
-  max_scrape_results: 4       # Pages to read in full (actual config key)
+  max_search_results: 6 # Number of search results to fetch
+  max_scrape_results: 4 # Pages to read in full (actual config key)
 
 code_agent_001:
-  safe_mode: true               # AST + regex security validation
-  use_docker_sandbox: true      # REQUIRED for secure execution (default: true)
-  allow_local_execution: false  # Set true ONLY for trusted code
+  safe_mode: true # AST + regex security validation
+  use_docker_sandbox: true # REQUIRED for secure execution (default: true)
+  allow_local_execution: false # Set true ONLY for trusted code
   docker_image: "python:3.11-slim"
   max_code_length: 10000
 
 filesystem_agent_001:
-  root_dir: "./workspace"     # Where files are saved
-  allowed_extensions:         # What files can be created
+  root_dir: "./workspace" # Where files are saved
+  allowed_extensions: # What files can be created
     - .txt
     - .py
     - .md
@@ -474,6 +487,7 @@ result = await registry.call_tool("search", {"query": "AI trends"})
 ```
 
 **Features:**
+
 - Multi-server support with automatic tool routing
 - JSON-RPC 2.0 compliant protocol
 - Retry logic with exponential backoff
@@ -496,6 +510,7 @@ capable_agent = coordinator.find_capable_agent(["research", "web_search"])
 ```
 
 **Features:**
+
 - Async message bus for agent communication
 - Capability-based agent discovery
 - Task delegation and collaboration
@@ -525,6 +540,7 @@ success, result = await healing.execute_with_protection(
 ```
 
 **Features:**
+
 - Circuit breaker pattern (prevents cascade failures)
 - Configurable retry policies with exponential backoff
 - Health monitoring with latency tracking
@@ -552,6 +568,7 @@ analysis = await reasoner.reason_from_first_principles(
 ```
 
 **Features:**
+
 - Chain-of-Thought (CoT) reasoning
 - Tree-of-Thought (ToT) for complex problems
 - Meta-cognitive self-evaluation
@@ -583,6 +600,7 @@ action, confidence = learner.suggest_action({"task": "research"})
 ```
 
 **Features:**
+
 - Experience replay buffer with priority sampling
 - Automatic pattern extraction
 - Skill building from patterns
@@ -605,6 +623,7 @@ print(f"Suggestions: {result['suggestion_count']}")
 ```
 
 **Features:**
+
 - Static code analysis (complexity, coverage, documentation)
 - Automated refactoring suggestions
 - Quality metrics tracking over time
@@ -630,6 +649,7 @@ async def cached_api_call(query):
 ```
 
 **Features:**
+
 - Hot path detection
 - Automatic memoization
 - Adaptive caching strategies (LRU, LFU, TTL)
@@ -728,9 +748,9 @@ astro/
 **Something not working?** Here's how to get help:
 
 1. 📖 Check the [FAQ](#-frequently-asked-questions) above
-2. 🔍 Search [existing issues](https://github.com/Senpai-Sama7/Astro/issues)
-3. 🐛 [Report a bug](https://github.com/Senpai-Sama7/Astro/issues/new)
-4. 💬 [Start a discussion](https://github.com/Senpai-Sama7/Astro/discussions)
+2. 🔍 Search [existing issues](https://github.com/Senpai-Sama7/autonomous-agent-ecosystem/issues)
+3. 🐛 [Report a bug](https://github.com/Senpai-Sama7/autonomous-agent-ecosystem/issues/new)
+4. 💬 [Start a discussion](https://github.com/Senpai-Sama7/autonomous-agent-ecosystem/discussions)
 
 ---
 
@@ -757,6 +777,6 @@ MIT License - Use it freely, modify it, share it!
 
 ### Made with ❤️ by the ASTRO Team
 
-**[⬆ Back to Top](#-astro---Astrom)**
+**[⬆ Back to Top](#-astro---autonomous-agent-ecosystem)**
 
 </div>

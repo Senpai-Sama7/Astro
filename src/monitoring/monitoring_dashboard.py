@@ -14,6 +14,28 @@ REFACTORED: Real telemetry integration.
 
 import asyncio
 import json
+import logging
+import time
+import os
+from typing import Dict, Any, List, Optional
+from dataclasses import dataclass, field
+from enum import Enum
+from io import BytesIO
+import base64
+
+# Optional dependencies
+try:
+    import matplotlib.pyplot as plt
+    import numpy as np
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+    plt = None
+    np = None
+
+try:
+    import psutil
+    HAS_PSUTIL = True
 except ImportError:
     HAS_PSUTIL = False
     logging.warning("psutil not installed. System metrics will be estimated.")
@@ -539,6 +561,9 @@ class MonitoringDashboard:
     def get_performance_chart(self, agent_id: Optional[str] = None) -> Optional[str]:
         """Generate a performance chart as base64-encoded image"""
         try:
+            if not HAS_MATPLOTLIB or not plt:
+                return None
+                
             current_time = time.time()
             
             if agent_id:
