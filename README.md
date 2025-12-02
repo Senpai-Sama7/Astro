@@ -83,6 +83,9 @@ You: "Research the latest trends in AI and create a summary report"
 </table>
 
 ---
+## ([Online View](https://senpai-sama7.github.io/Astro)
+## ([Online Chat](https://senpai-sama7.github.io/Astro/chat)
+---
 
 ## 🚀 Quick Start (5 Minutes)
 
