@@ -208,19 +208,13 @@ class TestAgentEngine:
     @pytest.mark.asyncio
     async def test_task_priority_calculation(self, temp_db):
         """Test task priority scoring."""
-        from core.engine import AgentEngine, Task, WorkflowPriority
+        from core.task_queue import TaskQueue, WorkflowPriority
         
-        engine = AgentEngine()
-        
-        # High priority task with deadline
-        task = Task(
-            task_id="task_001",
-            description="Urgent task",
-            priority=WorkflowPriority.CRITICAL,
+        # Use TaskQueue directly for priority calculation
+        score = TaskQueue.calculate_priority(
+            WorkflowPriority.CRITICAL,
             deadline=time.time() + 30  # 30 seconds from now
         )
-        
-        score = engine._calculate_task_priority(task, WorkflowPriority.CRITICAL)
         
         # Critical priority with near deadline should have low score (high priority)
         assert score < 0.5
@@ -228,27 +222,19 @@ class TestAgentEngine:
     @pytest.mark.asyncio
     async def test_dependency_checking(self, temp_db):
         """Test task dependency validation."""
-        from core.engine import AgentEngine, Task
-        import asyncio
+        from core.task_queue import TaskQueue
         
-        engine = AgentEngine()
+        queue = TaskQueue()
         
         # Task with no dependencies
-        task_no_deps = Task(task_id="task_001", description="No deps")
-        assert await engine._are_dependencies_met(task_no_deps) is True
+        assert queue.dependencies_met([]) is True
         
         # Task with unmet dependency
-        task_with_deps = Task(
-            task_id="task_002",
-            description="With deps",
-            dependencies=["task_001"]
-        )
-        assert await engine._are_dependencies_met(task_with_deps) is False
+        assert queue.dependencies_met(["task_001"]) is False
         
         # Mark dependency as complete
-        async with engine._task_lock:
-            engine.completed_tasks.add("task_001")
-        assert await engine._are_dependencies_met(task_with_deps) is True
+        await queue.mark_completed("task_001")
+        assert queue.dependencies_met(["task_001"]) is True
 
 
 # ============================================================================

@@ -19,6 +19,7 @@ from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field, asdict
 from enum import Enum
 from .database import DatabaseManager
+from .task_queue import TaskQueue, WorkflowPriority
 
 logger = logging.getLogger("AgentEngine")
 
@@ -31,12 +32,7 @@ class AgentStatus(Enum):
     RECOVERING = "recovering"
     DEGRADED = "degraded"
 
-class WorkflowPriority(Enum):
-    """Priority levels for workflows"""
-    CRITICAL = "critical"
-    HIGH = "high"
-    MEDIUM = "medium"
-    LOW = "low"
+# WorkflowPriority imported from task_queue
 
 @dataclass
 class AgentConfig:
@@ -85,10 +81,7 @@ class AgentEngine:
         self.agents: Dict[str, AgentConfig] = {}
         self.agent_instances: Dict[str, Any] = {}  # Holds actual agent instances
         self.workflows: Dict[str, Workflow] = {}
-        self.task_queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
-        self.active_tasks: Dict[str, Task] = {}
-        self.completed_tasks: Set[str] = set()  # Track completed task IDs
-        self.failed_tasks: Set[str] = set()  # Track failed task IDs
+        self._task_queue = TaskQueue()  # Use extracted TaskQueue class
         self.agent_status: Dict[str, AgentStatus] = {}
         self.performance_metrics: Dict[str, List[float]] = {}
         self.max_metrics_per_agent = max_metrics_per_agent  # Prevent unbounded growth
@@ -101,9 +94,25 @@ class AgentEngine:
         self._last_status_log = 0.0
         
         # Synchronization locks for thread-safe operations
-        self._task_lock = asyncio.Lock()
         self._agent_lock = asyncio.Lock()
         self._metrics_lock = asyncio.Lock()
+        
+    # Properties for backward compatibility
+    @property
+    def task_queue(self):
+        return self._task_queue._queue
+    
+    @property
+    def active_tasks(self) -> Dict[str, Task]:
+        return self._task_queue.active_tasks
+    
+    @property
+    def completed_tasks(self) -> Set[str]:
+        return self._task_queue.completed_tasks
+    
+    @property
+    def failed_tasks(self) -> Set[str]:
+        return self._task_queue.failed_tasks
         
         # GIL Optimization: Process Pool for CPU-bound tasks
         self.process_pool: Optional[ProcessPoolExecutor] = None
@@ -137,40 +146,11 @@ class AgentEngine:
             
     async def _queue_task(self, task: Task, workflow_priority: WorkflowPriority):
         """Queue a task with appropriate priority"""
-        # Calculate priority score (lower number = higher priority)
-        priority_score = self._calculate_task_priority(task, workflow_priority)
-        await self.task_queue.put((priority_score, task))
+        priority_score = TaskQueue.calculate_priority(
+            workflow_priority, task.deadline, bool(task.dependencies)
+        )
+        await self._task_queue.enqueue(task, priority_score)
         logger.debug(f"Queued task {task.task_id} with priority score {priority_score}")
-        
-    def _calculate_task_priority(self, task: Task, workflow_priority: WorkflowPriority) -> float:
-        """Calculate dynamic priority score for a task"""
-        base_priority = {
-            WorkflowPriority.CRITICAL: 0.1,
-            WorkflowPriority.HIGH: 0.3,
-            WorkflowPriority.MEDIUM: 0.5,
-            WorkflowPriority.LOW: 0.8
-        }[workflow_priority]
-        
-        # Adjust based on deadline proximity
-        if task.deadline:
-            time_remaining = task.deadline - time.time()
-            if time_remaining < 0:
-                deadline_factor = 0.1  # Very urgent
-            elif time_remaining < 60:  # 1 minute
-                deadline_factor = 0.3
-            elif time_remaining < 300:  # 5 minutes
-                deadline_factor = 0.5
-            else:
-                deadline_factor = 0.8
-        else:
-            deadline_factor = 0.7
-            
-        # Adjust based on dependencies
-        dependency_factor = 0.5 if task.dependencies else 0.8
-        
-        # Calculate final priority score
-        priority_score = base_priority * deadline_factor * dependency_factor
-        return priority_score
         
     async def start_engine(self):
         """Start the agent engine main loop"""
@@ -201,12 +181,15 @@ class AgentEngine:
         while not self._shutdown_requested:
             try:
                 # Get next task from queue
-                priority_score, task = await self.task_queue.get()
+                priority_score, task = await self._task_queue.dequeue()
                 
-                # Check dependencies
-                if not await self._are_dependencies_met(task):
-                    # Requeue if dependencies not met
-                    await self.task_queue.put((priority_score + 0.5, task))
+                # Check dependencies using TaskQueue
+                if self._task_queue.has_failed_dependency(task.dependencies):
+                    await self._task_queue.mark_failed(task.task_id)
+                    continue
+                    
+                if not self._task_queue.dependencies_met(task.dependencies):
+                    await self._task_queue.requeue(task, priority_score + 0.5)
                     await asyncio.sleep(1.0)
                     continue
 
@@ -214,33 +197,17 @@ class AgentEngine:
                 suitable_agent = await self._find_suitable_agent(task)
                 
                 if suitable_agent:
-                    # Execute task with selected agent
                     await self._execute_task_with_agent(task, suitable_agent)
                 else:
-                    # No suitable agent available - requeue with lower priority
-                    await self.task_queue.put((priority_score + 0.1, task))
+                    await self._task_queue.requeue(task, priority_score + 0.1)
                     logger.warning(f"No suitable agent found for task {task.task_id}, requeuing")
                     
-                await asyncio.sleep(0.1)  # Small delay to prevent CPU hogging
+                await asyncio.sleep(0.1)
                 
             except Exception as e:
                 logger.error(f"Error in engine loop: {str(e)}")
                 await asyncio.sleep(1.0)  # Recover from errors
 
-    async def _are_dependencies_met(self, task: Task) -> bool:
-        """Check if all task dependencies are completed (thread-safe)"""
-        if not task.dependencies:
-            return True
-        
-        async with self._task_lock:
-            for dep_id in task.dependencies:
-                if dep_id not in self.completed_tasks:
-                    if dep_id in self.failed_tasks:
-                        logger.warning(f"Task {task.task_id} has failed dependency {dep_id}")
-                        return False
-                    return False
-        return True
-    
     def _is_transient_error(self, error_message: str) -> bool:
         """Determine if an error is transient and worth retrying"""
         transient_keywords = [
@@ -292,7 +259,7 @@ class AgentEngine:
         """Execute a task with a specific agent"""
         try:
             self.agent_status[agent_id] = AgentStatus.BUSY
-            self.active_tasks[task.task_id] = task
+            await self._task_queue.mark_active(task.task_id, task)
             workflow_id = task.workflow_id or "standalone"
             await self.db.save_task_async(task.task_id, workflow_id, task.description, "running", assigned_agent=agent_id)
             
@@ -332,8 +299,7 @@ class AgentEngine:
             # Process result
             if result.success:
                 logger.info(f"Task {task.task_id} completed successfully by agent {agent_id}")
-                async with self._task_lock:
-                    self.completed_tasks.add(task.task_id)
+                await self._task_queue.mark_completed(task.task_id)
                 workflow_id = task.workflow_id or "standalone"
                 await self.db.save_task_async(task.task_id, workflow_id, task.description, "completed", assigned_agent=agent_id, result=result.result_data)
                 
@@ -354,14 +320,13 @@ class AgentEngine:
                     # Update retry count
                     task.retry_count = retry_count + 1
                     
-                    # Re-queue task after backoff with proper priority tuple
+                    # Re-queue task after backoff
                     await asyncio.sleep(backoff_time)
-                    priority_score = self._calculate_task_priority(task, task.priority)
-                    await self.task_queue.put((priority_score, task))
+                    priority_score = TaskQueue.calculate_priority(task.priority, task.deadline, bool(task.dependencies))
+                    await self._task_queue.requeue(task, priority_score)
                 else:
                     # Max retries exceeded or permanent failure
-                    async with self._task_lock:
-                        self.failed_tasks.add(task.task_id)
+                    await self._task_queue.mark_failed(task.task_id)
                     workflow_id = task.workflow_id or "standalone"
                     await self.db.save_task_async(task.task_id, workflow_id, task.description, "failed", assigned_agent=agent_id, result={'error': result.error_message})
                     await self._handle_task_failure(task, agent_id)
@@ -372,8 +337,7 @@ class AgentEngine:
             
         finally:
             self.agent_status[agent_id] = AgentStatus.ACTIVE
-            if task.task_id in self.active_tasks:
-                del self.active_tasks[task.task_id]
+            await self._task_queue.remove_active(task.task_id)
             
     async def _apply_incentives(self, agent_id: str, execution_time: float, priority: WorkflowPriority):
         """Apply incentive rewards based on performance"""

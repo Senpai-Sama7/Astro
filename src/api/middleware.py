@@ -325,11 +325,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
 
 class AuthenticationMiddleware(BaseHTTPMiddleware):
-    """API key authentication middleware."""
+    """API key authentication middleware with audit logging."""
     
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        from core.audit_logger import get_audit_logger, AuditEvent
+        audit = get_audit_logger()
+        client_ip = get_client_id(request)
+        request_id = getattr(request.state, "request_id", None)
+        
         # Skip auth if disabled
         if not security_config.api_key_enabled:
             return await call_next(request)
@@ -347,6 +352,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
         api_key = request.headers.get(security_config.api_key_header)
         
         if not api_key:
+            audit.log(AuditEvent.AUTH_FAILURE, "anonymous", path, "failure",
+                     {"reason": "missing_key"}, request_id, client_ip)
             logger.warning(f"Missing API key for {request.method} {path}")
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -355,6 +362,8 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
             )
         
         if not verify_api_key(api_key):
+            audit.log(AuditEvent.AUTH_FAILURE, "api_key", path, "failure",
+                     {"reason": "invalid_key"}, request_id, client_ip)
             logger.warning(f"Invalid API key for {request.method} {path}")
             return JSONResponse(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -362,6 +371,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
                 headers={"WWW-Authenticate": "ApiKey"},
             )
         
+        audit.log(AuditEvent.AUTH_SUCCESS, "api_key", path, "success", None, request_id, client_ip)
         return await call_next(request)
 
 
@@ -462,6 +472,7 @@ def add_security_middleware(app):
     """
     # Add in reverse order (last added = first executed)
     app.add_middleware(RequestLoggingMiddleware)
+    app.add_middleware(CSRFMiddleware)  # CSRF protection for state-changing requests
     app.add_middleware(AuthenticationMiddleware)
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(RequestIDMiddleware)
@@ -470,5 +481,163 @@ def add_security_middleware(app):
     logger.info(
         f"Security middleware configured: "
         f"auth={'enabled' if security_config.api_key_enabled else 'disabled'}, "
+        f"csrf=enabled, "
         f"rate_limit={'enabled' if security_config.rate_limit_enabled else 'disabled'}"
     )
+
+
+# ============================================================================
+# CSRF PROTECTION
+# ============================================================================
+
+class CSRFProtection:
+    """
+    CSRF protection using double-submit cookie pattern.
+    
+    How it works:
+    1. Server sets a CSRF token in a cookie (SameSite=Strict)
+    2. Client must send the same token in X-CSRF-Token header
+    3. Server validates both match
+    
+    This prevents CSRF because:
+    - Attacker can't read the cookie (same-origin policy)
+    - Attacker can't set custom headers on cross-origin requests
+    """
+    
+    COOKIE_NAME = "csrf_token"
+    HEADER_NAME = "X-CSRF-Token"
+    TOKEN_LENGTH = 32
+    
+    def __init__(self):
+        self._tokens: Dict[str, float] = {}  # token -> expiry timestamp
+        self._token_ttl = 3600  # 1 hour
+    
+    def generate_token(self) -> str:
+        """Generate a cryptographically secure CSRF token."""
+        import secrets
+        token = secrets.token_urlsafe(self.TOKEN_LENGTH)
+        self._tokens[token] = time.time() + self._token_ttl
+        self._cleanup_expired()
+        return token
+    
+    def validate_token(self, cookie_token: Optional[str], header_token: Optional[str]) -> bool:
+        """Validate CSRF token using constant-time comparison."""
+        if not cookie_token or not header_token:
+            return False
+        if cookie_token not in self._tokens:
+            return False
+        if self._tokens[cookie_token] < time.time():
+            del self._tokens[cookie_token]
+            return False
+        return hmac.compare_digest(cookie_token, header_token)
+    
+    def _cleanup_expired(self):
+        """Remove expired tokens."""
+        now = time.time()
+        self._tokens = {t: exp for t, exp in self._tokens.items() if exp > now}
+
+
+csrf_protection = CSRFProtection()
+
+
+class CSRFMiddleware(BaseHTTPMiddleware):
+    """CSRF protection middleware for state-changing requests."""
+    
+    SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
+    EXEMPT_PATHS = {"/health", "/ready", "/metrics", "/ws", "/docs", "/redoc", "/openapi.json"}
+    
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        # Skip for safe methods
+        if request.method in self.SAFE_METHODS:
+            response = await call_next(request)
+            # Set CSRF cookie on GET requests to pages
+            if request.method == "GET" and not request.url.path.startswith("/api/"):
+                token = csrf_protection.generate_token()
+                response.set_cookie(
+                    key=CSRFProtection.COOKIE_NAME,
+                    value=token,
+                    httponly=False,  # JS needs to read it
+                    samesite="strict",
+                    secure=os.getenv("ASTRO_ENV") == "production",
+                    max_age=3600
+                )
+            return response
+        
+        # Skip for exempt paths
+        if any(request.url.path.startswith(p) for p in self.EXEMPT_PATHS):
+            return await call_next(request)
+        
+        # Skip if API key auth is used (machine-to-machine)
+        if request.headers.get(security_config.api_key_header):
+            return await call_next(request)
+        
+        # Validate CSRF token
+        cookie_token = request.cookies.get(CSRFProtection.COOKIE_NAME)
+        header_token = request.headers.get(CSRFProtection.HEADER_NAME)
+        
+        if not csrf_protection.validate_token(cookie_token, header_token):
+            logger.warning(f"CSRF validation failed for {request.method} {request.url.path}")
+            return JSONResponse(
+                status_code=status.HTTP_403_FORBIDDEN,
+                content={"detail": "CSRF token missing or invalid"}
+            )
+        
+        return await call_next(request)
+
+
+# ============================================================================
+# REQUEST SIGNING (HMAC)
+# ============================================================================
+
+class RequestSigningMiddleware(BaseHTTPMiddleware):
+    """
+    HMAC request signing middleware to prevent replay attacks.
+    
+    Required headers:
+    - X-Timestamp: Unix timestamp
+    - X-Signature: HMAC-SHA256 signature
+    
+    Enable by setting ASTRO_SIGNING_KEY environment variable.
+    """
+    
+    EXEMPT_PATHS = {"/health", "/ready", "/metrics", "/docs", "/redoc", "/openapi.json", "/ws"}
+    
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        from api.request_signing import get_request_signer
+        signer = get_request_signer()
+        
+        # Skip if signing not configured
+        if not signer.secret_key:
+            return await call_next(request)
+        
+        # Skip exempt paths
+        if any(request.url.path.startswith(p) for p in self.EXEMPT_PATHS):
+            return await call_next(request)
+        
+        # Skip safe methods
+        if request.method in {"GET", "HEAD", "OPTIONS"}:
+            return await call_next(request)
+        
+        timestamp = request.headers.get("X-Timestamp", "")
+        signature = request.headers.get("X-Signature", "")
+        
+        if not timestamp or not signature:
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": "Missing signature headers"}
+            )
+        
+        body = await request.body()
+        valid, msg = signer.verify(request.method, request.url.path, body.decode(), timestamp, signature)
+        
+        if not valid:
+            from core.audit_logger import get_audit_logger, AuditEvent
+            audit = get_audit_logger()
+            audit.log(AuditEvent.SECURITY_VIOLATION, "unknown", request.url.path, "failure",
+                     {"reason": msg}, getattr(request.state, "request_id", None), get_client_id(request))
+            return JSONResponse(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                content={"detail": msg}
+            )
+        
+        return await call_next(request)

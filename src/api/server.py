@@ -20,6 +20,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
+from enum import Enum
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -120,6 +121,22 @@ class TelemetryResponse(BaseModel):
     load: float
     latency: float
     timestamp: str
+
+# WebSocket message validation models
+class WSMessageType(str, Enum):
+    """Valid WebSocket message types."""
+    PING = "ping"
+    SUBSCRIBE = "subscribe"
+    UNSUBSCRIBE = "unsubscribe"
+    COMMAND = "command"
+
+class WSMessage(BaseModel):
+    """Validated WebSocket message structure."""
+    type: WSMessageType
+    payload: Dict[str, Any] = Field(default_factory=dict, max_length=100)
+    
+    class Config:
+        max_anystr_length = 10000  # Limit string lengths in payload
 
 # ============================================================================
 # CONNECTION MANAGER
@@ -423,6 +440,12 @@ def create_app() -> FastAPI:
 def register_routes(app: FastAPI):
     """Register all API routes."""
     
+    # Initialize and include routers
+    from api.routers import system_router
+    from api.routers.system import init_router as init_system_router
+    init_system_router(app_state, manager)
+    app.include_router(system_router)
+    
     # ========================================================================
     # STATIC FILE ROUTES
     # ========================================================================
@@ -566,62 +589,8 @@ def register_routes(app: FastAPI):
         return metrics
     
     # ========================================================================
-    # SYSTEM ROUTES
+    # SYSTEM ROUTES (moved to api/routers/system.py)
     # ========================================================================
-    
-    @app.get("/api/system/status", response_model=SystemStatusResponse)
-    async def get_system_status():
-        """Get current system status."""
-        return SystemStatusResponse(
-            status="online" if app_state.running else "ready",
-            agents_count=len(app_state.agents),
-            active_workflows=len(app_state.engine.workflows) if app_state.engine else 0,
-            uptime=time.time() - app_state.start_time,
-        )
-    
-    @app.post("/api/system/start")
-    async def start_system():
-        """Start the agent system."""
-        if app_state.running:
-            return {"status": "already_running", "message": "System is already running"}
-        
-        app_state.running = True
-        
-        # Initialize NL interface with LLM client for agent orchestration
-        if app_state.llm_client and not app_state.nl_interface:
-            model = getattr(app_state, 'llm_model', 'llama3.2')
-            app_state.nl_interface = NaturalLanguageInterface(
-                engine=app_state.engine,
-                llm_client=app_state.llm_client,
-                model_name=model
-            )
-            logger.info("NL Interface initialized for agent orchestration")
-        
-        # Start the engine in background
-        asyncio.create_task(app_state.engine.start_engine())
-        
-        await manager.broadcast("system_status", {"status": "online"})
-        await manager.broadcast("log", {
-            "timestamp": datetime.now().strftime("%H:%M"),
-            "type": "system",
-            "title": "System Started",
-            "message": "ASTRO agent ecosystem is now online.",
-        })
-        
-        return {"status": "started", "message": "System started successfully"}
-    
-    @app.post("/api/system/stop")
-    async def stop_system():
-        """Stop the agent system."""
-        if not app_state.running:
-            return {"status": "not_running", "message": "System is not running"}
-        
-        app_state.running = False
-        await app_state.engine.shutdown()
-        
-        await manager.broadcast("system_status", {"status": "offline"})
-        
-        return {"status": "stopped", "message": "System stopped successfully"}
     
     # ========================================================================
     # AGENT ROUTES
@@ -1139,7 +1108,7 @@ Be helpful, accurate, and concise. When tasks require agent capabilities, explai
     
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):
-        """WebSocket endpoint for real-time updates."""
+        """WebSocket endpoint for real-time updates with input validation."""
         await manager.connect(websocket)
         
         # Send initial state
@@ -1147,24 +1116,38 @@ Be helpful, accurate, and concise. When tasks require agent capabilities, explai
             "status": "online" if app_state.running else "ready",
         })
         
+        MAX_MESSAGE_SIZE = 65536  # 64KB limit
+        
         try:
             while True:
                 data = await websocket.receive_text()
                 
+                # Size validation
+                if len(data) > MAX_MESSAGE_SIZE:
+                    await manager.send_to_client(websocket, "error", {
+                        "message": "Message too large",
+                        "max_size": MAX_MESSAGE_SIZE
+                    })
+                    continue
+                
                 try:
-                    message = json.loads(data)
-                    msg_type = message.get("type")
-                    payload = message.get("payload", {})
+                    # Parse and validate with Pydantic
+                    raw_message = json.loads(data)
+                    validated = WSMessage(**raw_message)
                     
-                    if msg_type == "ping":
+                    if validated.type == WSMessageType.PING:
                         await manager.send_to_client(websocket, "pong", {"time": time.time()})
-                    elif msg_type == "subscribe":
-                        pass
+                    elif validated.type == WSMessageType.SUBSCRIBE:
+                        pass  # Handle subscription
                     else:
-                        logger.debug(f"Received unknown message type: {msg_type}")
+                        logger.debug(f"Received message type: {validated.type}")
                         
                 except json.JSONDecodeError:
                     logger.warning(f"Invalid JSON received: {data[:100]}")
+                    await manager.send_to_client(websocket, "error", {"message": "Invalid JSON"})
+                except Exception as e:
+                    logger.warning(f"WebSocket validation error: {e}")
+                    await manager.send_to_client(websocket, "error", {"message": "Invalid message format"})
                     
         except WebSocketDisconnect:
             manager.disconnect(websocket)
