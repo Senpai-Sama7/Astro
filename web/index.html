@@ -17,7 +17,7 @@
     <header class="hero">
       <div class="hero__brand">
         <span class="mark">ASTRO</span>
-        <span class="badge">Production Ready</span>
+        <span class="badge" id="status-badge">Checking...</span>
       </div>
       
       <div class="hero__copy">
@@ -37,14 +37,14 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
           </svg>
-          Deploy Agents
+          <span id="deploy-text">Deploy Agents</span>
         </button>
       </div>
       
       <dl class="hero__stats">
         <div>
           <dt>Agents Available</dt>
-          <dd>7</dd>
+          <dd id="stat-agents">7</dd>
         </div>
         <div>
           <dt>Tests Passing</dt>
@@ -52,7 +52,10 @@
         </div>
         <div>
           <dt>System Status</dt>
-          <dd id="system-status">●&nbsp;Online</dd>
+          <dd id="system-status">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">Checking...</span>
+          </dd>
         </div>
       </dl>
     </header>
@@ -77,32 +80,32 @@
         
         <article class="access-card">
           <div class="access-card__meta">
-            <span class="tag">Orchestration</span>
-            <span class="version">beta</span>
+            <span class="tag">API</span>
+            <span class="version">REST</span>
           </div>
-          <h3>🔄 Workflow Canvas</h3>
-          <p>Design multi-step missions, assign agents, and monitor execution across parallel lanes with real-time telemetry.</p>
-          <button class="btn btn--ghost" data-route="/workflows">Open canvas</button>
+          <h3>🔌 API Access</h3>
+          <p>Integrate ASTRO into your applications via REST API. Full documentation and WebSocket support included.</p>
+          <a href="/docs" class="btn btn--ghost" target="_blank">View API Docs</a>
         </article>
         
         <article class="access-card">
           <div class="access-card__meta">
-            <span class="tag">Memory</span>
-            <span class="version">sync</span>
+            <span class="tag">Desktop</span>
+            <span class="version">GUI</span>
           </div>
-          <h3>🧠 Knowledge Vault</h3>
-          <p>Persistent memory across sessions. Save research, decisions, and context for intelligent retrieval.</p>
-          <button class="btn btn--ghost" data-route="/vault">Browse vault</button>
+          <h3>🖥️ Desktop App</h3>
+          <p>Native desktop application with full agent control, real-time monitoring, and offline capabilities.</p>
+          <a href="https://github.com/Senpai-Sama7/Astro/releases" class="btn btn--ghost" target="_blank">Download</a>
         </article>
         
         <article class="access-card">
           <div class="access-card__meta">
-            <span class="tag">Output</span>
-            <span class="version">live</span>
+            <span class="tag">Source</span>
+            <span class="version">MIT</span>
           </div>
-          <h3>📁 File Manager</h3>
-          <p>Browse, edit, and manage all generated files. Code, reports, summaries—everything in one place.</p>
-          <button class="btn btn--ghost" data-route="/files">View files</button>
+          <h3>📦 GitHub</h3>
+          <p>Open source under MIT license. Star, fork, contribute, or self-host your own ASTRO instance.</p>
+          <a href="https://github.com/Senpai-Sama7/Astro" class="btn btn--ghost" target="_blank">View Source</a>
         </article>
       </div>
     </section>
@@ -114,83 +117,8 @@
         <p>Each agent is purpose-built for specific tasks, working together seamlessly to accomplish complex goals.</p>
       </header>
       
-      <div class="agent-grid">
-        <div class="agent-card">
-          <div class="agent-card__header">
-            <div class="agent-card__icon">🔬</div>
-            <div>
-              <h3>Research Agent</h3>
-              <div class="agent-card__status">Online</div>
-            </div>
-          </div>
-          <p>Web search, content extraction, and summarization. Finds and synthesizes information from across the internet.</p>
-        </div>
-        
-        <div class="agent-card">
-          <div class="agent-card__header">
-            <div class="agent-card__icon">💻</div>
-            <div>
-              <h3>Code Agent</h3>
-              <div class="agent-card__status">Online</div>
-            </div>
-          </div>
-          <p>Generates, executes, and debugs code in a secure Docker sandbox. Full AST validation for safety.</p>
-        </div>
-        
-        <div class="agent-card">
-          <div class="agent-card__header">
-            <div class="agent-card__icon">📁</div>
-            <div>
-              <h3>FileSystem Agent</h3>
-              <div class="agent-card__status">Online</div>
-            </div>
-          </div>
-          <p>Creates, reads, and organizes files. Path-validated operations restricted to the workspace directory.</p>
-        </div>
-        
-        <div class="agent-card">
-          <div class="agent-card__header">
-            <div class="agent-card__icon">🔧</div>
-            <div>
-              <h3>Git Agent</h3>
-              <div class="agent-card__status">Online</div>
-            </div>
-          </div>
-          <p>Version control operations: status, diff, commit, branch, checkout. Manages your repository seamlessly.</p>
-        </div>
-        
-        <div class="agent-card">
-          <div class="agent-card__header">
-            <div class="agent-card__icon">🧪</div>
-            <div>
-              <h3>Test Agent</h3>
-              <div class="agent-card__status">Online</div>
-            </div>
-          </div>
-          <p>Runs test suites across frameworks: pytest, npm test, cargo test, go test. Enables TDD workflows.</p>
-        </div>
-        
-        <div class="agent-card">
-          <div class="agent-card__header">
-            <div class="agent-card__icon">📊</div>
-            <div>
-              <h3>Analysis Agent</h3>
-              <div class="agent-card__status">Online</div>
-            </div>
-          </div>
-          <p>Static code analysis and linting. Runs pylint, eslint, and other quality tools on your codebase.</p>
-        </div>
-        
-        <div class="agent-card">
-          <div class="agent-card__header">
-            <div class="agent-card__icon">🧠</div>
-            <div>
-              <h3>Knowledge Agent</h3>
-              <div class="agent-card__status">Online</div>
-            </div>
-          </div>
-          <p>Semantic memory persistence. Saves and retrieves architectural decisions, context, and learnings.</p>
-        </div>
+      <div class="agent-grid" id="agent-grid">
+        <!-- Agents will be populated dynamically -->
       </div>
     </section>
 
@@ -202,11 +130,11 @@
       
       <div class="telemetry">
         <div class="telemetry__item">
-          <div class="telemetry__value" id="tel-agents">7</div>
+          <div class="telemetry__value" id="tel-agents">--</div>
           <div class="telemetry__label">Active Agents</div>
         </div>
         <div class="telemetry__item">
-          <div class="telemetry__value" id="tel-tasks">0</div>
+          <div class="telemetry__value" id="tel-tasks">--</div>
           <div class="telemetry__label">Tasks Queued</div>
         </div>
         <div class="telemetry__item">
@@ -214,54 +142,182 @@
           <div class="telemetry__label">Avg Latency</div>
         </div>
         <div class="telemetry__item">
-          <div class="telemetry__value" id="tel-uptime">99.9%</div>
+          <div class="telemetry__value" id="tel-uptime">--</div>
           <div class="telemetry__label">Uptime</div>
         </div>
       </div>
     </section>
 
-    <script src="app.js"></script>
+    <style>
+      .status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 6px;
+        background: var(--muted, #6b7280);
+      }
+      .status-dot.online { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+      .status-dot.offline { background: #6b7280; }
+      .status-dot.error { background: #ef4444; }
+      .agent-card__status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted, #a1a1aa); }
+      .agent-card__status::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: #22c55e;
+      }
+      .agent-card__status.offline::before { background: #6b7280; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .loading { display: inline-block; width: 14px; height: 14px; border: 2px solid transparent; border-top-color: currentColor; border-radius: 50%; animation: spin 0.8s linear infinite; }
+    </style>
+
     <script>
-      // Live status indicator
-      const statusEl = document.getElementById('system-status');
-      
+      // Agent definitions - these match the actual backend agents
+      const AGENTS = [
+        { id: 'research_agent_001', name: 'Research Agent', icon: '🔬', desc: 'Web search, content extraction, and summarization. Finds and synthesizes information from across the internet.' },
+        { id: 'code_agent_001', name: 'Code Agent', icon: '💻', desc: 'Generates, executes, and debugs code in a secure Docker sandbox. Full AST validation for safety.' },
+        { id: 'filesystem_agent_001', name: 'FileSystem Agent', icon: '📁', desc: 'Creates, reads, and organizes files. Path-validated operations restricted to the workspace directory.' },
+        { id: 'git_agent_001', name: 'Git Agent', icon: '🔧', desc: 'Version control operations: status, diff, commit, branch, checkout. Manages your repository seamlessly.' },
+        { id: 'test_agent_001', name: 'Test Agent', icon: '🧪', desc: 'Runs test suites across frameworks: pytest, npm test, cargo test, go test. Enables TDD workflows.' },
+        { id: 'analysis_agent_001', name: 'Analysis Agent', icon: '📊', desc: 'Static code analysis and linting. Runs pylint, eslint, and other quality tools on your codebase.' },
+        { id: 'knowledge_agent_001', name: 'Knowledge Agent', icon: '🧠', desc: 'Semantic memory persistence. Saves and retrieves architectural decisions, context, and learnings.' }
+      ];
+
+      // State
+      let systemOnline = false;
+      let agentStatuses = {};
+      let startTime = Date.now();
+
+      // Render agents
+      function renderAgents() {
+        const grid = document.getElementById('agent-grid');
+        grid.innerHTML = AGENTS.map(agent => `
+          <div class="agent-card" data-agent="${agent.id}">
+            <div class="agent-card__header">
+              <div class="agent-card__icon">${agent.icon}</div>
+              <div>
+                <h3>${agent.name}</h3>
+                <div class="agent-card__status ${agentStatuses[agent.id] ? '' : 'offline'}" id="status-${agent.id}">
+                  ${agentStatuses[agent.id] ? 'Online' : 'Offline'}
+                </div>
+              </div>
+            </div>
+            <p>${agent.desc}</p>
+          </div>
+        `).join('');
+      }
+
+      // Check system status
       async function checkStatus() {
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+        const statusBadge = document.getElementById('status-badge');
+        
         try {
-          const res = await fetch('/api/status', { method: 'GET', timeout: 3000 });
+          const res = await fetch('/api/status');
           if (res.ok) {
-            statusEl.innerHTML = '<span style="color: var(--success)">●</span>&nbsp;Online';
-          } else {
-            statusEl.innerHTML = '<span style="color: var(--warning)">●</span>&nbsp;Degraded';
+            const data = await res.json();
+            systemOnline = true;
+            statusDot.className = 'status-dot online';
+            statusText.textContent = 'Online';
+            statusBadge.textContent = 'Production Ready';
+            statusBadge.style.background = 'rgba(34, 197, 94, 0.2)';
+            statusBadge.style.borderColor = '#22c55e';
+            
+            // Update agent statuses from API
+            if (data.agents) {
+              data.agents.forEach(a => agentStatuses[a.id] = a.status === 'active');
+            } else {
+              // If no agent data, assume all online when system is online
+              AGENTS.forEach(a => agentStatuses[a.id] = true);
+            }
+            
+            // Update telemetry
+            document.getElementById('tel-agents').textContent = data.agents_count || AGENTS.length;
+            document.getElementById('tel-tasks').textContent = data.pending_tasks || 0;
+            document.getElementById('tel-latency').textContent = data.avg_latency ? `${data.avg_latency}ms` : '<50ms';
+            
+            renderAgents();
+            return true;
           }
-        } catch {
-          statusEl.innerHTML = '<span style="color: var(--muted)">●</span>&nbsp;Offline';
+        } catch (e) {
+          // Server not running - show offline state
+        }
+        
+        systemOnline = false;
+        statusDot.className = 'status-dot offline';
+        statusText.textContent = 'Offline';
+        statusBadge.textContent = 'Server Offline';
+        statusBadge.style.background = 'rgba(107, 114, 128, 0.2)';
+        statusBadge.style.borderColor = '#6b7280';
+        
+        // All agents offline
+        AGENTS.forEach(a => agentStatuses[a.id] = false);
+        document.getElementById('tel-agents').textContent = '0';
+        document.getElementById('tel-tasks').textContent = '--';
+        document.getElementById('tel-latency').textContent = '--';
+        
+        renderAgents();
+        return false;
+      }
+
+      // Update uptime
+      function updateUptime() {
+        if (!systemOnline) {
+          document.getElementById('tel-uptime').textContent = '--';
+          return;
+        }
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        const hours = Math.floor(elapsed / 3600);
+        const mins = Math.floor((elapsed % 3600) / 60);
+        const secs = elapsed % 60;
+        
+        if (hours > 0) {
+          document.getElementById('tel-uptime').textContent = `${hours}h ${mins}m`;
+        } else if (mins > 0) {
+          document.getElementById('tel-uptime').textContent = `${mins}m ${secs}s`;
+        } else {
+          document.getElementById('tel-uptime').textContent = `${secs}s`;
         }
       }
-      
-      // Check status on load and every 30s
-      checkStatus();
-      setInterval(checkStatus, 30000);
-      
+
       // Deploy button
       document.getElementById('deploy-btn').addEventListener('click', async () => {
         const btn = document.getElementById('deploy-btn');
+        const text = document.getElementById('deploy-text');
+        
         btn.disabled = true;
-        btn.innerHTML = '<span class="loading"></span> Deploying...';
+        text.innerHTML = '<span class="loading"></span> Starting...';
         
         try {
           const res = await fetch('/api/system/start', { method: 'POST' });
           if (res.ok) {
-            btn.innerHTML = '✓ Agents Deployed';
+            text.textContent = '✓ System Started';
+            startTime = Date.now();
+            await checkStatus();
             setTimeout(() => {
-              btn.innerHTML = 'Deploy Agents';
+              text.textContent = 'Deploy Agents';
               btn.disabled = false;
-            }, 3000);
+            }, 2000);
+          } else {
+            throw new Error('Failed to start');
           }
-        } catch {
-          btn.innerHTML = 'Deploy Agents';
-          btn.disabled = false;
+        } catch (e) {
+          text.textContent = '✗ Server Unavailable';
+          setTimeout(() => {
+            text.textContent = 'Deploy Agents';
+            btn.disabled = false;
+          }, 2000);
         }
       });
+
+      // Initialize
+      renderAgents();
+      checkStatus();
+      setInterval(checkStatus, 10000); // Check every 10s
+      setInterval(updateUptime, 1000); // Update uptime every second
     </script>
   </body>
 </html>
