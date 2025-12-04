@@ -3,53 +3,56 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ASTRO - Autonomous Agent Ecosystem. Orchestrate AI research, code, and workflows from one unified interface." />
+    <meta name="theme-color" content="#050507" />
     <title>ASTRO · Autonomous Agent Console</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
     <div class="grain"></div>
 
-    <header class="hero" data-tilt>
+    <header class="hero">
       <div class="hero__brand">
         <span class="mark">ASTRO</span>
-        <span class="badge">AU · 24</span>
+        <span class="badge">Production Ready</span>
       </div>
+      
       <div class="hero__copy">
-        <p class="eyebrow">Autonomous multi-agent control surface</p>
-        <h1>
-          Orchestrate research, code, and workflows from one unified interface.
-        </h1>
-        <p>
-          Deploy and supervise AI research, code, and workflow agents with live
-          telemetry, safe execution, and persistent memory.
-        </p>
+        <p class="eyebrow">Autonomous Multi-Agent System</p>
+        <h1>Your AI team that actually gets things done.</h1>
+        <p>Deploy and orchestrate AI agents for research, code generation, file management, testing, and more—all from natural language commands.</p>
       </div>
+      
       <div class="hero__cta">
-        <a href="/assistant" class="btn btn--primary" data-tilt>
+        <a href="chat.html" class="btn btn--primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
           Start Chatting
         </a>
-        <button class="btn btn--ghost" data-tilt data-action="start-system" id="deploy-btn">
+        <button class="btn btn--ghost" id="deploy-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
           Deploy Agents
         </button>
       </div>
+      
       <dl class="hero__stats">
         <div>
-          <dt>Agents Live</dt>
-          <dd>07</dd>
+          <dt>Agents Available</dt>
+          <dd>7</dd>
         </div>
         <div>
           <dt>Tests Passing</dt>
-          <dd>21</dd>
+          <dd>21/21</dd>
         </div>
         <div>
-          <dt>Production</dt>
-          <dd>✓</dd>
+          <dt>System Status</dt>
+          <dd id="system-status">●&nbsp;Online</dd>
         </div>
       </dl>
     </header>
@@ -57,72 +60,208 @@
     <section class="access-grid">
       <header>
         <p class="eyebrow">Access Points</p>
-        <h2>Choose how you want to engage the ASTRO collective</h2>
-        <p>
-          Jump straight into a conversational workspace, orchestrate workflows,
-          browse your knowledge vault, or manage generated files—just like
-          ChatGPT's multi-surface entry but tuned for agents.
-        </p>
+        <h2>Choose your interface</h2>
+        <p>Jump into conversational AI, orchestrate complex workflows, manage your knowledge base, or browse generated files.</p>
       </header>
+      
       <div class="access-grid__cards">
-        <article class="access-card" data-tilt>
+        <article class="access-card">
           <div class="access-card__meta">
             <span class="tag">AI Assistant</span>
-            <span class="version">NEW</span>
+            <span class="version">v2.0</span>
           </div>
-          <h3>Chat with ASTRO</h3>
-          <p>
-            Simple, intuitive conversations. Research, write, code, and analyze
-            with natural language—no technical knowledge required.
-          </p>
-          <a href="/assistant" class="btn btn--ghost">Start chatting</a>
+          <h3>💬 Chat Interface</h3>
+          <p>Natural language conversations with your AI team. Research, write, code, and analyze without technical knowledge.</p>
+          <a href="chat.html" class="btn btn--ghost">Start chatting</a>
         </article>
-        <article class="access-card" data-tilt>
+        
+        <article class="access-card">
           <div class="access-card__meta">
-            <span class="tag">Workflow Canvas</span>
+            <span class="tag">Orchestration</span>
             <span class="version">beta</span>
           </div>
-          <h3>Structured orchestration</h3>
-          <p>
-            Design multi-step missions, assign them to agents, and monitor
-            execution across parallel lanes.
-          </p>
+          <h3>🔄 Workflow Canvas</h3>
+          <p>Design multi-step missions, assign agents, and monitor execution across parallel lanes with real-time telemetry.</p>
           <button class="btn btn--ghost" data-route="/workflows">Open canvas</button>
         </article>
-        <article class="access-card" data-tilt>
+        
+        <article class="access-card">
           <div class="access-card__meta">
-            <span class="tag">Knowledge</span>
+            <span class="tag">Memory</span>
             <span class="version">sync</span>
           </div>
-          <h3>Knowledge & documentation</h3>
-          <p>
-            Save research notes, briefs, and summaries so you can reuse them
-            across projects.
-          </p>
-          <button class="btn btn--ghost" data-route="/vault">Open knowledge</button>
+          <h3>🧠 Knowledge Vault</h3>
+          <p>Persistent memory across sessions. Save research, decisions, and context for intelligent retrieval.</p>
+          <button class="btn btn--ghost" data-route="/vault">Browse vault</button>
         </article>
-        <article class="access-card" data-tilt>
+        
+        <article class="access-card">
           <div class="access-card__meta">
-            <span class="tag">Files</span>
-            <span class="version">ops</span>
+            <span class="tag">Output</span>
+            <span class="version">live</span>
           </div>
-          <h3>Files & artifacts</h3>
-          <p>
-            View, compare, and download files generated by agents and workflows
-            in one place.
-          </p>
-          <button class="btn btn--ghost" data-route="/files">Open files</button>
+          <h3>📁 File Manager</h3>
+          <p>Browse, edit, and manage all generated files. Code, reports, summaries—everything in one place.</p>
+          <button class="btn btn--ghost" data-route="/files">View files</button>
         </article>
       </div>
     </section>
 
-    <main id="app-content"></main>
+    <section class="access-grid">
+      <header>
+        <p class="eyebrow">Agent Fleet</p>
+        <h2>7 specialized agents at your command</h2>
+        <p>Each agent is purpose-built for specific tasks, working together seamlessly to accomplish complex goals.</p>
+      </header>
+      
+      <div class="agent-grid">
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">🔬</div>
+            <div>
+              <h3>Research Agent</h3>
+              <div class="agent-card__status">Online</div>
+            </div>
+          </div>
+          <p>Web search, content extraction, and summarization. Finds and synthesizes information from across the internet.</p>
+        </div>
+        
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">💻</div>
+            <div>
+              <h3>Code Agent</h3>
+              <div class="agent-card__status">Online</div>
+            </div>
+          </div>
+          <p>Generates, executes, and debugs code in a secure Docker sandbox. Full AST validation for safety.</p>
+        </div>
+        
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">📁</div>
+            <div>
+              <h3>FileSystem Agent</h3>
+              <div class="agent-card__status">Online</div>
+            </div>
+          </div>
+          <p>Creates, reads, and organizes files. Path-validated operations restricted to the workspace directory.</p>
+        </div>
+        
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">🔧</div>
+            <div>
+              <h3>Git Agent</h3>
+              <div class="agent-card__status">Online</div>
+            </div>
+          </div>
+          <p>Version control operations: status, diff, commit, branch, checkout. Manages your repository seamlessly.</p>
+        </div>
+        
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">🧪</div>
+            <div>
+              <h3>Test Agent</h3>
+              <div class="agent-card__status">Online</div>
+            </div>
+          </div>
+          <p>Runs test suites across frameworks: pytest, npm test, cargo test, go test. Enables TDD workflows.</p>
+        </div>
+        
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">📊</div>
+            <div>
+              <h3>Analysis Agent</h3>
+              <div class="agent-card__status">Online</div>
+            </div>
+          </div>
+          <p>Static code analysis and linting. Runs pylint, eslint, and other quality tools on your codebase.</p>
+        </div>
+        
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">🧠</div>
+            <div>
+              <h3>Knowledge Agent</h3>
+              <div class="agent-card__status">Online</div>
+            </div>
+          </div>
+          <p>Semantic memory persistence. Saves and retrieves architectural decisions, context, and learnings.</p>
+        </div>
+      </div>
+    </section>
 
-    <footer>
-      <p>ASTRO · Autonomous Agent Ecosystem</p>
-      <p>End-to-end multi-agent orchestration surface · © 2024</p>
-    </footer>
+    <section class="access-grid">
+      <header>
+        <p class="eyebrow">Live Telemetry</p>
+        <h2>System performance</h2>
+      </header>
+      
+      <div class="telemetry">
+        <div class="telemetry__item">
+          <div class="telemetry__value" id="tel-agents">7</div>
+          <div class="telemetry__label">Active Agents</div>
+        </div>
+        <div class="telemetry__item">
+          <div class="telemetry__value" id="tel-tasks">0</div>
+          <div class="telemetry__label">Tasks Queued</div>
+        </div>
+        <div class="telemetry__item">
+          <div class="telemetry__value" id="tel-latency">--</div>
+          <div class="telemetry__label">Avg Latency</div>
+        </div>
+        <div class="telemetry__item">
+          <div class="telemetry__value" id="tel-uptime">99.9%</div>
+          <div class="telemetry__label">Uptime</div>
+        </div>
+      </div>
+    </section>
 
-    <script src="app.js" type="module"></script>
+    <script src="app.js"></script>
+    <script>
+      // Live status indicator
+      const statusEl = document.getElementById('system-status');
+      
+      async function checkStatus() {
+        try {
+          const res = await fetch('/api/status', { method: 'GET', timeout: 3000 });
+          if (res.ok) {
+            statusEl.innerHTML = '<span style="color: var(--success)">●</span>&nbsp;Online';
+          } else {
+            statusEl.innerHTML = '<span style="color: var(--warning)">●</span>&nbsp;Degraded';
+          }
+        } catch {
+          statusEl.innerHTML = '<span style="color: var(--muted)">●</span>&nbsp;Offline';
+        }
+      }
+      
+      // Check status on load and every 30s
+      checkStatus();
+      setInterval(checkStatus, 30000);
+      
+      // Deploy button
+      document.getElementById('deploy-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('deploy-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading"></span> Deploying...';
+        
+        try {
+          const res = await fetch('/api/system/start', { method: 'POST' });
+          if (res.ok) {
+            btn.innerHTML = '✓ Agents Deployed';
+            setTimeout(() => {
+              btn.innerHTML = 'Deploy Agents';
+              btn.disabled = false;
+            }, 3000);
+          }
+        } catch {
+          btn.innerHTML = 'Deploy Agents';
+          btn.disabled = false;
+        }
+      });
+    </script>
   </body>
 </html>

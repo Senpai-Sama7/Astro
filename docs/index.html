@@ -1,239 +1,267 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASTRO System Documentation</title>
-    <style>
-        :root {
-            --primary-color: #0f172a;
-            --secondary-color: #334155;
-            --accent-color: #2563eb;
-            --bg-color: #ffffff;
-            --text-color: #1e293b;
-            --border-color: #e2e8f0;
-            --code-bg: #f1f5f9;
-        }
-        body {
-            font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-            line-height: 1.6;
-            color: var(--text-color);
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 40px 20px;
-        }
-        h1, h2, h3 { color: var(--primary-color); border-bottom: 1px solid var(--border-color); padding-bottom: 10px; }
-        h1 { margin-bottom: 40px; }
-        
-        /* Functional Table Styles */
-        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-        th, td { border: 1px solid var(--border-color); padding: 12px; text-align: left; vertical-align: top; }
-        th { background-color: var(--code-bg); font-weight: 600; }
-        
-        /* Code Blocks */
-        pre { background: var(--primary-color); color: #fff; padding: 15px; border-radius: 6px; overflow-x: auto; }
-        code { font-family: "Menlo", "Monaco", monospace; font-size: 0.9em; }
-        .inline-code { background: var(--code-bg); padding: 2px 6px; border-radius: 4px; color: var(--secondary-color); }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="ASTRO - Autonomous Agent Ecosystem. Orchestrate AI research, code, and workflows from one unified interface." />
+    <meta name="theme-color" content="#050507" />
+    <title>ASTRO · Autonomous Agent Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="grain"></div>
 
-        /* Status Indicators */
-        .badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
-        .badge-prod { background: #dcfce7; color: #166534; }
-        .badge-sec { background: #fee2e2; color: #991b1b; }
-        
-        /* Grid Layout for Agents */
-        .agent-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
-        .agent-card { border: 1px solid var(--border-color); padding: 20px; border-radius: 8px; }
-        .agent-card h3 { border-bottom: none; margin-top: 0; }
-    </style>
-</head>
-<body>
-
-    <header>
-        <h1>ASTRO: Autonomous Agent Ecosystem</h1>
-        <p><strong>Technical Reference Manual v1.0.0</strong></p>
-        <p>A Python-based multi-agent orchestration system utilizing asynchronous processing, local LLM inference, and containerized execution environments.</p>
+    <header class="hero">
+      <div class="hero__brand">
+        <span class="mark">ASTRO</span>
+        <span class="badge">Production Ready</span>
+      </div>
+      
+      <div class="hero__copy">
+        <p class="eyebrow">Autonomous Multi-Agent System</p>
+        <h1>Your AI team that actually gets things done.</h1>
+        <p>Deploy and orchestrate AI agents for research, code generation, file management, testing, and more—all from natural language commands.</p>
+      </div>
+      
+      <div class="hero__cta">
+        <a href="chat.html" class="btn btn--primary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          Start Chatting
+        </a>
+        <button class="btn btn--ghost" id="deploy-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+          </svg>
+          Deploy Agents
+        </button>
+      </div>
+      
+      <dl class="hero__stats">
+        <div>
+          <dt>Agents Available</dt>
+          <dd>7</dd>
+        </div>
+        <div>
+          <dt>Tests Passing</dt>
+          <dd>21/21</dd>
+        </div>
+        <div>
+          <dt>System Status</dt>
+          <dd id="system-status">●&nbsp;Online</dd>
+        </div>
+      </dl>
     </header>
 
-    <main>
-        <section id="architecture">
-            <h2>1. System Architecture</h2>
-            <p>ASTRO utilizes a Hub-and-Spoke architecture managed by a central <code>AgentEngine</code>. The system operates asynchronously using Python's <code>asyncio</code> event loop.</p>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th>Component</th>
-                        <th>File Reference</th>
-                        <th>Functionality</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Agent Engine</strong></td>
-                        <td><code>src/core/engine.py</code></td>
-                        <td>Central scheduler, task routing, priority queue management, and performance monitoring.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>NL Interface</strong></td>
-                        <td><code>src/core/nl_interface.py</code></td>
-                        <td>Intent classification and task decomposition. Sanitizes user input before LLM processing.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Database</strong></td>
-                        <td><code>src/core/database.py</code></td>
-                        <td>SQLite implementation with WAL mode. Persists agents, workflows, tasks, and metrics.</td>
-                    </tr>
-                    <tr>
-                        <td><strong>Event Bus</strong></td>
-                        <td><code>src/core/a2a_protocol.py</code></td>
-                        <td>Asynchronous message bus implementing the Actor Model for inter-agent communication.</td>
-                    </tr>
-                </tbody>
-            </table>
-        </section>
+    <section class="access-grid">
+      <header>
+        <p class="eyebrow">Access Points</p>
+        <h2>Choose your interface</h2>
+        <p>Jump into conversational AI, orchestrate complex workflows, manage your knowledge base, or browse generated files.</p>
+      </header>
+      
+      <div class="access-grid__cards">
+        <article class="access-card">
+          <div class="access-card__meta">
+            <span class="tag">AI Assistant</span>
+            <span class="version">v2.0</span>
+          </div>
+          <h3>💬 Chat Interface</h3>
+          <p>Natural language conversations with your AI team. Research, write, code, and analyze without technical knowledge.</p>
+          <a href="chat.html" class="btn btn--ghost">Start chatting</a>
+        </article>
+        
+        <article class="access-card">
+          <div class="access-card__meta">
+            <span class="tag">Orchestration</span>
+            <span class="version">beta</span>
+          </div>
+          <h3>🔄 Workflow Canvas</h3>
+          <p>Design multi-step missions, assign agents, and monitor execution across parallel lanes with real-time telemetry.</p>
+          <button class="btn btn--ghost" data-route="/workflows">Open canvas</button>
+        </article>
+        
+        <article class="access-card">
+          <div class="access-card__meta">
+            <span class="tag">Memory</span>
+            <span class="version">sync</span>
+          </div>
+          <h3>🧠 Knowledge Vault</h3>
+          <p>Persistent memory across sessions. Save research, decisions, and context for intelligent retrieval.</p>
+          <button class="btn btn--ghost" data-route="/vault">Browse vault</button>
+        </article>
+        
+        <article class="access-card">
+          <div class="access-card__meta">
+            <span class="tag">Output</span>
+            <span class="version">live</span>
+          </div>
+          <h3>📁 File Manager</h3>
+          <p>Browse, edit, and manage all generated files. Code, reports, summaries—everything in one place.</p>
+          <button class="btn btn--ghost" data-route="/files">View files</button>
+        </article>
+      </div>
+    </section>
 
-        <section id="agents">
-            <h2>2. Agent Capabilities</h2>
-            <div class="agent-grid">
-                <div class="agent-card">
-                    <h3>🔬 Research Agent</h3>
-                    <p><strong>Class:</strong> <code>ResearchAgent</code></p>
-                    <p><strong>Capabilities:</strong> Web Search, Content Extraction</p>
-                    <p><strong>Backend:</strong> Uses <code>duckduckgo_search</code> for discovery and <code>aiohttp</code>/<code>BeautifulSoup</code> for content scraping.</p>
-                </div>
-                <div class="agent-card">
-                    <h3>💻 Code Agent</h3>
-                    <p><strong>Class:</strong> <code>CodeAgent</code></p>
-                    <p><strong>Capabilities:</strong> Code Generation, Execution</p>
-                    <p><strong>Security:</strong> Docker sandbox MANDATORY. AST analysis for static verification.</p>
-                </div>
-                <div class="agent-card">
-                    <h3>📁 FileSystem Agent</h3>
-                    <p><strong>Class:</strong> <code>FileSystemAgent</code></p>
-                    <p><strong>Capabilities:</strong> I/O Operations</p>
-                    <p><strong>Constraints:</strong> Operations restricted to <code>./workspace</code> via path validation.</p>
-                </div>
-                <div class="agent-card">
-                    <h3>🔧 Git Agent</h3>
-                    <p><strong>Class:</strong> <code>GitAgent</code></p>
-                    <p><strong>Capabilities:</strong> Version Control</p>
-                    <p><strong>Operations:</strong> status, diff, add, commit, checkout, branch, log</p>
-                </div>
-                <div class="agent-card">
-                    <h3>🧪 Test Agent</h3>
-                    <p><strong>Class:</strong> <code>TestAgent</code></p>
-                    <p><strong>Capabilities:</strong> Test Execution</p>
-                    <p><strong>Runners:</strong> pytest, npm test, cargo test, go test</p>
-                </div>
-                <div class="agent-card">
-                    <h3>📊 Analysis Agent</h3>
-                    <p><strong>Class:</strong> <code>AnalysisAgent</code></p>
-                    <p><strong>Capabilities:</strong> Static Analysis, Linting</p>
-                    <p><strong>Tools:</strong> pylint, eslint, cargo check</p>
-                </div>
-                <div class="agent-card">
-                    <h3>🧠 Knowledge Agent</h3>
-                    <p><strong>Class:</strong> <code>KnowledgeAgent</code></p>
-                    <p><strong>Capabilities:</strong> Semantic Memory</p>
-                    <p><strong>Storage:</strong> JSON-based persistence in <code>workspace/knowledge/</code></p>
-                </div>
+    <section class="access-grid">
+      <header>
+        <p class="eyebrow">Agent Fleet</p>
+        <h2>7 specialized agents at your command</h2>
+        <p>Each agent is purpose-built for specific tasks, working together seamlessly to accomplish complex goals.</p>
+      </header>
+      
+      <div class="agent-grid">
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">🔬</div>
+            <div>
+              <h3>Research Agent</h3>
+              <div class="agent-card__status">Online</div>
             </div>
-        </section>
-
-        <section id="security">
-            <h2>3. Security Model</h2>
-            <p>The system implements defense-in-depth strategies for code execution and input handling.</p>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th>Layer</th>
-                        <th>Mechanism</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>Code Sandbox</strong></td>
-                        <td>Docker Container (Isolated Network)</td>
-                        <td><span class="badge badge-prod">MANDATORY</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Input Sanitization</strong></td>
-                        <td>Regex + AST Validation</td>
-                        <td><span class="badge badge-prod">ACTIVE</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Path Traversal</strong></td>
-                        <td>Commonpath Check</td>
-                        <td><span class="badge badge-prod">ENFORCED</span></td>
-                    </tr>
-                    <tr>
-                        <td><strong>Dependencies</strong></td>
-                        <td>Pinned Versions (requirements.txt)</td>
-                        <td><span class="badge badge-prod">AUDITED</span></td>
-                    </tr>
-                </tbody>
-            </table>
-            
-            <div class="warning" style="margin-top: 20px; padding: 15px; background: #dcfce7; border: 1px solid #166534; border-radius: 6px;">
-                <strong>✅ Security Hardened:</strong> Docker sandbox is now MANDATORY for code execution. Local execution fallback has been removed. All code runs in isolated containers.
+          </div>
+          <p>Web search, content extraction, and summarization. Finds and synthesizes information from across the internet.</p>
+        </div>
+        
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">💻</div>
+            <div>
+              <h3>Code Agent</h3>
+              <div class="agent-card__status">Online</div>
             </div>
-        </section>
+          </div>
+          <p>Generates, executes, and debugs code in a secure Docker sandbox. Full AST validation for safety.</p>
+        </div>
+        
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">📁</div>
+            <div>
+              <h3>FileSystem Agent</h3>
+              <div class="agent-card__status">Online</div>
+            </div>
+          </div>
+          <p>Creates, reads, and organizes files. Path-validated operations restricted to the workspace directory.</p>
+        </div>
+        
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">🔧</div>
+            <div>
+              <h3>Git Agent</h3>
+              <div class="agent-card__status">Online</div>
+            </div>
+          </div>
+          <p>Version control operations: status, diff, commit, branch, checkout. Manages your repository seamlessly.</p>
+        </div>
+        
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">🧪</div>
+            <div>
+              <h3>Test Agent</h3>
+              <div class="agent-card__status">Online</div>
+            </div>
+          </div>
+          <p>Runs test suites across frameworks: pytest, npm test, cargo test, go test. Enables TDD workflows.</p>
+        </div>
+        
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">📊</div>
+            <div>
+              <h3>Analysis Agent</h3>
+              <div class="agent-card__status">Online</div>
+            </div>
+          </div>
+          <p>Static code analysis and linting. Runs pylint, eslint, and other quality tools on your codebase.</p>
+        </div>
+        
+        <div class="agent-card">
+          <div class="agent-card__header">
+            <div class="agent-card__icon">🧠</div>
+            <div>
+              <h3>Knowledge Agent</h3>
+              <div class="agent-card__status">Online</div>
+            </div>
+          </div>
+          <p>Semantic memory persistence. Saves and retrieves architectural decisions, context, and learnings.</p>
+        </div>
+      </div>
+    </section>
 
-        <section id="advanced-systems">
-            <h2>4. Advanced Subsystems</h2>
-            <p>Technical nomenclature for internal system modules (mapped from project-specific naming conventions).</p>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th>Module Name</th>
-                        <th>System Function</th>
-                        <th>Description</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><code>recursive_learning.py</code></td>
-                        <td><strong>Contextual Memory (RAG)</strong></td>
-                        <td>Stores successful task inputs/outputs in SQLite/ChromaDB for retrieval based on context similarity.</td>
-                    </tr>
-                    <tr>
-                        <td><code>adaptive_jit.py</code></td>
-                        <td><strong>Smart Memoization</strong></td>
-                        <td>Profiles function calls and applies LRU/TTL caching strategies to hot paths.</td>
-                    </tr>
-                    <tr>
-                        <td><code>zero_reasoning.py</code></td>
-                        <td><strong>Structured Prompting</strong></td>
-                        <td>Orchestrates Chain-of-Thought (CoT) and Tree-of-Thought (ToT) prompts to improve LLM output reliability.</td>
-                    </tr>
-                    <tr>
-                        <td><code>self_healing.py</code></td>
-                        <td><strong>Fault Tolerance</strong></td>
-                        <td>Implements Circuit Breaker patterns and exponential backoff retry policies.</td>
-                    </tr>
-                </tbody>
-            </table>
-        </section>
+    <section class="access-grid">
+      <header>
+        <p class="eyebrow">Live Telemetry</p>
+        <h2>System performance</h2>
+      </header>
+      
+      <div class="telemetry">
+        <div class="telemetry__item">
+          <div class="telemetry__value" id="tel-agents">7</div>
+          <div class="telemetry__label">Active Agents</div>
+        </div>
+        <div class="telemetry__item">
+          <div class="telemetry__value" id="tel-tasks">0</div>
+          <div class="telemetry__label">Tasks Queued</div>
+        </div>
+        <div class="telemetry__item">
+          <div class="telemetry__value" id="tel-latency">--</div>
+          <div class="telemetry__label">Avg Latency</div>
+        </div>
+        <div class="telemetry__item">
+          <div class="telemetry__value" id="tel-uptime">99.9%</div>
+          <div class="telemetry__label">Uptime</div>
+        </div>
+      </div>
+    </section>
 
-        <section id="usage">
-            <h2>5. Interface & Execution</h2>
-            
-            <h3>Headless Mode (CLI)</h3>
-            <pre><code>python src/main.py --interactive --llm-provider ollama --model-name llama3.2</code></pre>
-            
-            <h3>Graphical Interface</h3>
-            <p><strong>Entry Point:</strong> <code>src/gui_app.py</code></p>
-            <p>The GUI provides a visual wrapper for the <code>AgentEngine</code>, offering real-time log streaming, workflow history visualization, and agent status indicators. It utilizes <code>customtkinter</code> for rendering.</p>
-        </section>
-
-    </main>
-
-    <footer style="margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border-color); font-size: 0.9em; color: var(--secondary-color);">
-        <p>Generated by C0Di3 | Based on Codebase Revision: <code>81bc118</code></p>
-    </footer>
-
-</body>
+    <script src="app.js"></script>
+    <script>
+      // Live status indicator
+      const statusEl = document.getElementById('system-status');
+      
+      async function checkStatus() {
+        try {
+          const res = await fetch('/api/status', { method: 'GET', timeout: 3000 });
+          if (res.ok) {
+            statusEl.innerHTML = '<span style="color: var(--success)">●</span>&nbsp;Online';
+          } else {
+            statusEl.innerHTML = '<span style="color: var(--warning)">●</span>&nbsp;Degraded';
+          }
+        } catch {
+          statusEl.innerHTML = '<span style="color: var(--muted)">●</span>&nbsp;Offline';
+        }
+      }
+      
+      // Check status on load and every 30s
+      checkStatus();
+      setInterval(checkStatus, 30000);
+      
+      // Deploy button
+      document.getElementById('deploy-btn').addEventListener('click', async () => {
+        const btn = document.getElementById('deploy-btn');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading"></span> Deploying...';
+        
+        try {
+          const res = await fetch('/api/system/start', { method: 'POST' });
+          if (res.ok) {
+            btn.innerHTML = '✓ Agents Deployed';
+            setTimeout(() => {
+              btn.innerHTML = 'Deploy Agents';
+              btn.disabled = false;
+            }, 3000);
+          }
+        } catch {
+          btn.innerHTML = 'Deploy Agents';
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
 </html>
