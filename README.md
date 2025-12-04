@@ -61,7 +61,7 @@ You: "Research the latest trends in AI and create a summary report"
 **Your AI Programmer**
 
 - Writes Python code for you
-- Runs and tests the code
+- Runs in secure Docker sandbox
 - Helps debug with suggestions
 
 *"Create a script to organize my photos"*
@@ -77,6 +77,69 @@ You: "Research the latest trends in AI and create a summary report"
 - Saves reports and summaries
 
 *"Save this summary to my reports folder"*
+
+</td>
+</tr>
+<tr>
+<td width="33%" align="center">
+
+### 🔧 Git Agent
+**Your Version Control Expert**
+
+- Manages git repositories
+- Creates branches and commits
+- Shows diffs and status
+
+*"Commit my changes with a good message"*
+
+</td>
+<td width="33%" align="center">
+
+### 🧪 Test Agent
+**Your QA Engineer**
+
+- Runs test suites (pytest, npm, etc.)
+- Reports test results
+- Enables TDD workflows
+
+*"Run the tests for this project"*
+
+</td>
+<td width="33%" align="center">
+
+### 🧠 Knowledge Agent
+**Your Memory Bank**
+
+- Persists architectural decisions
+- Remembers context across sessions
+- Retrieves saved knowledge
+
+*"Remember this API design decision"*
+
+</td>
+</tr>
+<tr>
+<td width="33%" align="center">
+
+### 📊 Analysis Agent
+**Your Code Reviewer**
+
+- Runs linters (pylint, eslint)
+- Static code analysis
+- Quality checks
+
+*"Analyze this code for issues"*
+
+</td>
+<td width="33%" align="center" colspan="2">
+
+### 🚀 Production Ready
+**Enterprise-Grade Architecture**
+
+- ✅ 21/21 tests passing
+- ✅ Connection pooling
+- ✅ Thread-safe operations
+- ✅ Docker security enforcement
 
 </td>
 </tr>

@@ -96,22 +96,46 @@
             <h2>2. Agent Capabilities</h2>
             <div class="agent-grid">
                 <div class="agent-card">
-                    <h3>Research Agent</h3>
+                    <h3>🔬 Research Agent</h3>
                     <p><strong>Class:</strong> <code>ResearchAgent</code></p>
                     <p><strong>Capabilities:</strong> Web Search, Content Extraction</p>
-                    <p><strong>Backend:</strong> Uses <code>duckduckgo_search</code> for discovery and <code>aiohttp</code>/<code>BeautifulSoup</code> for content scraping. Implements async rate limiting.</p>
+                    <p><strong>Backend:</strong> Uses <code>duckduckgo_search</code> for discovery and <code>aiohttp</code>/<code>BeautifulSoup</code> for content scraping.</p>
                 </div>
                 <div class="agent-card">
-                    <h3>Code Agent</h3>
+                    <h3>💻 Code Agent</h3>
                     <p><strong>Class:</strong> <code>CodeAgent</code></p>
                     <p><strong>Capabilities:</strong> Code Generation, Execution</p>
-                    <p><strong>Security:</strong> Enforces Docker sandboxing for execution. Uses AST analysis for static code verification.</p>
+                    <p><strong>Security:</strong> Docker sandbox MANDATORY. AST analysis for static verification.</p>
                 </div>
                 <div class="agent-card">
-                    <h3>FileSystem Agent</h3>
+                    <h3>📁 FileSystem Agent</h3>
                     <p><strong>Class:</strong> <code>FileSystemAgent</code></p>
                     <p><strong>Capabilities:</strong> I/O Operations</p>
-                    <p><strong>Constraints:</strong> Operations restricted to <code>./workspace</code> root via <code>os.path.commonpath</code> validation.</p>
+                    <p><strong>Constraints:</strong> Operations restricted to <code>./workspace</code> via path validation.</p>
+                </div>
+                <div class="agent-card">
+                    <h3>🔧 Git Agent</h3>
+                    <p><strong>Class:</strong> <code>GitAgent</code></p>
+                    <p><strong>Capabilities:</strong> Version Control</p>
+                    <p><strong>Operations:</strong> status, diff, add, commit, checkout, branch, log</p>
+                </div>
+                <div class="agent-card">
+                    <h3>🧪 Test Agent</h3>
+                    <p><strong>Class:</strong> <code>TestAgent</code></p>
+                    <p><strong>Capabilities:</strong> Test Execution</p>
+                    <p><strong>Runners:</strong> pytest, npm test, cargo test, go test</p>
+                </div>
+                <div class="agent-card">
+                    <h3>📊 Analysis Agent</h3>
+                    <p><strong>Class:</strong> <code>AnalysisAgent</code></p>
+                    <p><strong>Capabilities:</strong> Static Analysis, Linting</p>
+                    <p><strong>Tools:</strong> pylint, eslint, cargo check</p>
+                </div>
+                <div class="agent-card">
+                    <h3>🧠 Knowledge Agent</h3>
+                    <p><strong>Class:</strong> <code>KnowledgeAgent</code></p>
+                    <p><strong>Capabilities:</strong> Semantic Memory</p>
+                    <p><strong>Storage:</strong> JSON-based persistence in <code>workspace/knowledge/</code></p>
                 </div>
             </div>
         </section>
@@ -152,8 +176,8 @@
                 </tbody>
             </table>
             
-            <div class="warning" style="margin-top: 20px; padding: 15px; background: #fff5f5; border: 1px solid #fee2e2; border-radius: 6px;">
-                <strong>Security Warning:</strong> Local execution fallback (`allow_local_execution`) bypasses Docker isolation and should be disabled in production environments per ADR-002.
+            <div class="warning" style="margin-top: 20px; padding: 15px; background: #dcfce7; border: 1px solid #166534; border-radius: 6px;">
+                <strong>✅ Security Hardened:</strong> Docker sandbox is now MANDATORY for code execution. Local execution fallback has been removed. All code runs in isolated containers.
             </div>
         </section>
 
