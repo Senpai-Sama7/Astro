@@ -13,7 +13,6 @@ SECURITY WARNING:
     or other dynamic execution paths. Always use Docker sandbox in production.
 """
 import asyncio
-import logging
 import os
 import tempfile
 import re
@@ -23,6 +22,9 @@ import ast
 from typing import Dict, Any, Optional, List
 from .base_agent import BaseAgent, AgentCapability, AgentContext, TaskResult, AgentState
 from core.llm_factory import LLMFactory
+
+# Structured logging
+from utils.structured_logger import get_logger, log_performance
 
 # Try to import openai with async support
 try:
@@ -36,7 +38,7 @@ except ImportError:
 # Check if Docker is available for sandboxed execution
 HAS_DOCKER = shutil.which('docker') is not None
 
-logger = logging.getLogger("CodeAgent")
+logger = get_logger("CodeAgent")
 
 
 class CodeAgent(BaseAgent):

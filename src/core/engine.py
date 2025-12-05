@@ -12,7 +12,6 @@ Features:
 
 import asyncio
 import json
-import logging
 import time
 from typing import Dict, List, Optional, Any, Set, Callable
 from concurrent.futures import ProcessPoolExecutor
@@ -21,7 +20,12 @@ from enum import Enum
 from .database import DatabaseManager
 from .task_queue import TaskQueue, WorkflowPriority
 
-logger = logging.getLogger("AgentEngine")
+# Structured logging and metrics
+from utils.structured_logger import get_logger, LogContext, log_performance
+from monitoring.metrics import get_metrics_collector
+
+logger = get_logger("AgentEngine")
+metrics = get_metrics_collector()
 
 class AgentStatus(Enum):
     """Status of an agent in the ecosystem"""
@@ -132,17 +136,25 @@ class AgentEngine:
         
         logger.info(f"Registered agent {config.agent_id} with capabilities: {config.capabilities}")
         
+    @log_performance
     async def submit_workflow(self, workflow: Workflow):
         """Submit a new workflow for execution"""
-        self.workflows[workflow.workflow_id] = workflow
-        await self.db.save_workflow_async(workflow.workflow_id, workflow.name, "submitted", workflow.priority.value)
-        logger.info(f"Submitted workflow {workflow.workflow_id}: {workflow.name}")
-        
-        # Break down workflow into individual tasks and queue them
-        for task in workflow.tasks:
-            task.workflow_id = workflow.workflow_id  # Set parent workflow reference
-            await self.db.save_task_async(task.task_id, workflow.workflow_id, task.description, "queued")
-            await self._queue_task(task, workflow.priority)
+        with LogContext(workflow_id=workflow.workflow_id):
+            self.workflows[workflow.workflow_id] = workflow
+            await self.db.save_workflow_async(workflow.workflow_id, workflow.name, "submitted", workflow.priority.value)
+            
+            metrics.record_workflow_start()
+            logger.info(f"Submitted workflow {workflow.workflow_id}", extra={
+                'workflow_name': workflow.name,
+                'task_count': len(workflow.tasks),
+                'priority': workflow.priority.value
+            })
+            
+            # Break down workflow into individual tasks and queue them
+            for task in workflow.tasks:
+                task.workflow_id = workflow.workflow_id  # Set parent workflow reference
+                await self.db.save_task_async(task.task_id, workflow.workflow_id, task.description, "queued")
+                await self._queue_task(task, workflow.priority)
             
     async def _queue_task(self, task: Task, workflow_priority: WorkflowPriority):
         """Queue a task with appropriate priority"""
@@ -255,19 +267,26 @@ class AgentEngine:
         
         return best_agent
         
+    @log_performance
     async def _execute_task_with_agent(self, task: Task, agent_id: str):
         """Execute a task with a specific agent"""
+        start_time = time.time()
+        success = False
+        
         try:
             self.agent_status[agent_id] = AgentStatus.BUSY
             await self._task_queue.mark_active(task.task_id, task)
             workflow_id = task.workflow_id or "standalone"
             await self.db.save_task_async(task.task_id, workflow_id, task.description, "running", assigned_agent=agent_id)
             
-            logger.info(f"Executing task {task.task_id} with agent {agent_id}")
+            metrics.record_task_start(agent_id)
+            logger.info(f"Executing task {task.task_id}", extra={
+                'agent_id': agent_id,
+                'task_type': task.required_capabilities[0] if task.required_capabilities else 'generic',
+                'workflow_id': workflow_id
+            })
             
             # REAL EXECUTION
-            start_time = time.time()
-            
             agent_instance = self.agent_instances.get(agent_id)
             if not agent_instance:
                 raise ValueError(f"Agent instance for {agent_id} not found")
@@ -298,7 +317,12 @@ class AgentEngine:
             
             # Process result
             if result.success:
-                logger.info(f"Task {task.task_id} completed successfully by agent {agent_id}")
+                success = True
+                logger.info(f"Task {task.task_id} completed", extra={
+                    'agent_id': agent_id,
+                    'duration_ms': execution_time * 1000,
+                    'status': 'success'
+                })
                 await self._task_queue.mark_completed(task.task_id)
                 workflow_id = task.workflow_id or "standalone"
                 await self.db.save_task_async(task.task_id, workflow_id, task.description, "completed", assigned_agent=agent_id, result=result.result_data)
@@ -306,7 +330,11 @@ class AgentEngine:
                 # Apply incentives based on performance
                 await self._apply_incentives(agent_id, execution_time, task.priority)
             else:
-                logger.error(f"Task {task.task_id} failed for agent {agent_id}: {result.error_message}")
+                logger.error(f"Task {task.task_id} failed", extra={
+                    'agent_id': agent_id,
+                    'error': result.error_message,
+                    'duration_ms': execution_time * 1000
+                })
                 
                 # Check if task should be retried
                 retry_count = getattr(task, 'retry_count', 0)
@@ -315,7 +343,11 @@ class AgentEngine:
                 if retry_count < max_retries and self._is_transient_error(result.error_message or ""):
                     # Exponential backoff: 2^retry_count seconds
                     backoff_time = 2 ** retry_count
-                    logger.info(f"Retrying task {task.task_id} after {backoff_time}s (attempt {retry_count + 1}/{max_retries})")
+                    logger.info(f"Retrying task {task.task_id}", extra={
+                        'attempt': retry_count + 1,
+                        'max_retries': max_retries,
+                        'backoff_seconds': backoff_time
+                    })
                     
                     # Update retry count
                     task.retry_count = retry_count + 1
@@ -332,10 +364,17 @@ class AgentEngine:
                     await self._handle_task_failure(task, agent_id)
                 
         except Exception as e:
-            logger.error(f"Error executing task {task.task_id} with agent {agent_id}: {str(e)}")
+            logger.error(f"Error executing task {task.task_id}", extra={
+                'agent_id': agent_id,
+                'error': str(e),
+                'error_type': type(e).__name__
+            }, exc_info=True)
+            metrics.record_error(type(e).__name__)
             await self._handle_task_failure(task, agent_id, str(e))
             
         finally:
+            execution_time = time.time() - start_time
+            metrics.record_task_complete(agent_id, execution_time, success)
             self.agent_status[agent_id] = AgentStatus.ACTIVE
             await self._task_queue.remove_active(task.task_id)
             

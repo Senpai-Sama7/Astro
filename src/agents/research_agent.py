@@ -7,7 +7,6 @@ REFACTORED: Async implementation to prevent event loop blocking.
 - Wrapped blocking DDGS search in asyncio.to_thread
 """
 import asyncio
-import logging
 import time
 from typing import Dict, Any, List, Optional
 # Use new ddgs package with fallback to duckduckgo_search
@@ -21,7 +20,10 @@ import aiohttp
 from bs4 import BeautifulSoup
 from .base_agent import BaseAgent, AgentCapability, AgentContext, TaskResult, AgentState
 
-logger = logging.getLogger("ResearchAgent")
+# Structured logging
+from utils.structured_logger import get_logger, log_performance
+
+logger = get_logger("ResearchAgent")
 
 class ResearchAgent(BaseAgent):
     def __init__(self, agent_id: str, config: Dict[str, Any]):

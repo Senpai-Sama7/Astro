@@ -1,14 +1,18 @@
 """BaseAgent and supporting classes for the Autonomous Agent Ecosystem"""
 
 import asyncio
-import logging
 import time
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Dict, Any, List, Optional
 from functools import wraps
 
-logger = logging.getLogger(__name__)
+# Structured logging and metrics
+from utils.structured_logger import get_logger, log_performance
+from monitoring.metrics import get_metrics_collector
+
+logger = get_logger(__name__)
+metrics = get_metrics_collector()
 
 
 class AgentCapability(Enum):
@@ -92,8 +96,17 @@ class BaseAgent:
         self.task_history: List[TaskResult] = []
         self._consecutive_failures = 0
         self._lock = asyncio.Lock()
-        logger.info(f"BaseAgent {agent_id} initialized with capabilities: {[c.value for c in capabilities]}")
+        
+        # Initialize metrics
+        metrics.update_agent_health(agent_id, True)
+        metrics.update_agent_reliability(agent_id, config.get('reliability_score', 0.95))
+        
+        logger.info(f"BaseAgent {agent_id} initialized", extra={
+            'capabilities': [c.value for c in capabilities],
+            'timeout': self.default_timeout
+        })
 
+    @log_performance
     async def execute_with_timeout(self, task: Dict[str, Any], context: AgentContext) -> TaskResult:
         """
         Execute task with timeout, state management, and error handling.
@@ -101,6 +114,7 @@ class BaseAgent:
         """
         timeout = context.timeout if context.timeout else self.default_timeout
         start_time = time.time()
+        task_id = task.get('task_id', 'unknown')
         
         async with self._lock:
             self.state = AgentState.BUSY
@@ -114,8 +128,18 @@ class BaseAgent:
             
             if result.success:
                 self._consecutive_failures = 0
+                logger.info(f"Task completed", extra={
+                    'agent_id': self.agent_id,
+                    'task_id': task_id,
+                    'duration_ms': result.execution_time * 1000
+                })
             else:
                 self._consecutive_failures += 1
+                logger.warning(f"Task failed", extra={
+                    'agent_id': self.agent_id,
+                    'task_id': task_id,
+                    'error': result.error_message
+                })
                 
             self.record_task_result(result)
             return result
@@ -129,7 +153,12 @@ class BaseAgent:
                 retryable=True
             )
             self.record_task_result(result)
-            logger.error(f"Agent {self.agent_id} task timed out after {timeout}s")
+            logger.error(f"Task timed out", extra={
+                'agent_id': self.agent_id,
+                'task_id': task_id,
+                'timeout': timeout
+            })
+            metrics.record_error("TimeoutError")
             return result
             
         except Exception as e:
@@ -141,13 +170,20 @@ class BaseAgent:
                 retryable=self._is_retryable_error(e)
             )
             self.record_task_result(result)
-            logger.error(f"Agent {self.agent_id} task failed: {e}")
+            logger.error(f"Task exception", extra={
+                'agent_id': self.agent_id,
+                'task_id': task_id,
+                'error': str(e),
+                'error_type': type(e).__name__
+            }, exc_info=True)
+            metrics.record_error(type(e).__name__)
             return result
             
         finally:
             async with self._lock:
                 if self._consecutive_failures >= 3:
                     self.state = AgentState.DEGRADED
+                    metrics.update_agent_health(self.agent_id, False)
                 elif self._consecutive_failures >= 5:
                     self.state = AgentState.FAILED
                 else:

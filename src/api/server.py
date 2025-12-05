@@ -446,6 +446,18 @@ def register_routes(app: FastAPI):
     init_system_router(app_state, manager)
     app.include_router(system_router)
     
+    # Agents router
+    from api.routers import agents_router
+    from api.routers.agents import init_router as init_agents_router
+    init_agents_router(app_state)
+    app.include_router(agents_router)
+    
+    # Workflows router
+    from api.routers import workflows_router
+    from api.routers.workflows import init_router as init_workflows_router
+    init_workflows_router(app_state, manager, WorkflowPriority, Task, Workflow)
+    app.include_router(workflows_router)
+    
     # Health check routes
     from api.health import router as health_router, init_health_checker
     app.include_router(health_router)

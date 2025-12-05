@@ -2,7 +2,6 @@
 FileSystem Agent for Safe File Operations
 """
 import os
-import logging
 import shutil
 import asyncio
 from typing import Dict, Any, List, Optional
@@ -10,7 +9,10 @@ import aiofiles
 import aiofiles.os
 from .base_agent import BaseAgent, AgentCapability, AgentContext, TaskResult, AgentState
 
-logger = logging.getLogger("FileSystemAgent")
+# Structured logging
+from utils.structured_logger import get_logger, log_performance
+
+logger = get_logger("FileSystemAgent")
 
 class FileSystemAgent(BaseAgent):
     """
