@@ -544,7 +544,7 @@ class CSRFMiddleware(BaseHTTPMiddleware):
     """CSRF protection middleware for state-changing requests."""
     
     SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
-    EXEMPT_PATHS = {"/health", "/ready", "/metrics", "/ws", "/docs", "/redoc", "/openapi.json"}
+    EXEMPT_PATHS = {"/health", "/ready", "/metrics", "/ws", "/docs", "/redoc", "/openapi.json", "/api/"}
     
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         # Skip for safe methods
