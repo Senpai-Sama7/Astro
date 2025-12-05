@@ -101,6 +101,16 @@ class AgentEngine:
         self._agent_lock = asyncio.Lock()
         self._metrics_lock = asyncio.Lock()
         
+        # GIL Optimization: Process Pool for CPU-bound tasks (lazy init)
+        self._process_pool: Optional[ProcessPoolExecutor] = None
+        
+    @property
+    def process_pool(self) -> ProcessPoolExecutor:
+        """Lazy-initialize process pool for CPU-bound tasks."""
+        if self._process_pool is None:
+            self._process_pool = ProcessPoolExecutor(max_workers=4)
+        return self._process_pool
+        
     # Properties for backward compatibility
     @property
     def task_queue(self):
@@ -117,9 +127,6 @@ class AgentEngine:
     @property
     def failed_tasks(self) -> Set[str]:
         return self._task_queue.failed_tasks
-        
-        # GIL Optimization: Process Pool for CPU-bound tasks
-        self.process_pool: Optional[ProcessPoolExecutor] = None
 
         
     async def register_agent(self, config: AgentConfig, instance: Any = None):

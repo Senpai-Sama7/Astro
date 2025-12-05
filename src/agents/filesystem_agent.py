@@ -30,10 +30,32 @@ class FileSystemAgent(BaseAgent):
             os.makedirs(self.root_dir)
             
     def _is_safe_path(self, path: str) -> bool:
-        """Check if path is within the allowed root directory"""
-        # Resolve absolute path
-        abs_path = os.path.abspath(os.path.join(self.root_dir, path))
-        # Use commonpath to ensure it's truly a subpath
+        """
+        Check if path is within the allowed root directory.
+        
+        Security: Blocks directory traversal attacks including:
+        - Unix-style: ../../../etc/passwd
+        - Windows-style: ..\\..\\..\\windows\\system32
+        - URL-encoded: %2e%2e%2f
+        - Absolute paths: /etc/passwd, C:\\Windows
+        """
+        # Normalize path separators (Windows -> Unix)
+        normalized_path = path.replace('\\', '/')
+        
+        # Block URL-encoded traversal
+        if '%2e' in path.lower() or '%2f' in path.lower():
+            return False
+        
+        # Block absolute paths
+        if os.path.isabs(path) or path.startswith('/'):
+            return False
+        
+        # Block any path containing ..
+        if '..' in normalized_path:
+            return False
+        
+        # Resolve absolute path and verify it's under root
+        abs_path = os.path.abspath(os.path.join(self.root_dir, normalized_path))
         try:
             return os.path.commonpath([self.root_dir, abs_path]) == self.root_dir
         except ValueError:

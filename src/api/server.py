@@ -1139,19 +1139,48 @@ Be helpful, accurate, and concise. When tasks require agent capabilities, explai
     
     @app.websocket("/ws")
     async def websocket_endpoint(websocket: WebSocket):
-        """WebSocket endpoint for real-time updates with input validation."""
+        """WebSocket endpoint for real-time updates with input validation and rate limiting."""
+        # Rate limiting per connection
+        message_count = 0
+        window_start = time.time()
+        MAX_MESSAGES_PER_SECOND = 10
+        MAX_CONNECTIONS_PER_IP = 5
+        MAX_MESSAGE_SIZE = 65536  # 64KB limit
+        
+        # Check connection limit per IP
+        client_ip = websocket.client.host if websocket.client else "unknown"
+        ip_connections = sum(1 for ws in manager.active_connections 
+                           if manager.connection_metadata.get(ws, {}).get('ip') == client_ip)
+        
+        if ip_connections >= MAX_CONNECTIONS_PER_IP:
+            await websocket.close(code=1008, reason="Too many connections from this IP")
+            return
+        
         await manager.connect(websocket)
+        manager.connection_metadata[websocket] = {'ip': client_ip, 'connected_at': time.time()}
         
         # Send initial state
         await manager.send_to_client(websocket, "system_status", {
             "status": "online" if app_state.running else "ready",
         })
         
-        MAX_MESSAGE_SIZE = 65536  # 64KB limit
-        
         try:
             while True:
                 data = await websocket.receive_text()
+                
+                # Rate limiting check
+                current_time = time.time()
+                if current_time - window_start >= 1.0:
+                    message_count = 0
+                    window_start = current_time
+                
+                message_count += 1
+                if message_count > MAX_MESSAGES_PER_SECOND:
+                    await manager.send_to_client(websocket, "error", {
+                        "message": "Rate limit exceeded",
+                        "retry_after": 1.0
+                    })
+                    continue
                 
                 # Size validation
                 if len(data) > MAX_MESSAGE_SIZE:
