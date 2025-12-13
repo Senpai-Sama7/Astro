@@ -43,6 +43,8 @@ ecosystem.db
 test_ecosystem.db
 *.db
 *.db-journal
+*.db-shm
+*.db-wal
 logs/
 *.log
 workspace/

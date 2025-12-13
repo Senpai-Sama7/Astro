@@ -8,8 +8,8 @@ from typing import Dict, Any, List, Optional
 from functools import wraps
 
 # Structured logging and metrics
-from utils.structured_logger import get_logger, log_performance
-from monitoring.metrics import get_metrics_collector
+from src.utils.structured_logger import get_logger, log_performance
+from src.monitoring.metrics import get_metrics_collector
 
 logger = get_logger(__name__)
 metrics = get_metrics_collector()

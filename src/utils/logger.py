@@ -5,7 +5,7 @@ This module provides a single source of truth for logging configuration.
 All modules should use `get_logger(__name__)` instead of calling logging.basicConfig.
 
 Usage:
-    from utils.logger import configure_logging, get_logger
+    from src.utils.logger import configure_logging, get_logger
     
     # Call once at application startup (main.py or gui_app.py)
     configure_logging(log_level="INFO")

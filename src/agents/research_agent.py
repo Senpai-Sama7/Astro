@@ -21,7 +21,7 @@ from bs4 import BeautifulSoup
 from .base_agent import BaseAgent, AgentCapability, AgentContext, TaskResult, AgentState
 
 # Structured logging
-from utils.structured_logger import get_logger, log_performance
+from src.utils.structured_logger import get_logger, log_performance
 
 logger = get_logger("ResearchAgent")
 

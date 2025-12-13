@@ -21,11 +21,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from core.engine import AgentEngine
 from core.nl_interface import NaturalLanguageInterface
 from core.llm_factory import LLMFactory
-from monitoring.monitoring_dashboard import MonitoringDashboard
+from src.monitoring.monitoring_dashboard import MonitoringDashboard
 from main import AutonomousAgentEcosystem
-from utils.model_manager import ModelManager
-from utils.app_state import AppState
-from utils.helpers import sanitize_display_text
+from src.utils.model_manager import ModelManager
+from src.utils.app_state import AppState
+from src.utils.helpers import sanitize_display_text
 
 # Configure CustomTkinter
 ctk.set_appearance_mode("Dark")
