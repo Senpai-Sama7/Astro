@@ -47,50 +47,50 @@ system_errors = Counter('astro_errors_total', 'System errors', ['error_type'])
 
 class MetricsCollector:
     """Helper class to collect metrics."""
-    
+
     def __init__(self):
         self.start_time = time.time()
-    
+
     def update_uptime(self):
         system_uptime.set(time.time() - self.start_time)
-    
+
     def record_task_start(self, agent_id: str):
         active_tasks.inc()
         agent_tasks_active.labels(agent_id=agent_id).inc()
-    
+
     def record_task_complete(self, agent_id: str, duration_seconds: float, success: bool):
         active_tasks.dec()
         agent_tasks_active.labels(agent_id=agent_id).dec()
         task_total.labels(agent_id=agent_id, status='success' if success else 'failure').inc()
         task_duration.labels(agent_id=agent_id).observe(duration_seconds)
-    
+
     def record_workflow_start(self):
         active_workflows.inc()
-    
+
     def record_workflow_complete(self, duration_seconds: float, status: str):
         active_workflows.dec()
         workflow_total.labels(status=status).inc()
         workflow_duration.observe(duration_seconds)
-    
-    def record_llm_request(self, model: str, duration_seconds: float, 
-                          prompt_tokens: int, completion_tokens: int, 
+
+    def record_llm_request(self, model: str, duration_seconds: float,
+                          prompt_tokens: int, completion_tokens: int,
                           cost_usd: float, success: bool):
         llm_requests.labels(model=model, status='success' if success else 'failure').inc()
         llm_duration.labels(model=model).observe(duration_seconds)
         llm_tokens.labels(model=model, type='prompt').inc(prompt_tokens)
         llm_tokens.labels(model=model, type='completion').inc(completion_tokens)
         llm_cost.labels(model=model).inc(cost_usd)
-    
+
     def record_db_query(self, operation: str, duration_seconds: float):
         db_queries.labels(operation=operation).inc()
         db_duration.labels(operation=operation).observe(duration_seconds)
-    
+
     def update_agent_health(self, agent_id: str, is_healthy: bool):
         agent_health.labels(agent_id=agent_id).set(1 if is_healthy else 0)
-    
+
     def update_agent_reliability(self, agent_id: str, score: float):
         agent_reliability.labels(agent_id=agent_id).set(score)
-    
+
     def record_error(self, error_type: str):
         system_errors.labels(error_type=error_type).inc()
 

@@ -19,31 +19,31 @@ logger = get_logger("AgentInitializer")
 async def main():
     """Initialize all agents."""
     configure_logging("INFO")
-    
+
     logger.info("🚀 Initializing ASTRO Agent Ecosystem...")
-    
+
     # Create engine
     engine = AgentEngine()
-    
+
     # Initialize new agents
     agents = await initialize_agents(engine)
-    
+
     # Create toolkit
     toolkit = AgentToolkit(agents)
-    
+
     logger.info("✅ Agent initialization complete!")
     logger.info(f"📦 Registered agents: {list(agents.keys())}")
-    
+
     # Quick test
     logger.info("\n🧪 Running quick tests...")
-    
+
     # Test git agent
     try:
         result = await toolkit.git_ops("status")
         logger.info(f"✓ Git Agent: {result['success']}")
     except Exception as e:
         logger.warning(f"✗ Git Agent test: {e}")
-    
+
     # Test knowledge agent
     try:
         await toolkit.knowledge_manager("save", "init_test", "Agents initialized successfully")
@@ -51,7 +51,7 @@ async def main():
         logger.info(f"✓ Knowledge Agent: {result['success']}")
     except Exception as e:
         logger.warning(f"✗ Knowledge Agent test: {e}")
-    
+
     logger.info("\n✨ All agents ready for use!")
 
 

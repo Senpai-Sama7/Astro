@@ -30,17 +30,17 @@ class ResearchAgent(BaseAgent):
         super().__init__(agent_id, [AgentCapability.DATA_PROCESSING], config)
         self.max_results = config.get('max_search_results', 5)
         self.max_scrape_results = config.get('max_scrape_results', 3)  # Configurable scrape limit
-        
+
         # Rate limiting with lock for thread safety
         self.min_request_interval = config.get('min_request_interval', 1.0)  # seconds between requests
         self.last_request_time = 0
         self._rate_limit_lock = asyncio.Lock()
-        
+
         # Simple in-memory cache with size limit
         self.cache: Dict[str, tuple] = {}
         self.cache_ttl = config.get('cache_ttl', 3600)  # 1 hour default
         self.max_cache_size = config.get('max_cache_size', 1000)  # Prevent memory leak
-        
+
         # SSL verification (disable for testing only)
         self.verify_ssl = config.get('verify_ssl', True)
 
@@ -48,28 +48,28 @@ class ResearchAgent(BaseAgent):
         try:
             self.state = AgentState.BUSY
             query = task.get('payload', {}).get('query') or task.get('description')
-            
+
             if not query:
                 return TaskResult(success=False, error_message="No query provided")
 
             logger.info(f"Performing async web search for: {query}")
-            
+
             # 1. Real Web Search (DDGS is sync, wrap in thread executor)
             results = await asyncio.to_thread(self._search_web, query)
-            
+
             # 2. Content Extraction (Async HTTP with aiohttp)
             detailed_results = []
             # Filter results that have valid URLs
             valid_results = [res for res in results if res.get('href')]
             scrape_targets = valid_results[:self.max_scrape_results]
-            
+
             if scrape_targets:
                 connector = aiohttp.TCPConnector(ssl=self.verify_ssl)
                 async with aiohttp.ClientSession(connector=connector) as session:
                     # Gather scraping tasks concurrently
                     scrape_tasks = [self._scrape_content_async(session, res['href']) for res in scrape_targets]
                     contents = await asyncio.gather(*scrape_tasks, return_exceptions=True)
-                    
+
                     for res, content in zip(scrape_targets, contents):
                         if isinstance(content, Exception):
                             logger.debug(f"Scrape failed for {res.get('href')}: {content}")
@@ -106,7 +106,7 @@ class ResearchAgent(BaseAgent):
         if self._check_cache(cache_key):
             logger.info(f"Using cached search results for: {query}")
             return self.cache[cache_key][0]
-        
+
         # Note: Rate limiting for this sync method is handled at call site
         # since we can't use asyncio.sleep here (we're in a thread)
         try:
@@ -130,25 +130,25 @@ class ResearchAgent(BaseAgent):
         if self._check_cache(cache_key):
             logger.info(f"Using cached content for: {url}")
             return self.cache[cache_key][0]
-        
+
         # Async rate limiting
         await self._apply_rate_limit_async()
-        
+
         try:
             timeout = aiohttp.ClientTimeout(total=10)
             async with session.get(
-                url, 
-                timeout=timeout, 
+                url,
+                timeout=timeout,
                 headers={'User-Agent': 'Mozilla/5.0 (compatible; ResearchAgent/1.0)'}
             ) as response:
                 if response.status != 200:
                     logger.warning(f"HTTP {response.status} for {url}")
                     return ""
                 html = await response.text()
-                
+
                 # CPU-bound parsing wrapped in thread to avoid blocking
                 text = await asyncio.to_thread(self._parse_html, html)
-                
+
                 # Cache result
                 self._add_to_cache(cache_key, text)
                 return text
@@ -158,21 +158,21 @@ class ResearchAgent(BaseAgent):
         except Exception as e:
             logger.warning(f"Failed to scrape {url}: {e}")
             return ""
-    
+
     def _parse_html(self, html: str) -> str:
         """Parse HTML and extract clean text (CPU-bound, runs in thread)"""
         soup = BeautifulSoup(html, 'html.parser')
-        
+
         # Remove script and style elements
         for script in soup(["script", "style"]):
             script.decompose()
         text = soup.get_text()
-        
+
         # Clean up whitespace
         lines = (line.strip() for line in text.splitlines())
         chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
         return ' '.join(chunk for chunk in chunks if chunk)
-    
+
     async def _apply_rate_limit_async(self):
         """Apply async rate limiting between requests (non-blocking, thread-safe)"""
         async with self._rate_limit_lock:
@@ -182,7 +182,7 @@ class ResearchAgent(BaseAgent):
                 sleep_time = self.min_request_interval - time_since_last
                 await asyncio.sleep(sleep_time)  # Non-blocking sleep
             self.last_request_time = time.time()
-    
+
     def _check_cache(self, key: str) -> bool:
         """Check if cache entry exists and is not expired"""
         if key in self.cache:
@@ -193,7 +193,7 @@ class ResearchAgent(BaseAgent):
                 # Remove expired entry
                 del self.cache[key]
         return False
-    
+
     def _add_to_cache(self, key: str, value: Any):
         """Add item to cache with size limit enforcement"""
         # Enforce cache size limit by removing oldest entries
@@ -203,13 +203,13 @@ class ResearchAgent(BaseAgent):
             sorted_keys = sorted(self.cache.keys(), key=lambda k: self.cache[k][1])
             for old_key in sorted_keys[:entries_to_remove]:
                 del self.cache[old_key]
-        
+
         self.cache[key] = (value, time.time())
 
     def _synthesize_results(self, results: List[Dict]) -> str:
         if not results:
             return "No results found."
-        
+
         synthesis = "Research Findings:\n\n"
         for i, res in enumerate(results, 1):
             synthesis += f"{i}. {res.get('title', 'Unknown Title')}\n"

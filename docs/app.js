@@ -1,7 +1,7 @@
 /**
  * ASTRO Web Application
  * Autonomous Agent Ecosystem - Modular Command Surface
- * 
+ *
  * Core application module providing:
  * - Client-side routing (SPA navigation)
  * - State management with reactive updates
@@ -56,7 +56,7 @@ class StateManager {
       user: null,
       wsConnected: false,
     };
-    
+
     this.listeners = new Map();
     this.persistKeys = ['settings', 'user'];
     this.loadPersistedState();
@@ -94,8 +94,8 @@ class StateManager {
 
   update(key, updater) {
     const oldValue = this.state[key];
-    const newValue = typeof updater === 'function' 
-      ? updater(oldValue) 
+    const newValue = typeof updater === 'function'
+      ? updater(oldValue)
       : { ...oldValue, ...updater };
     this.set(key, newValue);
   }
@@ -159,7 +159,7 @@ class APIClient {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), options.timeout || this.timeout);
-    
+
     const config = {
       headers: {
         'Content-Type': 'application/json',
@@ -179,29 +179,29 @@ class APIClient {
     try {
       const response = await fetch(url, config);
       clearTimeout(timeoutId);
-      
+
       if (!response.ok) {
         const error = await response.json().catch(() => ({ detail: response.statusText }));
         const errorMessage = error.detail || `HTTP ${response.status}`;
-        
+
         // Log rate limit info if present
         const rateLimitRemaining = response.headers.get('X-RateLimit-Remaining');
         if (rateLimitRemaining !== null) {
           console.warn(`Rate limit remaining: ${rateLimitRemaining}`);
         }
-        
+
         throw new APIError(errorMessage, response.status, error);
       }
 
       return await response.json();
     } catch (error) {
       clearTimeout(timeoutId);
-      
+
       if (error.name === 'AbortError') {
         console.error(`API request timed out: ${endpoint}`);
         throw new APIError('Request timed out', 408, { detail: 'Request took too long' });
       }
-      
+
       console.error(`API request failed: ${endpoint}`, error);
       throw error;
     }
@@ -362,7 +362,7 @@ class WebSocketClient {
 
     this.reconnectAttempts++;
     const delay = CONFIG.RECONNECT_INTERVAL * Math.pow(1.5, this.reconnectAttempts - 1);
-    
+
     setTimeout(() => this.connect(), Math.min(delay, 30000));
   }
 
@@ -375,7 +375,7 @@ class WebSocketClient {
         break;
 
       case 'agent_update':
-        state.update('agents', agents => 
+        state.update('agents', agents =>
           agents.map(a => a.id === payload.id ? { ...a, ...payload } : a)
         );
         break;
@@ -475,9 +475,9 @@ class Router {
 
   init(containerId) {
     this.viewContainer = document.getElementById(containerId);
-    
+
     window.addEventListener('popstate', () => this.handleRoute());
-    
+
     document.addEventListener('click', (e) => {
       const link = e.target.closest('[data-route]');
       if (link) {
@@ -569,7 +569,7 @@ const Views = {
   missionPanel() {
     const workflows = state.get('workflows');
     const activeWorkflow = workflows.find(w => w.status === 'running') || workflows[0];
-    
+
     if (!activeWorkflow) {
       return `
         <article class="panel mission">
@@ -927,10 +927,10 @@ function formatFileSize(bytes) {
 }
 
 function formatTimestamp(date = new Date()) {
-  return date.toLocaleTimeString('en-US', { 
-    hour: '2-digit', 
+  return date.toLocaleTimeString('en-US', {
+    hour: '2-digit',
     minute: '2-digit',
-    hour12: false 
+    hour12: false
   });
 }
 
@@ -955,7 +955,7 @@ const Handlers = {
     e.preventDefault();
     const input = document.getElementById('command-input');
     const command = input.value.trim();
-    
+
     if (!command) return;
 
     input.value = '';
@@ -994,7 +994,7 @@ const Handlers = {
     e.preventDefault();
     const input = document.getElementById('chat-input');
     const message = input.value.trim();
-    
+
     if (!message) return;
 
     input.value = '';
@@ -1045,7 +1045,7 @@ const Handlers = {
   async handleAction(e) {
     const actionEl = e.target.closest('[data-action]');
     if (!actionEl) return;
-    
+
     const action = actionEl.dataset.action;
 
     switch (action) {
@@ -1109,13 +1109,13 @@ async function startSystem(button) {
   try {
     const result = await api.startSystem();
     state.set('systemStatus', 'online');
-    
+
     button.textContent = 'System Online';
     button.dataset.action = 'stop-system';
-    
+
     // Update hero stats
     updateHeroStats();
-    
+
     state.update('logs', logs => [...logs, {
       timestamp: formatTimestamp(),
       type: 'system',
@@ -1143,10 +1143,10 @@ async function stopSystem(button) {
   try {
     await api.stopSystem();
     state.set('systemStatus', 'offline');
-    
+
     button.textContent = 'Deploy the Collective';
     button.dataset.action = 'start-system';
-    
+
     updateHeroStats();
   } catch (error) {
     button.textContent = originalText;
@@ -1158,17 +1158,17 @@ async function stopSystem(button) {
 function updateHeroStats() {
   const agents = state.get('agents');
   const telemetry = state.get('telemetry');
-  
+
   const agentsLive = document.querySelector('.hero__stats dd');
   if (agentsLive) {
     agentsLive.textContent = agents.filter(a => a.status !== 'offline').length.toString().padStart(2, '0');
   }
-  
+
   const latencyEl = document.querySelectorAll('.hero__stats dd')[1];
   if (latencyEl) {
     latencyEl.textContent = `${telemetry.latency?.toFixed(1) || 1.4} s`;
   }
-  
+
   const confidenceEl = document.querySelectorAll('.hero__stats dd')[2];
   if (confidenceEl) {
     const confidence = Math.round(telemetry.signalIntegrity || 97);
@@ -1313,7 +1313,7 @@ function showWorkflowModal() {
 async function showFileViewer(path) {
   try {
     const content = await api.getFileContent(path);
-    
+
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
     modal.innerHTML = `

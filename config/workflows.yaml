@@ -9,17 +9,17 @@ workflows:
         instruction: "Search the web for detailed information on: {{ query }}"
         payload:
           query: "{{ query }}"
-          
+
       - id: "extract"
         capability: "content_extraction"
         instruction: "Extract key facts and statistics from the search results."
         dependencies: ["search"]
-        
+
       - id: "summarize"
         capability: "knowledge_synthesis"
         instruction: "Synthesize the extracted information into a comprehensive briefing."
         dependencies: ["extract"]
-        
+
       - id: "save"
         capability: "file_operations"
         instruction: "Save the briefing to '{{ query }}_brief.md'."
@@ -35,7 +35,7 @@ workflows:
       - id: "plan"
         capability: "optimization"
         instruction: "Create an implementation plan for: {{ requirement }}. Outline classes and functions."
-        
+
       - id: "implement"
         capability: "code_generation"
         instruction: "Generate Python code based on the plan."

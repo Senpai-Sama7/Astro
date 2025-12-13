@@ -1,6 +1,6 @@
 # ASTRO Security & Quality Implementation Checklist
 
-**Created:** December 4, 2025  
+**Created:** December 4, 2025
 **Status:** 6/9 Complete - Security Items Done ✅
 
 ---
@@ -28,7 +28,7 @@
 ```diff
 - torch
 + torch==2.5.1
-- duckduckgo-search  
+- duckduckgo-search
 + duckduckgo-search==6.3.5
 ```
 
@@ -73,8 +73,8 @@
 ## 🔲 REMAINING ITEMS (Code Quality)
 
 ### 7. Refactor engine.py - Extract TaskQueue
-**Priority:** MEDIUM  
-**Effort:** 4-5 hours  
+**Priority:** MEDIUM
+**Effort:** 4-5 hours
 **Risk:** Medium (core component)
 
 **Why:** 600+ line file violates single responsibility principle.
@@ -88,33 +88,33 @@ from dataclasses import dataclass
 
 class TaskQueue:
     """Thread-safe priority task queue with dependency tracking."""
-    
+
     def __init__(self):
         self._queue: asyncio.PriorityQueue = asyncio.PriorityQueue()
         self._completed: Set[str] = set()
         self._failed: Set[str] = set()
         self._active: Dict[str, 'Task'] = {}
         self._lock = asyncio.Lock()
-    
+
     async def enqueue(self, task, priority_score: float):
         await self._queue.put((priority_score, task))
-    
+
     async def dequeue(self):
         return await self._queue.get()
-    
+
     async def mark_completed(self, task_id: str):
         async with self._lock:
             self._completed.add(task_id)
             self._active.pop(task_id, None)
-    
+
     async def mark_failed(self, task_id: str):
         async with self._lock:
             self._failed.add(task_id)
             self._active.pop(task_id, None)
-    
+
     def dependencies_met(self, task) -> bool:
         return all(dep in self._completed for dep in (task.dependencies or []))
-    
+
     @property
     def qsize(self) -> int:
         return self._queue.qsize()
@@ -128,8 +128,8 @@ class TaskQueue:
 ---
 
 ### 8. Refactor server.py - Split into Routers
-**Priority:** MEDIUM  
-**Effort:** 3-4 hours  
+**Priority:** MEDIUM
+**Effort:** 3-4 hours
 **Risk:** Low (additive change)
 
 **Why:** 700+ line file is hard to maintain.
@@ -170,8 +170,8 @@ app.include_router(agents.router)
 ---
 
 ### 9. Add Missing Test Cases
-**Priority:** MEDIUM  
-**Effort:** 4-6 hours  
+**Priority:** MEDIUM
+**Effort:** 4-6 hours
 **Risk:** None (additive)
 
 **Coverage Gaps:**
@@ -184,7 +184,7 @@ app.include_router(agents.router)
 ```
 tests/
 ├── test_api_errors.py      # NEW
-├── test_websocket.py       # NEW  
+├── test_websocket.py       # NEW
 ├── test_agent_errors.py    # NEW
 └── test_session.py         # NEW
 ```

@@ -67,7 +67,7 @@ await toolkit.code_analysis("cargo check", ".")
 **Example**:
 ```python
 # Save architectural decision
-await toolkit.knowledge_manager("save", "project_architecture", 
+await toolkit.knowledge_manager("save", "project_architecture",
     "Microservices with async message queue")
 
 # Retrieve for future sessions

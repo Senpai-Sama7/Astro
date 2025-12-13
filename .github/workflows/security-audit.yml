@@ -13,18 +13,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          
+
       - name: Install Security Tools
         run: pip install bandit pip-audit
-        
+
       - name: SAST Scan (Bandit)
         # B101 (assert) is excluded as it's common in pytests
         run: bandit -r src/ -x tests/ -ll -ii -s B101
-        
+
       - name: Dependency Scan (Pip Audit)
         run: pip-audit -r requirements.txt

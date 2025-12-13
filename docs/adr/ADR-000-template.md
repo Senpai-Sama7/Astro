@@ -1,8 +1,8 @@
 # ADR-000: [Title]
 
-**Date:** YYYY-MM-DD  
-**Status:** Proposed | Accepted | Deprecated | Superseded  
-**Deciders:** [Names]  
+**Date:** YYYY-MM-DD
+**Status:** Proposed | Accepted | Deprecated | Superseded
+**Deciders:** [Names]
 **Technical Story:** [Link to issue/ticket]
 
 ## Context

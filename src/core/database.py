@@ -142,7 +142,7 @@ class DatabaseManager:
         """Create tables asynchronously"""
         # Agents table
         await db.execute("""CREATE TABLE IF NOT EXISTS agents
-                         (agent_id TEXT PRIMARY KEY, 
+                         (agent_id TEXT PRIMARY KEY,
                           config TEXT,
                           state TEXT,
                           reliability_score REAL,
@@ -227,7 +227,7 @@ class DatabaseManager:
         """Create tables synchronously"""
         # Agents table
         c.execute("""CREATE TABLE IF NOT EXISTS agents
-                     (agent_id TEXT PRIMARY KEY, 
+                     (agent_id TEXT PRIMARY KEY,
                       config TEXT,
                       state TEXT,
                       reliability_score REAL,
@@ -313,7 +313,7 @@ class DatabaseManager:
 
         # Agents table
         c.execute("""CREATE TABLE IF NOT EXISTS agents
-                     (agent_id TEXT PRIMARY KEY, 
+                     (agent_id TEXT PRIMARY KEY,
                       config TEXT,
                       state TEXT,
                       reliability_score REAL,
@@ -480,7 +480,7 @@ class DatabaseManager:
     def save_agent(self, agent_id: str, config: Dict, state: str, reliability: float):
         """Sync save agent (blocks caller) - DEPRECATED for production"""
         _deprecation_warning("save_agent")
-        sql = """INSERT OR REPLACE INTO agents 
+        sql = """INSERT OR REPLACE INTO agents
                  (agent_id, config, state, reliability_score, last_updated)
                  VALUES (?, ?, ?, ?, ?)"""
         params = (
@@ -495,7 +495,7 @@ class DatabaseManager:
     def save_workflow(self, workflow_id: str, name: str, status: str, priority: str):
         """Sync save workflow (blocks caller) - DEPRECATED for production"""
         _deprecation_warning("save_workflow")
-        sql = """INSERT OR REPLACE INTO workflows 
+        sql = """INSERT OR REPLACE INTO workflows
                  (workflow_id, name, status, priority, created_at)
                  VALUES (?, ?, ?, ?, ?)"""
         params = (workflow_id, name, status, priority, datetime.now().isoformat())
@@ -512,7 +512,7 @@ class DatabaseManager:
     ):
         """Sync save task (blocks caller) - DEPRECATED for production"""
         _deprecation_warning("save_task")
-        sql = """INSERT OR REPLACE INTO tasks 
+        sql = """INSERT OR REPLACE INTO tasks
                  (task_id, workflow_id, description, status, assigned_agent, result, created_at, completed_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)"""
         now = datetime.now().isoformat()
@@ -543,7 +543,7 @@ class DatabaseManager:
     ):
         """Async save agent using connection pool"""
         await self._ensure_async_init()
-        sql = """INSERT OR REPLACE INTO agents 
+        sql = """INSERT OR REPLACE INTO agents
                  (agent_id, config, state, reliability_score, last_updated)
                  VALUES (?, ?, ?, ?, ?)"""
         params = (
@@ -568,7 +568,7 @@ class DatabaseManager:
     ):
         """Async save workflow using connection pool"""
         await self._ensure_async_init()
-        sql = """INSERT OR REPLACE INTO workflows 
+        sql = """INSERT OR REPLACE INTO workflows
                  (workflow_id, name, status, priority, created_at)
                  VALUES (?, ?, ?, ?, ?)"""
         params = (workflow_id, name, status, priority, datetime.now().isoformat())
@@ -593,7 +593,7 @@ class DatabaseManager:
     ):
         """Async save task using connection pool"""
         await self._ensure_async_init()
-        sql = """INSERT OR REPLACE INTO tasks 
+        sql = """INSERT OR REPLACE INTO tasks
                  (task_id, workflow_id, description, status, assigned_agent, result, created_at, completed_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)"""
         params = (
@@ -641,7 +641,7 @@ class DatabaseManager:
     ) -> List[Dict]:
         """Async fetch recent metrics using native aiosqlite"""
         await self._ensure_async_init()
-        sql = """SELECT value, timestamp FROM metrics 
+        sql = """SELECT value, timestamp FROM metrics
                  WHERE agent_id = ? AND metric_type = ?
                  ORDER BY timestamp DESC LIMIT ?"""
         params = (agent_id, metric_type, limit)
@@ -810,8 +810,8 @@ class DatabaseManager:
         last_used: str = None,
     ):
         """Save a learning pattern to the database"""
-        sql = """INSERT OR REPLACE INTO learning_patterns 
-                 (pattern_id, pattern_type, conditions, action, expected_outcome, 
+        sql = """INSERT OR REPLACE INTO learning_patterns
+                 (pattern_id, pattern_type, conditions, action, expected_outcome,
                   confidence, usage_count, success_count, last_used, created_at)
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"""
         now = datetime.now().isoformat()
@@ -912,7 +912,7 @@ class DatabaseManager:
         # Ensure session exists
         session_sql = """INSERT OR IGNORE INTO chat_sessions (session_id, created_at, last_active)
                         VALUES (?, ?, ?)"""
-        message_sql = """INSERT OR REPLACE INTO chat_messages 
+        message_sql = """INSERT OR REPLACE INTO chat_messages
                         (session_id, message_id, role, content, timestamp)
                         VALUES (?, ?, ?, ?, ?)"""
         now = datetime.now().isoformat()
@@ -951,7 +951,7 @@ class DatabaseManager:
     ) -> List[Dict]:
         """Get chat history for a session."""
         await self._ensure_async_init()
-        sql = """SELECT message_id, role, content, timestamp 
+        sql = """SELECT message_id, role, content, timestamp
                  FROM chat_messages WHERE session_id = ?
                  ORDER BY id ASC LIMIT ?"""
         params = (session_id, limit)
@@ -1024,7 +1024,7 @@ class DatabaseManager:
     ) -> bool:
         """Save a knowledge item to the database."""
         await self._ensure_async_init()
-        sql = """INSERT OR REPLACE INTO knowledge_items 
+        sql = """INSERT OR REPLACE INTO knowledge_items
                 (id, title, content, type, tags, summary, created_at, updated_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)"""
         now = datetime.now().isoformat()

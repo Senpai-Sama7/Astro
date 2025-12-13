@@ -24,19 +24,19 @@ class AuditEvent(Enum):
 
 class AuditLogger:
     """Structured audit logging to JSONL file."""
-    
+
     def __init__(self, log_dir: str = "logs"):
         os.makedirs(log_dir, exist_ok=True)
         self._logger = logging.getLogger("audit")
         self._logger.setLevel(logging.INFO)
         self._logger.propagate = False
-        
+
         if not self._logger.handlers:
             handler = logging.FileHandler(f"{log_dir}/audit.jsonl")
             handler.setFormatter(logging.Formatter('%(message)s'))
             self._logger.addHandler(handler)
-    
-    def log(self, event: AuditEvent, actor: str, resource: str, 
+
+    def log(self, event: AuditEvent, actor: str, resource: str,
             outcome: str = "success", details: Optional[Dict[str, Any]] = None,
             request_id: Optional[str] = None, ip_address: Optional[str] = None):
         """Log an audit event."""

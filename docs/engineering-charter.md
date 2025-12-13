@@ -1,7 +1,7 @@
 # ASTRO Engineering Charter
 
-**Version:** 1.0.0  
-**Last Updated:** 2025-11-27  
+**Version:** 1.0.0
+**Last Updated:** 2025-11-27
 **Status:** Active
 
 ## Overview

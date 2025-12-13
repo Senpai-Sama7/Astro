@@ -19,13 +19,13 @@ class AnalysisAgent(BaseAgent):
         try:
             tool = task.get("tool")
             path = task.get("path")
-            
+
             if not tool or not path:
                 return TaskResult(success=False, error_message="Tool and path required")
-            
+
             cmd = [tool, path]
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-            
+
             return TaskResult(
                 success=result.returncode == 0,
                 result_data={

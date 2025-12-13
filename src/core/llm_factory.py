@@ -20,8 +20,8 @@ except ImportError:
 
 class LLMFactory:
     @staticmethod
-    def create_client(provider: str = "openai", 
-                      api_key: Optional[str] = None, 
+    def create_client(provider: str = "openai",
+                      api_key: Optional[str] = None,
                       base_url: Optional[str] = None) -> Optional[Any]:
         """
         Create and return an Async LLM client (AsyncOpenAI) based on the provider.
@@ -32,7 +32,7 @@ class LLMFactory:
 
         provider = provider.lower()
         key, url = LLMFactory._get_config(provider, api_key, base_url)
-        
+
         if not key and provider != "ollama":
             logger.warning(f"No API key found for provider {provider}")
             return None
@@ -46,8 +46,8 @@ class LLMFactory:
             return None
 
     @staticmethod
-    def create_sync_client(provider: str = "openai", 
-                           api_key: Optional[str] = None, 
+    def create_sync_client(provider: str = "openai",
+                           api_key: Optional[str] = None,
                            base_url: Optional[str] = None) -> Optional[Any]:
         """
         Create and return a Sync LLM client (OpenAI).
@@ -75,13 +75,13 @@ class LLMFactory:
     def _get_config(provider: str, api_key: Optional[str], base_url: Optional[str]) -> tuple:
         if provider == "openai":
             return api_key or os.getenv("OPENAI_API_KEY"), base_url
-            
+
         elif provider == "openrouter":
             return api_key or os.getenv("OPENROUTER_API_KEY"), base_url or "https://openrouter.ai/api/v1"
-            
+
         elif provider == "ollama":
             return "ollama", base_url or "http://localhost:11434/v1"
-            
+
         else:
             logger.warning(f"Unknown provider {provider}, defaulting to OpenAI")
             return api_key or os.getenv("OPENAI_API_KEY"), base_url

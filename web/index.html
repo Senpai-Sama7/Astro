@@ -19,13 +19,13 @@
         <span class="mark">ASTRO</span>
         <span class="badge" id="status-badge">Checking...</span>
       </div>
-      
+
       <div class="hero__copy">
         <p class="eyebrow">Autonomous Multi-Agent System</p>
         <h1>Your AI team that actually gets things done.</h1>
         <p>Deploy and orchestrate AI agents for research, code generation, file management, testing, and more—all from natural language commands.</p>
       </div>
-      
+
       <div class="hero__cta">
         <a href="chat.html" class="btn btn--primary">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -40,7 +40,7 @@
           <span id="deploy-text">Deploy Agents</span>
         </button>
       </div>
-      
+
       <dl class="hero__stats">
         <div>
           <dt>Agents Available</dt>
@@ -66,7 +66,7 @@
         <h2>Choose your interface</h2>
         <p>Jump into conversational AI, orchestrate complex workflows, manage your knowledge base, or browse generated files.</p>
       </header>
-      
+
       <div class="access-grid__cards">
         <article class="access-card">
           <div class="access-card__meta">
@@ -77,7 +77,7 @@
           <p>Natural language conversations with your AI team. Research, write, code, and analyze without technical knowledge.</p>
           <a href="chat.html" class="btn btn--ghost">Start chatting</a>
         </article>
-        
+
         <article class="access-card">
           <div class="access-card__meta">
             <span class="tag">API</span>
@@ -87,7 +87,7 @@
           <p>Integrate ASTRO into your applications via REST API. Full documentation and WebSocket support included.</p>
           <a href="/docs" class="btn btn--ghost" target="_blank">View API Docs</a>
         </article>
-        
+
         <article class="access-card">
           <div class="access-card__meta">
             <span class="tag">Desktop</span>
@@ -97,7 +97,7 @@
           <p>Native desktop application with full agent control, real-time monitoring, and offline capabilities.</p>
           <a href="https://github.com/Senpai-Sama7/Astro/releases" class="btn btn--ghost" target="_blank">Download</a>
         </article>
-        
+
         <article class="access-card">
           <div class="access-card__meta">
             <span class="tag">Source</span>
@@ -116,7 +116,7 @@
         <h2>7 specialized agents at your command</h2>
         <p>Each agent is purpose-built for specific tasks, working together seamlessly to accomplish complex goals.</p>
       </header>
-      
+
       <div class="agent-grid" id="agent-grid">
         <!-- Agents will be populated dynamically -->
       </div>
@@ -127,7 +127,7 @@
         <p class="eyebrow">Live Telemetry</p>
         <h2>System performance</h2>
       </header>
-      
+
       <div class="telemetry">
         <div class="telemetry__item">
           <div class="telemetry__value" id="tel-agents">--</div>
@@ -214,7 +214,7 @@
         const statusDot = document.getElementById('status-dot');
         const statusText = document.getElementById('status-text');
         const statusBadge = document.getElementById('status-badge');
-        
+
         try {
           const res = await fetch('/api/status');
           if (res.ok) {
@@ -225,7 +225,7 @@
             statusBadge.textContent = 'Production Ready';
             statusBadge.style.background = 'rgba(34, 197, 94, 0.2)';
             statusBadge.style.borderColor = '#22c55e';
-            
+
             // Update agent statuses from API
             if (data.agents) {
               data.agents.forEach(a => agentStatuses[a.id] = a.status === 'active');
@@ -233,32 +233,32 @@
               // If no agent data, assume all online when system is online
               AGENTS.forEach(a => agentStatuses[a.id] = true);
             }
-            
+
             // Update telemetry
             document.getElementById('tel-agents').textContent = data.agents_count || AGENTS.length;
             document.getElementById('tel-tasks').textContent = data.pending_tasks || 0;
             document.getElementById('tel-latency').textContent = data.avg_latency ? `${data.avg_latency}ms` : '<50ms';
-            
+
             renderAgents();
             return true;
           }
         } catch (e) {
           // Server not running - show offline state
         }
-        
+
         systemOnline = false;
         statusDot.className = 'status-dot offline';
         statusText.textContent = 'Offline';
         statusBadge.textContent = 'Server Offline';
         statusBadge.style.background = 'rgba(107, 114, 128, 0.2)';
         statusBadge.style.borderColor = '#6b7280';
-        
+
         // All agents offline
         AGENTS.forEach(a => agentStatuses[a.id] = false);
         document.getElementById('tel-agents').textContent = '0';
         document.getElementById('tel-tasks').textContent = '--';
         document.getElementById('tel-latency').textContent = '--';
-        
+
         renderAgents();
         return false;
       }
@@ -273,7 +273,7 @@
         const hours = Math.floor(elapsed / 3600);
         const mins = Math.floor((elapsed % 3600) / 60);
         const secs = elapsed % 60;
-        
+
         if (hours > 0) {
           document.getElementById('tel-uptime').textContent = `${hours}h ${mins}m`;
         } else if (mins > 0) {
@@ -287,10 +287,10 @@
       document.getElementById('deploy-btn').addEventListener('click', async () => {
         const btn = document.getElementById('deploy-btn');
         const text = document.getElementById('deploy-text');
-        
+
         btn.disabled = true;
         text.innerHTML = '<span class="loading"></span> Starting...';
-        
+
         try {
           const res = await fetch('/api/system/start', { method: 'POST' });
           if (res.ok) {

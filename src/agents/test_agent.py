@@ -19,16 +19,16 @@ class TestAgent(BaseAgent):
         try:
             command = task.get("command")
             target_file = task.get("target_file")
-            
+
             if not command:
                 return TaskResult(success=False, error_message="No test command provided")
-            
+
             cmd = command.split() if isinstance(command, str) else command
             if target_file:
                 cmd.append(target_file)
-            
+
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-            
+
             return TaskResult(
                 success=result.returncode == 0,
                 result_data={

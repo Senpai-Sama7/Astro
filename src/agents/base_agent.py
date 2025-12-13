@@ -74,7 +74,7 @@ class TaskResult:
 class BaseAgent:
     """
     Base class providing common functionality for all agents.
-    
+
     Features:
     - Timeout handling for all task executions
     - Automatic state management
@@ -82,10 +82,10 @@ class BaseAgent:
     - Health check and diagnostics
     - Recovery mechanisms
     """
-    
+
     DEFAULT_TIMEOUT = 60.0  # seconds
     MAX_RETRIES = 3
-    
+
     def __init__(self, agent_id: str, capabilities: List[AgentCapability], config: Dict[str, Any]):
         self.agent_id = agent_id
         self.capabilities = capabilities
@@ -96,11 +96,11 @@ class BaseAgent:
         self.task_history: List[TaskResult] = []
         self._consecutive_failures = 0
         self._lock = asyncio.Lock()
-        
+
         # Initialize metrics
         metrics.update_agent_health(agent_id, True)
         metrics.update_agent_reliability(agent_id, config.get('reliability_score', 0.95))
-        
+
         logger.info(f"BaseAgent {agent_id} initialized", extra={
             'capabilities': [c.value for c in capabilities],
             'timeout': self.default_timeout
@@ -115,17 +115,17 @@ class BaseAgent:
         timeout = context.timeout if context.timeout else self.default_timeout
         start_time = time.time()
         task_id = task.get('task_id', 'unknown')
-        
+
         async with self._lock:
             self.state = AgentState.BUSY
-        
+
         try:
             result = await asyncio.wait_for(
                 self.execute_task(task, context),
                 timeout=timeout
             )
             result.execution_time = time.time() - start_time
-            
+
             if result.success:
                 self._consecutive_failures = 0
                 logger.info(f"Task completed", extra={
@@ -140,10 +140,10 @@ class BaseAgent:
                     'task_id': task_id,
                     'error': result.error_message
                 })
-                
+
             self.record_task_result(result)
             return result
-            
+
         except asyncio.TimeoutError:
             self._consecutive_failures += 1
             result = TaskResult(
@@ -160,7 +160,7 @@ class BaseAgent:
             })
             metrics.record_error("TimeoutError")
             return result
-            
+
         except Exception as e:
             self._consecutive_failures += 1
             result = TaskResult(
@@ -178,7 +178,7 @@ class BaseAgent:
             }, exc_info=True)
             metrics.record_error(type(e).__name__)
             return result
-            
+
         finally:
             async with self._lock:
                 if self._consecutive_failures >= 3:
@@ -211,13 +211,13 @@ class BaseAgent:
         logger.info(f"Attempting recovery for agent {self.agent_id}")
         async with self._lock:
             self.state = AgentState.RECOVERING
-        
+
         await asyncio.sleep(1)  # Brief pause before recovery
-        
+
         async with self._lock:
             self._consecutive_failures = 0
             self.state = AgentState.IDLE
-            
+
         logger.info(f"Agent {self.agent_id} recovered successfully")
         return True
 

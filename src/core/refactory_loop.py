@@ -58,7 +58,7 @@ class CodeMetrics:
     avg_function_length: float = 0.0
     max_function_length: int = 0
     import_count: int = 0
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "linesOfCode": self.lines_of_code,
@@ -72,25 +72,25 @@ class CodeMetrics:
             "maxFunctionLength": self.max_function_length,
             "importCount": self.import_count
         }
-    
+
     def quality_score(self) -> float:
         """Calculate overall quality score"""
         scores = []
-        
+
         # Complexity (lower is better)
         complexity_score = max(0, 1 - (self.cyclomatic_complexity / 50))
         scores.append(complexity_score)
-        
+
         # Documentation (higher is better)
         scores.append(self.documentation_ratio)
-        
+
         # Type hints (higher is better)
         scores.append(self.type_hint_coverage)
-        
+
         # Function length (shorter is better)
         length_score = max(0, 1 - (self.avg_function_length / 50))
         scores.append(length_score)
-        
+
         return sum(scores) / len(scores) if scores else 0.0
 
 
@@ -106,7 +106,7 @@ class RefactorSuggestion:
     priority: float  # 0-1, higher is more important
     code_before: Optional[str] = None
     code_after: Optional[str] = None
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "suggestionId": self.suggestion_id,
@@ -136,7 +136,7 @@ class FeedbackItem:
 
 class CodeAnalyzer:
     """Analyzes code for quality metrics and issues"""
-    
+
     def __init__(self):
         self._complexity_weights = {
             "if": 1,
@@ -147,124 +147,124 @@ class CodeAnalyzer:
             "and": 1,
             "or": 1,
         }
-    
+
     def analyze(self, code: str) -> CodeMetrics:
         """Analyze code and return metrics"""
         metrics = CodeMetrics()
-        
+
         lines = code.split('\n')
         metrics.lines_of_code = len([l for l in lines if l.strip() and not l.strip().startswith('#')])
-        
+
         try:
             tree = ast.parse(code)
             metrics.cyclomatic_complexity = self._calculate_cyclomatic(tree)
             metrics.cognitive_complexity = self._calculate_cognitive(tree)
             metrics.documentation_ratio = self._calculate_doc_ratio(tree)
             metrics.type_hint_coverage = self._calculate_type_hints(tree)
-            
+
             func_lengths = self._get_function_lengths(tree)
             if func_lengths:
                 metrics.avg_function_length = sum(func_lengths) / len(func_lengths)
                 metrics.max_function_length = max(func_lengths)
-            
+
             metrics.import_count = self._count_imports(tree)
         except SyntaxError:
             pass
-        
+
         metrics.duplicate_lines = self._find_duplicates(lines)
-        
+
         return metrics
-    
+
     def _calculate_cyclomatic(self, tree: ast.AST) -> int:
         """Calculate cyclomatic complexity"""
         complexity = 1
-        
+
         for node in ast.walk(tree):
             if isinstance(node, (ast.If, ast.While, ast.For, ast.ExceptHandler)):
                 complexity += 1
             elif isinstance(node, ast.BoolOp):
                 complexity += len(node.values) - 1
-        
+
         return complexity
-    
+
     def _calculate_cognitive(self, tree: ast.AST) -> int:
         """Calculate cognitive complexity"""
         complexity = 0
         nesting = 0
-        
+
         class CognitiveVisitor(ast.NodeVisitor):
             def __init__(self):
                 self.complexity = 0
                 self.nesting = 0
-            
+
             def visit_If(self, node):
                 self.complexity += 1 + self.nesting
                 self.nesting += 1
                 self.generic_visit(node)
                 self.nesting -= 1
-            
+
             def visit_For(self, node):
                 self.complexity += 1 + self.nesting
                 self.nesting += 1
                 self.generic_visit(node)
                 self.nesting -= 1
-            
+
             def visit_While(self, node):
                 self.complexity += 1 + self.nesting
                 self.nesting += 1
                 self.generic_visit(node)
                 self.nesting -= 1
-            
+
             def visit_BoolOp(self, node):
                 self.complexity += len(node.values) - 1
                 self.generic_visit(node)
-        
+
         visitor = CognitiveVisitor()
         visitor.visit(tree)
         return visitor.complexity
-    
+
     def _calculate_doc_ratio(self, tree: ast.AST) -> float:
         """Calculate documentation coverage"""
         total = 0
         documented = 0
-        
+
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 total += 1
                 if ast.get_docstring(node):
                     documented += 1
-        
+
         return documented / total if total > 0 else 1.0
-    
+
     def _calculate_type_hints(self, tree: ast.AST) -> float:
         """Calculate type hint coverage"""
         total_args = 0
         hinted_args = 0
-        
+
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 for arg in node.args.args:
                     total_args += 1
                     if arg.annotation:
                         hinted_args += 1
-                
+
                 if node.returns:
                     hinted_args += 1
                 total_args += 1  # For return type
-        
+
         return hinted_args / total_args if total_args > 0 else 1.0
-    
+
     def _get_function_lengths(self, tree: ast.AST) -> List[int]:
         """Get lengths of all functions"""
         lengths = []
-        
+
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 if hasattr(node, 'end_lineno') and hasattr(node, 'lineno'):
                     lengths.append(node.end_lineno - node.lineno + 1)
-        
+
         return lengths
-    
+
     def _count_imports(self, tree: ast.AST) -> int:
         """Count import statements"""
         count = 0
@@ -272,40 +272,40 @@ class CodeAnalyzer:
             if isinstance(node, (ast.Import, ast.ImportFrom)):
                 count += 1
         return count
-    
+
     def _find_duplicates(self, lines: List[str]) -> int:
         """Find duplicate lines"""
         seen = {}
         duplicates = 0
-        
+
         for line in lines:
             line = line.strip()
             if line and len(line) > 10:  # Ignore short lines
                 if line in seen:
                     duplicates += 1
                 seen[line] = True
-        
+
         return duplicates
 
 
 class RefactorEngine:
     """Engine for generating and applying refactorings"""
-    
+
     def __init__(self, llm_client: Any = None, model_name: str = "gpt-4"):
         self.llm_client = llm_client
         self.model_name = model_name
         self.analyzer = CodeAnalyzer()
-    
+
     def suggest_refactorings(self, code: str) -> List[RefactorSuggestion]:
         """Generate refactoring suggestions"""
         suggestions = []
         metrics = self.analyzer.analyze(code)
-        
+
         try:
             tree = ast.parse(code)
         except SyntaxError:
             return suggestions
-        
+
         # Check for long functions
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -320,7 +320,7 @@ class RefactorEngine:
                         impact={QualityDimension.READABILITY: 0.3, QualityDimension.MAINTAINABILITY: 0.2},
                         priority=min(func_len / 100, 0.9)
                     ))
-        
+
         # Check for complex conditionals
         for node in ast.walk(tree):
             if isinstance(node, ast.If):
@@ -335,7 +335,7 @@ class RefactorEngine:
                         impact={QualityDimension.READABILITY: 0.2, QualityDimension.COMPLEXITY: 0.15},
                         priority=min(condition_complexity / 10, 0.8)
                     ))
-        
+
         # Check for missing type hints
         if metrics.type_hint_coverage < 0.7:
             suggestions.append(RefactorSuggestion(
@@ -347,7 +347,7 @@ class RefactorEngine:
                 impact={QualityDimension.MAINTAINABILITY: 0.25, QualityDimension.TESTABILITY: 0.15},
                 priority=0.6
             ))
-        
+
         # Check for missing documentation
         if metrics.documentation_ratio < 0.5:
             suggestions.append(RefactorSuggestion(
@@ -359,12 +359,12 @@ class RefactorEngine:
                 impact={QualityDimension.READABILITY: 0.2, QualityDimension.MAINTAINABILITY: 0.2},
                 priority=0.5
             ))
-        
+
         # Sort by priority
         suggestions.sort(key=lambda s: s.priority, reverse=True)
-        
+
         return suggestions
-    
+
     def _count_boolean_ops(self, node: ast.AST) -> int:
         """Count boolean operations in expression"""
         count = 0
@@ -372,13 +372,13 @@ class RefactorEngine:
             if isinstance(child, ast.BoolOp):
                 count += len(child.values)
         return count
-    
+
     async def apply_refactoring(self, code: str, suggestion: RefactorSuggestion) -> Optional[str]:
         """Apply a refactoring suggestion"""
         if self.llm_client:
             return await self._llm_refactor(code, suggestion)
         return self._rule_based_refactor(code, suggestion)
-    
+
     async def _llm_refactor(self, code: str, suggestion: RefactorSuggestion) -> Optional[str]:
         """Use LLM for refactoring"""
         try:
@@ -400,7 +400,7 @@ Return ONLY the refactored code, nothing else."""
                 messages=[{"role": "user", "content": prompt}],
                 temperature=0.2
             )
-            
+
             content = response.choices[0].message.content
             # Extract code from response
             code_match = re.search(r'```python\n(.*?)\n```', content, re.DOTALL)
@@ -410,23 +410,23 @@ Return ONLY the refactored code, nothing else."""
         except Exception as e:
             logger.error(f"LLM refactoring failed: {e}")
             return None
-    
+
     def _rule_based_refactor(self, code: str, suggestion: RefactorSuggestion) -> Optional[str]:
         """Apply rule-based refactoring"""
         # Simple rule-based transformations
         if suggestion.refactor_type == RefactorType.OPTIMIZE_IMPORTS:
             return self._optimize_imports(code)
-        
+
         # For complex refactorings, return None to indicate LLM needed
         return None
-    
+
     def _optimize_imports(self, code: str) -> str:
         """Optimize imports"""
         lines = code.split('\n')
         imports = []
         from_imports = []
         other_lines = []
-        
+
         for line in lines:
             stripped = line.strip()
             if stripped.startswith('import '):
@@ -435,11 +435,11 @@ Return ONLY the refactored code, nothing else."""
                 from_imports.append(stripped)
             else:
                 other_lines.append(line)
-        
+
         # Sort and deduplicate
         imports = sorted(set(imports))
         from_imports = sorted(set(from_imports))
-        
+
         # Reconstruct
         result = []
         if imports:
@@ -449,57 +449,57 @@ Return ONLY the refactored code, nothing else."""
             result.extend(from_imports)
             result.append('')
         result.extend(other_lines)
-        
+
         return '\n'.join(result)
 
 
 class FeedbackCollector:
     """Collects feedback from various sources"""
-    
+
     def __init__(self):
         self._feedback: List[FeedbackItem] = []
         self._sources: Dict[str, Callable] = {}
-    
+
     def register_source(self, name: str, collector: Callable):
         """Register a feedback source"""
         self._sources[name] = collector
-    
+
     async def collect(self, code: str) -> List[FeedbackItem]:
         """Collect feedback from all sources"""
         feedback = []
-        
+
         for name, collector in self._sources.items():
             try:
                 if asyncio.iscoroutinefunction(collector):
                     items = await collector(code)
                 else:
                     items = collector(code)
-                
+
                 for item in items:
                     item.source = name
                     feedback.append(item)
             except Exception as e:
                 logger.error(f"Feedback collection from {name} failed: {e}")
-        
+
         self._feedback.extend(feedback)
         return feedback
-    
+
     def get_feedback_summary(self) -> Dict[str, Any]:
         """Get summary of collected feedback"""
         by_dimension = {}
         by_severity = {"high": 0, "medium": 0, "low": 0}
-        
+
         for item in self._feedback:
             dim = item.dimension.value
             by_dimension[dim] = by_dimension.get(dim, 0) + 1
-            
+
             if item.severity > 0.7:
                 by_severity["high"] += 1
             elif item.severity > 0.3:
                 by_severity["medium"] += 1
             else:
                 by_severity["low"] += 1
-        
+
         return {
             "total": len(self._feedback),
             "by_dimension": by_dimension,
@@ -509,21 +509,21 @@ class FeedbackCollector:
 
 class RefactoryFeedbackLoop:
     """Main feedback loop orchestrator"""
-    
+
     def __init__(self, llm_client: Any = None, model_name: str = "gpt-4"):
         self.analyzer = CodeAnalyzer()
         self.engine = RefactorEngine(llm_client, model_name)
         self.collector = FeedbackCollector()
         self._history: List[Dict[str, Any]] = []
-        
+
         # Register default feedback source
         self.collector.register_source("static_analysis", self._static_analysis_feedback)
-    
+
     def _static_analysis_feedback(self, code: str) -> List[FeedbackItem]:
         """Generate feedback from static analysis"""
         feedback = []
         metrics = self.analyzer.analyze(code)
-        
+
         if metrics.cyclomatic_complexity > 20:
             feedback.append(FeedbackItem(
                 feedback_id=hashlib.md5(f"cc_{datetime.now()}".encode()).hexdigest()[:8],
@@ -532,7 +532,7 @@ class RefactoryFeedbackLoop:
                 message=f"High cyclomatic complexity: {metrics.cyclomatic_complexity}",
                 severity=min(metrics.cyclomatic_complexity / 50, 1.0)
             ))
-        
+
         if metrics.documentation_ratio < 0.5:
             feedback.append(FeedbackItem(
                 feedback_id=hashlib.md5(f"doc_{datetime.now()}".encode()).hexdigest()[:8],
@@ -541,38 +541,38 @@ class RefactoryFeedbackLoop:
                 message=f"Low documentation: {metrics.documentation_ratio:.0%}",
                 severity=1 - metrics.documentation_ratio
             ))
-        
+
         return feedback
-    
+
     async def run_iteration(self, code: str, auto_apply: bool = False) -> Dict[str, Any]:
         """Run one iteration of the feedback loop"""
         iteration_start = datetime.now()
-        
+
         # Analyze current state
         before_metrics = self.analyzer.analyze(code)
         before_score = before_metrics.quality_score()
-        
+
         # Collect feedback
         feedback = await self.collector.collect(code)
-        
+
         # Generate suggestions
         suggestions = self.engine.suggest_refactorings(code)
-        
+
         # Apply refactorings if enabled
         applied = []
         current_code = code
-        
+
         if auto_apply and suggestions:
             for suggestion in suggestions[:3]:  # Limit auto-apply
                 refactored = await self.engine.apply_refactoring(current_code, suggestion)
                 if refactored:
                     current_code = refactored
                     applied.append(suggestion.suggestion_id)
-        
+
         # Analyze after state
         after_metrics = self.analyzer.analyze(current_code)
         after_score = after_metrics.quality_score()
-        
+
         # Record iteration
         result = {
             "iteration": len(self._history) + 1,
@@ -588,22 +588,22 @@ class RefactoryFeedbackLoop:
             "suggestions": [s.to_dict() for s in suggestions[:5]],
             "code": current_code if auto_apply else None
         }
-        
+
         self._history.append(result)
-        
+
         return result
-    
+
     def get_improvement_trend(self) -> List[float]:
         """Get quality score trend over iterations"""
         return [h.get("after_score", 0) for h in self._history]
-    
+
     def get_summary(self) -> Dict[str, Any]:
         """Get summary of feedback loop"""
         if not self._history:
             return {"iterations": 0}
-        
+
         scores = self.get_improvement_trend()
-        
+
         return {
             "iterations": len(self._history),
             "initial_score": self._history[0]["before_score"],

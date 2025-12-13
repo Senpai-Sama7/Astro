@@ -19,16 +19,16 @@ class GitAgent(BaseAgent):
         try:
             operation = task.get("operation")
             arguments = task.get("arguments", [])
-            
+
             if operation not in ["status", "diff", "add", "commit", "checkout", "branch", "log"]:
                 return TaskResult(success=False, error_message=f"Unknown operation: {operation}")
-            
+
             cmd = ["git", operation] + arguments
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            
+
             if result.returncode != 0:
                 return TaskResult(success=False, error_message=result.stderr)
-            
+
             return TaskResult(
                 success=True,
                 result_data={"output": result.stdout, "operation": operation}

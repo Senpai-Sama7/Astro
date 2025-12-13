@@ -36,35 +36,35 @@ Examples:
   python run_web.py --reload           Enable auto-reload for development
         """
     )
-    
+
     parser.add_argument(
         "--host",
         type=str,
         default="127.0.0.1",
         help="Host to bind to (default: 127.0.0.1)"
     )
-    
+
     parser.add_argument(
         "--port",
         type=int,
         default=8000,
         help="Port to bind to (default: 8000)"
     )
-    
+
     parser.add_argument(
         "--reload",
         action="store_true",
         help="Enable auto-reload for development"
     )
-    
+
     parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable debug logging"
     )
-    
+
     args = parser.parse_args()
-    
+
     # Configure logging
     log_level = logging.DEBUG if args.debug else logging.INFO
     logging.basicConfig(
@@ -72,9 +72,9 @@ Examples:
         format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     )
-    
+
     logger = logging.getLogger("ASTRO")
-    
+
     # Print banner
     print("""
     ╔═══════════════════════════════════════════════════════════╗
@@ -91,14 +91,14 @@ Examples:
     ║                                                           ║
     ╚═══════════════════════════════════════════════════════════╝
     """)
-    
+
     logger.info(f"Starting ASTRO Web Server on http://{args.host}:{args.port}")
     logger.info("Press Ctrl+C to stop")
-    
+
     try:
         import uvicorn
         from api.server import create_app
-        
+
         uvicorn.run(
             "api.server:app",
             host=args.host,

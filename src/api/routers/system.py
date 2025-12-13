@@ -44,9 +44,9 @@ async def start_system():
     """Start the agent system."""
     if _app_state.running:
         return {"status": "already_running", "message": "System is already running"}
-    
+
     _app_state.running = True
-    
+
     # Initialize NL interface if needed
     if _app_state.llm_client and not _app_state.nl_interface:
         from core.nl_interface import NaturalLanguageInterface
@@ -56,10 +56,10 @@ async def start_system():
             llm_client=_app_state.llm_client,
             model_name=model
         )
-    
+
     # Start engine in background
     asyncio.create_task(_app_state.engine.start_engine())
-    
+
     await _manager.broadcast("system_status", {"status": "online"})
     await _manager.broadcast("log", {
         "timestamp": datetime.now().strftime("%H:%M"),
@@ -67,7 +67,7 @@ async def start_system():
         "title": "System Started",
         "message": "ASTRO agent ecosystem is now online.",
     })
-    
+
     return {"status": "started", "message": "System started successfully"}
 
 @router.post("/stop")
@@ -75,9 +75,9 @@ async def stop_system():
     """Stop the agent system."""
     if not _app_state.running:
         return {"status": "not_running", "message": "System is not running"}
-    
+
     _app_state.running = False
     await _app_state.engine.shutdown()
     await _manager.broadcast("system_status", {"status": "offline"})
-    
+
     return {"status": "stopped", "message": "System stopped successfully"}

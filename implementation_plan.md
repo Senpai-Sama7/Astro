@@ -6,7 +6,7 @@ We're adding 4 critical systems in **precise order** to avoid breaking existing 
 3. **Rate Limiting** (Protection)
 4. **Metrics Export** (Observability)
 
-**Total Time**: ~8 hours  
+**Total Time**: ~8 hours
 **Impact**: Production-ready → Enterprise-grade
 
 ***
@@ -54,19 +54,19 @@ workflow_id_var: ContextVar[str] = ContextVar('workflow_id', default='')
 class StructuredFormatter(logging.Formatter):
     """
     JSON formatter for structured logging
-    
+
     Outputs consistent JSON format that can be parsed by log aggregators
     """
-    
+
     # Fields to always include
     CORE_FIELDS = [
-        'timestamp', 'level', 'logger', 'message', 'module', 
+        'timestamp', 'level', 'logger', 'message', 'module',
         'function', 'line', 'thread', 'process'
     ]
-    
+
     def format(self, record: logging.LogRecord) -> str:
         """Format log record as JSON"""
-        
+
         # Core log data
         log_data = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -80,34 +80,34 @@ class StructuredFormatter(logging.Formatter):
             "process": record.process,
             "environment": "production"  # Set from env var
         }
-        
+
         # Add context vars if set
         request_id = request_id_var.get()
         if request_id:
             log_data['request_id'] = request_id
-        
+
         user_id = user_id_var.get()
         if user_id:
             log_data['user_id'] = user_id
-        
+
         workflow_id = workflow_id_var.get()
         if workflow_id:
             log_data['workflow_id'] = workflow_id
-        
+
         # Add extra fields from log call
         # Example: logger.info("msg", extra={'agent_id': 'code_001'})
         extra_fields = {
             k: v for k, v in record.__dict__.items()
-            if k not in ['name', 'msg', 'args', 'created', 'filename', 
+            if k not in ['name', 'msg', 'args', 'created', 'filename',
                         'funcName', 'levelname', 'levelno', 'lineno',
-                        'module', 'msecs', 'message', 'pathname', 
+                        'module', 'msecs', 'message', 'pathname',
                         'process', 'processName', 'relativeCreated',
                         'thread', 'threadName', 'exc_info', 'exc_text',
                         'stack_info']
         }
-        
+
         log_data.update(extra_fields)
-        
+
         # Add exception info if present
         if record.exc_info:
             log_data['exception'] = {
@@ -115,11 +115,11 @@ class StructuredFormatter(logging.Formatter):
                 'message': str(record.exc_info[1]),
                 'traceback': self.formatException(record.exc_info)
             }
-        
+
         # Add stack info if present (Python 3.8+)
         if hasattr(record, 'stack_info') and record.stack_info:
             log_data['stack_trace'] = record.stack_info
-        
+
         return json.dumps(log_data)
 
 
@@ -128,7 +128,7 @@ class ConsoleFormatter(logging.Formatter):
     Human-readable console formatter for development
     Colored output for better readability
     """
-    
+
     # ANSI color codes
     COLORS = {
         'DEBUG': '\033[36m',      # Cyan
@@ -138,26 +138,26 @@ class ConsoleFormatter(logging.Formatter):
         'CRITICAL': '\033[35m',   # Magenta
         'RESET': '\033[0m'        # Reset
     }
-    
+
     def format(self, record: logging.LogRecord) -> str:
         """Format log record with colors for console"""
-        
+
         color = self.COLORS.get(record.levelname, self.COLORS['RESET'])
         reset = self.COLORS['RESET']
-        
+
         # Timestamp
         timestamp = datetime.now().strftime('%H:%M:%S.%f')[:-3]
-        
+
         # Core message
         message = f"{color}[{record.levelname}]{reset} "
         message += f"{timestamp} "
         message += f"{record.name}:{record.lineno} "
-        
+
         # Add context if available
         request_id = request_id_var.get()
         if request_id:
             message += f"[req:{request_id[:8]}] "
-        
+
         # Add extra fields
         extra = []
         if hasattr(record, 'agent_id'):
@@ -166,17 +166,17 @@ class ConsoleFormatter(logging.Formatter):
             extra.append(f"task={record.task_id}")
         if hasattr(record, 'duration_ms'):
             extra.append(f"duration={record.duration_ms:.1f}ms")
-        
+
         if extra:
             message += f"[{', '.join(extra)}] "
-        
+
         # The actual log message
         message += record.getMessage()
-        
+
         # Exception info
         if record.exc_info:
             message += f"\n{self.formatException(record.exc_info)}"
-        
+
         return message
 
 
@@ -188,17 +188,17 @@ def setup_logging(
 ):
     """
     Setup structured logging for the application
-    
+
     Args:
         level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         log_file: Optional path to log file
         json_format: Use JSON format (True) or human-readable (False)
         console_output: Output to console
-    
+
     Example:
         # Development
         setup_logging(level="DEBUG", json_format=False)
-        
+
         # Production
         setup_logging(
             level="INFO",
@@ -206,31 +206,31 @@ def setup_logging(
             log_file=Path("logs/astro.log")
         )
     """
-    
+
     # Remove existing handlers
     root_logger = logging.getLogger()
     root_logger.handlers.clear()
     root_logger.setLevel(getattr(logging, level.upper()))
-    
+
     # Console handler (stdout)
     if console_output:
         console_handler = logging.StreamHandler(sys.stdout)
-        
+
         if json_format:
             console_handler.setFormatter(StructuredFormatter())
         else:
             console_handler.setFormatter(ConsoleFormatter())
-        
+
         root_logger.addHandler(console_handler)
-    
+
     # File handler (if specified)
     if log_file:
         log_file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         file_handler = logging.FileHandler(log_file)
         file_handler.setFormatter(StructuredFormatter())  # Always JSON for files
         root_logger.addHandler(file_handler)
-    
+
     # Log startup
     logger = logging.getLogger(__name__)
     logger.info(
@@ -246,13 +246,13 @@ def setup_logging(
 def get_logger(name: str) -> logging.Logger:
     """
     Get a logger instance
-    
+
     Args:
         name: Logger name (usually __name__)
-    
+
     Returns:
         Logger instance
-    
+
     Example:
         logger = get_logger(__name__)
         logger.info("Task completed", extra={
@@ -267,13 +267,13 @@ def get_logger(name: str) -> logging.Logger:
 class LogContext:
     """
     Context manager for setting request/workflow context
-    
+
     Example:
         with LogContext(request_id="req-123", workflow_id="wf-456"):
             logger.info("Processing task")
             # All logs within this block will have request_id and workflow_id
     """
-    
+
     def __init__(
         self,
         request_id: Optional[str] = None,
@@ -284,7 +284,7 @@ class LogContext:
         self.user_id = user_id
         self.workflow_id = workflow_id
         self.tokens = []
-    
+
     def __enter__(self):
         if self.request_id:
             self.tokens.append(request_id_var.set(self.request_id))
@@ -293,7 +293,7 @@ class LogContext:
         if self.workflow_id:
             self.tokens.append(workflow_id_var.set(self.workflow_id))
         return self
-    
+
     def __exit__(self, exc_type, exc_val, exc_tb):
         for token in self.tokens:
             if token:
@@ -306,7 +306,7 @@ class LogContext:
 def log_performance(func):
     """
     Decorator to log function execution time
-    
+
     Example:
         @log_performance
         async def execute_task(self, task):
@@ -315,16 +315,16 @@ def log_performance(func):
     """
     import functools
     import time
-    
+
     @functools.wraps(func)
     async def async_wrapper(*args, **kwargs):
         start = time.time()
         logger = get_logger(func.__module__)
-        
+
         try:
             result = await func(*args, **kwargs)
             duration_ms = (time.time() - start) * 1000
-            
+
             logger.debug(
                 f"{func.__name__} completed",
                 extra={
@@ -333,11 +333,11 @@ def log_performance(func):
                     'status': 'success'
                 }
             )
-            
+
             return result
         except Exception as e:
             duration_ms = (time.time() - start) * 1000
-            
+
             logger.error(
                 f"{func.__name__} failed",
                 extra={
@@ -349,16 +349,16 @@ def log_performance(func):
                 exc_info=True
             )
             raise
-    
+
     @functools.wraps(func)
     def sync_wrapper(*args, **kwargs):
         start = time.time()
         logger = get_logger(func.__module__)
-        
+
         try:
             result = func(*args, **kwargs)
             duration_ms = (time.time() - start) * 1000
-            
+
             logger.debug(
                 f"{func.__name__} completed",
                 extra={
@@ -367,11 +367,11 @@ def log_performance(func):
                     'status': 'success'
                 }
             )
-            
+
             return result
         except Exception as e:
             duration_ms = (time.time() - start) * 1000
-            
+
             logger.error(
                 f"{func.__name__} failed",
                 extra={
@@ -383,7 +383,7 @@ def log_performance(func):
                 exc_info=True
             )
             raise
-    
+
     if asyncio.iscoroutinefunction(func):
         return async_wrapper
     else:
@@ -394,12 +394,12 @@ def log_performance(func):
 if __name__ == "__main__":
     # Development setup
     setup_logging(level="DEBUG", json_format=False)
-    
+
     logger = get_logger(__name__)
-    
+
     # Basic logging
     logger.info("Application started")
-    
+
     # Logging with context
     logger.info(
         "Task completed",
@@ -410,12 +410,12 @@ if __name__ == "__main__":
             'success': True
         }
     )
-    
+
     # Logging with request context
     with LogContext(request_id="req-abc-123", workflow_id="wf-456"):
         logger.info("Processing within workflow")
         logger.debug("Detailed processing info")
-    
+
     # Exception logging
     try:
         raise ValueError("Something went wrong")
@@ -458,19 +458,19 @@ from core.database import DatabaseManager
 
 async def main():
     """Main application entry point"""
-    
+
     # Generate request ID for this run
     import uuid
     request_id = f"req-{uuid.uuid4().hex[:8]}"
-    
+
     with LogContext(request_id=request_id):
         logger.info("Astro starting up")
-        
+
         try:
             # Initialize systems
             db = DatabaseManager()
             engine = AgentEngine(db_manager=db)
-            
+
             logger.info(
                 "Astro initialized successfully",
                 extra={
@@ -478,15 +478,15 @@ async def main():
                     'database_path': db.db_path
                 }
             )
-            
+
             # Start engine
             await engine.start_engine()
-            
+
             logger.info("Astro engine started")
-            
+
             # Keep running
             await engine.run_forever()
-            
+
         except KeyboardInterrupt:
             logger.info("Shutdown requested by user")
         except Exception as e:
@@ -515,11 +515,11 @@ logger = get_logger(__name__)
 
 class AgentEngine:
     # Existing __init__ code...
-    
+
     @log_performance  # ADD THIS DECORATOR
     async def submit_workflow(self, workflow: Workflow):
         """Submit workflow with structured logging"""
-        
+
         with LogContext(workflow_id=workflow.workflow_id):
             logger.info(
                 "Workflow submitted",
@@ -529,10 +529,10 @@ class AgentEngine:
                     'priority': workflow.priority
                 }
             )
-            
+
             # Existing workflow submission code...
             await self._submit_workflow_internal(workflow)
-            
+
             logger.info(
                 "Workflow accepted",
                 extra={
@@ -540,11 +540,11 @@ class AgentEngine:
                     'status': 'queued'
                 }
             )
-    
+
     @log_performance  # ADD THIS DECORATOR
     async def _execute_task_with_agent(self, task: Task, agent_id: str):
         """Execute task with structured logging"""
-        
+
         logger.info(
             "Task execution started",
             extra={
@@ -553,11 +553,11 @@ class AgentEngine:
                 'task_type': task.required_capabilities[0] if task.required_capabilities else 'generic'
             }
         )
-        
+
         try:
             # Existing execution code...
             result = await self._execute_task_internal(task, agent_id)
-            
+
             logger.info(
                 "Task execution completed",
                 extra={
@@ -567,9 +567,9 @@ class AgentEngine:
                     'duration_ms': result.execution_time_ms
                 }
             )
-            
+
             return result
-            
+
         except Exception as e:
             logger.error(
                 "Task execution failed",
@@ -638,7 +638,7 @@ class HealthStatus:
     timestamp: str = ""
     response_time_ms: float = 0.0
     details: Dict[str, Any] = None
-    
+
     def __post_init__(self):
         if not self.timestamp:
             self.timestamp = datetime.utcnow().isoformat() + "Z"
@@ -650,35 +650,35 @@ class HealthChecker:
     """
     Centralized health checking
     """
-    
+
     def __init__(self, agent_engine=None, db_manager=None):
         self.agent_engine = agent_engine
         self.db = db_manager
         self.start_time = time.time()
         self._initialized = False
-    
+
     def set_components(self, agent_engine, db_manager):
         """Set components after initialization"""
         self.agent_engine = agent_engine
         self.db = db_manager
         self._initialized = True
-    
+
     async def check_database(self) -> HealthStatus:
         """Check database connectivity and performance"""
         start = time.time()
-        
+
         try:
             if not self.db:
                 return HealthStatus(
                     status="unhealthy",
                     message="Database not initialized"
                 )
-            
+
             # Simple query to check connectivity
             stats = await self.db.get_database_stats_async()
-            
+
             response_time_ms = (time.time() - start) * 1000
-            
+
             # Check if response time is acceptable (<100ms)
             if response_time_ms > 100:
                 status_val = "degraded"
@@ -686,51 +686,51 @@ class HealthChecker:
             else:
                 status_val = "healthy"
                 message = "Database operational"
-            
+
             return HealthStatus(
                 status=status_val,
                 message=message,
                 response_time_ms=response_time_ms,
                 details=stats
             )
-            
+
         except Exception as e:
             response_time_ms = (time.time() - start) * 1000
             logger.error("Database health check failed", exc_info=True)
-            
+
             return HealthStatus(
                 status="unhealthy",
                 message=f"Database error: {str(e)}",
                 response_time_ms=response_time_ms
             )
-    
+
     async def check_agents(self) -> HealthStatus:
         """Check agent availability and status"""
         start = time.time()
-        
+
         try:
             if not self.agent_engine:
                 return HealthStatus(
                     status="unhealthy",
                     message="Agent engine not initialized"
                 )
-            
+
             # Get agent statuses
             agent_statuses = {
                 agent_id: status.value
                 for agent_id, status in self.agent_engine.agent_status.items()
             }
-            
+
             # Count healthy agents (idle or active)
             healthy_count = sum(
                 1 for s in agent_statuses.values()
                 if s in ['idle', 'active']
             )
-            
+
             total_count = len(agent_statuses)
-            
+
             response_time_ms = (time.time() - start) * 1000
-            
+
             # Determine overall status
             if healthy_count == 0:
                 status_val = "unhealthy"
@@ -741,7 +741,7 @@ class HealthChecker:
             else:
                 status_val = "healthy"
                 message = f"{healthy_count}/{total_count} agents healthy"
-            
+
             return HealthStatus(
                 status=status_val,
                 message=message,
@@ -753,33 +753,33 @@ class HealthChecker:
                     'active_tasks': len(self.agent_engine.active_tasks)
                 }
             )
-            
+
         except Exception as e:
             response_time_ms = (time.time() - start) * 1000
             logger.error("Agent health check failed", exc_info=True)
-            
+
             return HealthStatus(
                 status="unhealthy",
                 message=f"Agent check error: {str(e)}",
                 response_time_ms=response_time_ms
             )
-    
+
     async def check_docker(self) -> HealthStatus:
         """Check Docker availability (for CodeAgent)"""
         start = time.time()
-        
+
         try:
             import subprocess
-            
+
             # Quick Docker check
             result = subprocess.run(
                 ['docker', 'info'],
                 capture_output=True,
                 timeout=5
             )
-            
+
             response_time_ms = (time.time() - start) * 1000
-            
+
             if result.returncode == 0:
                 return HealthStatus(
                     status="healthy",
@@ -792,7 +792,7 @@ class HealthChecker:
                     message="Docker not responding",
                     response_time_ms=response_time_ms
                 )
-                
+
         except FileNotFoundError:
             return HealthStatus(
                 status="unhealthy",
@@ -809,7 +809,7 @@ class HealthChecker:
                 status="unhealthy",
                 message=f"Docker check error: {str(e)}"
             )
-    
+
     def get_uptime(self) -> float:
         """Get system uptime in seconds"""
         return time.time() - self.start_time
@@ -841,14 +841,14 @@ def get_health_checker() -> HealthChecker:
 async def liveness():
     """
     Kubernetes liveness probe
-    
+
     Returns 200 if process is alive
     Does NOT check dependencies (fast check)
-    
+
     Kubernetes will restart pod if this fails
     """
     checker = get_health_checker()
-    
+
     return {
         "status": "alive",
         "uptime_seconds": checker.get_uptime(),
@@ -860,14 +860,14 @@ async def liveness():
 async def readiness(response: Response):
     """
     Kubernetes readiness probe
-    
+
     Returns 200 if system is ready to serve traffic
     Checks all dependencies
-    
+
     Kubernetes will remove pod from load balancer if this fails
     """
     checker = get_health_checker()
-    
+
     # Run all checks in parallel
     checks_results = await asyncio.gather(
         checker.check_database(),
@@ -875,27 +875,27 @@ async def readiness(response: Response):
         checker.check_docker(),
         return_exceptions=True
     )
-    
+
     checks = {
         "database": checks_results[0] if not isinstance(checks_results[0], Exception) else HealthStatus(status="unhealthy", message=str(checks_results[0])),
         "agents": checks_results[1] if not isinstance(checks_results[1], Exception) else HealthStatus(status="unhealthy", message=str(checks_results[1])),
         "docker": checks_results[2] if not isinstance(checks_results[2], Exception) else HealthStatus(status="unhealthy", message=str(checks_results[2]))
     }
-    
+
     # Convert to dict
     checks_dict = {k: asdict(v) for k, v in checks.items()}
-    
+
     # Overall status
     all_healthy = all(
         check.status == "healthy"
         for check in checks.values()
     )
-    
+
     any_degraded = any(
         check.status == "degraded"
         for check in checks.values()
     )
-    
+
     if not all_healthy:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         overall_status = "not_ready"
@@ -903,7 +903,7 @@ async def readiness(response: Response):
         overall_status = "degraded"
     else:
         overall_status = "ready"
-    
+
     return {
         "status": overall_status,
         "checks": checks_dict,
@@ -916,21 +916,21 @@ async def readiness(response: Response):
 async def startup(response: Response):
     """
     Kubernetes startup probe
-    
+
     Returns 200 once initial startup is complete
     More lenient timeout than readiness (for slow starts)
-    
+
     Kubernetes will restart pod if this fails during startup
     """
     checker = get_health_checker()
-    
+
     if not checker._initialized:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {
             "status": "starting",
             "message": "System not yet initialized"
         }
-    
+
     # Check if agents are registered
     if not checker.agent_engine or len(checker.agent_engine.agents) == 0:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
@@ -938,7 +938,7 @@ async def startup(response: Response):
             "status": "starting",
             "message": "Agents not yet registered"
         }
-    
+
     return {
         "status": "started",
         "agent_count": len(checker.agent_engine.agents),
@@ -955,20 +955,20 @@ async def health_summary():
     Useful for monitoring dashboards
     """
     checker = get_health_checker()
-    
+
     checks_results = await asyncio.gather(
         checker.check_database(),
         checker.check_agents(),
         checker.check_docker(),
         return_exceptions=True
     )
-    
+
     checks = {
         "database": checks_results[0] if not isinstance(checks_results[0], Exception) else HealthStatus(status="unhealthy", message=str(checks_results[0])),
         "agents": checks_results[1] if not isinstance(checks_results[1], Exception) else HealthStatus(status="unhealthy", message=str(checks_results[1])),
         "docker": checks_results[2] if not isinstance(checks_results[2], Exception) else HealthStatus(status="unhealthy", message=str(checks_results[2]))
     }
-    
+
     return {
         "overall_status": "healthy" if all(c.status == "healthy" for c in checks.values()) else "degraded",
         "checks": {k: asdict(v) for k, v in checks.items()},
@@ -1000,12 +1000,12 @@ async def startup_event():
     from api.health import init_health_checker
     from core.engine import get_agent_engine  # Your engine singleton
     from core.database import get_database_manager  # Your DB singleton
-    
+
     engine = get_agent_engine()
     db = get_database_manager()
-    
+
     init_health_checker(engine, db)
-    
+
     logger.info("Health check system initialized")
 ```
 
@@ -1067,13 +1067,13 @@ class RateLimitInfo:
 class TokenBucketRateLimiter:
     """
     Token bucket rate limiter
-    
+
     Simple, efficient, no external dependencies
     Uses sliding window to prevent burst traffic
-    
+
     Example:
         limiter = TokenBucketRateLimiter(max_requests=100, window_seconds=60)
-        
+
         if await limiter.is_allowed("user_123"):
             # Process request
             pass
@@ -1081,13 +1081,13 @@ class TokenBucketRateLimiter:
             # Return 429 Too Many Requests
             pass
     """
-    
-    def __init__(self, 
+
+    def __init__(self,
                  max_requests: int = 100,
                  window_seconds: int = 60):
         """
         Initialize rate limiter
-        
+
         Args:
             max_requests: Maximum requests allowed in window
             window_seconds: Time window in seconds
@@ -1096,34 +1096,34 @@ class TokenBucketRateLimiter:
         self.window_seconds = window_seconds
         self.buckets: Dict[str, deque] = {}
         self._lock = asyncio.Lock()
-    
+
     async def check(self, key: str) -> RateLimitInfo:
         """
         Check rate limit for key (non-consuming)
-        
+
         Args:
             key: Identifier (user_id, agent_id, ip_address)
-        
+
         Returns:
             RateLimitInfo with status
         """
         async with self._lock:
             now = time.time()
-            
+
             # Initialize bucket if needed
             if key not in self.buckets:
                 self.buckets[key] = deque()
-            
+
             bucket = self.buckets[key]
-            
+
             # Remove expired timestamps
             cutoff = now - self.window_seconds
             while bucket and bucket[0] < cutoff:
                 bucket.popleft()
-            
+
             remaining = self.max_requests - len(bucket)
             allowed = remaining > 0
-            
+
             # Calculate reset time
             if bucket:
                 oldest = bucket[0]
@@ -1132,31 +1132,31 @@ class TokenBucketRateLimiter:
             else:
                 reset_at = now + self.window_seconds
                 retry_after = 0.0
-            
+
             return RateLimitInfo(
                 allowed=allowed,
                 remaining=max(0, remaining),
                 reset_at=reset_at,
                 retry_after=retry_after
             )
-    
+
     async def consume(self, key: str) -> RateLimitInfo:
         """
         Check and consume a token if allowed
-        
+
         Args:
             key: Identifier
-        
+
         Returns:
             RateLimitInfo with status
         """
         async with self._lock:
             info = await self.check(key)
-            
+
             if info.allowed:
                 now = time.time()
                 self.buckets[key].append(now)
-                
+
                 logger.debug(
                     "Rate limit token consumed",
                     extra={
@@ -1174,29 +1174,29 @@ class TokenBucketRateLimiter:
                         'reset_at': datetime.fromtimestamp(info.reset_at).isoformat()
                     }
                 )
-            
+
             return info
-    
+
     async def wait_if_needed(self, key: str, timeout: float = 10.0) -> bool:
         """
         Wait until request is allowed (with timeout)
-        
+
         Args:
             key: Identifier
             timeout: Maximum wait time in seconds
-        
+
         Returns:
             True if allowed, False if timeout
         """
         start = time.time()
-        
+
         while True:
             info = await self.check(key)
-            
+
             if info.allowed:
                 await self.consume(key)
                 return True
-            
+
             elapsed = time.time() - start
             if elapsed >= timeout:
                 logger.warning(
@@ -1207,11 +1207,11 @@ class TokenBucketRateLimiter:
                     }
                 )
                 return False
-            
+
             # Wait a bit before retrying
             wait_time = min(info.retry_after, timeout - elapsed, 1.0)
             await asyncio.sleep(wait_time)
-    
+
     def get_stats(self, key: str) -> Dict:
         """Get current rate limit stats for key"""
         if key not in self.buckets:
@@ -1222,20 +1222,20 @@ class TokenBucketRateLimiter:
                 "max_requests": self.max_requests,
                 "window_seconds": self.window_seconds
             }
-        
+
         now = time.time()
         cutoff = now - self.window_seconds
         bucket = self.buckets[key]
-        
+
         # Clean up expired
         valid_requests = [ts for ts in bucket if ts >= cutoff]
-        
+
         if valid_requests:
             oldest = min(valid_requests)
             reset_in = self.window_seconds - (now - oldest)
         else:
             reset_in = 0
-        
+
         return {
             "requests_in_window": len(valid_requests),
             "remaining": max(0, self.max_requests - len(valid_requests)),
@@ -1243,7 +1243,7 @@ class TokenBucketRateLimiter:
             "max_requests": self.max_requests,
             "window_seconds": self.window_seconds
         }
-    
+
     def clear(self, key: Optional[str] = None):
         """Clear rate limit data for key (or all keys if None)"""
         if key:
@@ -1258,21 +1258,21 @@ class TokenBucketRateLimiter:
 class RateLimitManager:
     """
     Manage multiple rate limiters for different resources
-    
+
     Example:
         manager = RateLimitManager()
         manager.add_limiter('tasks', max_requests=100, window_seconds=60)
         manager.add_limiter('workflows', max_requests=20, window_seconds=60)
-        
+
         if await manager.check('tasks', 'user_123'):
             # Process task
             pass
     """
-    
+
     def __init__(self):
         self.limiters: Dict[str, TokenBucketRateLimiter] = {}
-    
-    def add_limiter(self, 
+
+    def add_limiter(self,
                     name: str,
                     max_requests: int,
                     window_seconds: int):
@@ -1281,7 +1281,7 @@ class RateLimitManager:
             max_requests=max_requests,
             window_seconds=window_seconds
         )
-        
+
         logger.info(
             "Rate limiter added",
             extra={
@@ -1290,28 +1290,28 @@ class RateLimitManager:
                 'window_seconds': window_seconds
             }
         )
-    
+
     async def check(self, limiter_name: str, key: str) -> bool:
         """Check if request is allowed"""
         if limiter_name not in self.limiters:
             logger.warning(f"Unknown rate limiter: {limiter_name}")
             return True  # Fail open
-        
+
         info = await self.limiters[limiter_name].consume(key)
         return info.allowed
-    
+
     async def consume(self, limiter_name: str, key: str) -> RateLimitInfo:
         """Consume a token"""
         if limiter_name not in self.limiters:
             return RateLimitInfo(allowed=True, remaining=999, reset_at=time.time())
-        
+
         return await self.limiters[limiter_name].consume(key)
-    
+
     def get_stats(self, limiter_name: str, key: str) -> Dict:
         """Get stats for a limiter"""
         if limiter_name not in self.limiters:
             return {}
-        
+
         return self.limiters[limiter_name].get_stats(key)
 
 
@@ -1324,12 +1324,12 @@ def get_rate_limit_manager() -> RateLimitManager:
     global _rate_limit_manager
     if _rate_limit_manager is None:
         _rate_limit_manager = RateLimitManager()
-        
+
         # Add default limiters
         _rate_limit_manager.add_limiter('task_submission', max_requests=100, window_seconds=60)
         _rate_limit_manager.add_limiter('workflow_creation', max_requests=20, window_seconds=60)
         _rate_limit_manager.add_limiter('api_calls', max_requests=1000, window_seconds=60)
-        
+
     return _rate_limit_manager
 ```
 
@@ -1347,13 +1347,13 @@ class AgentEngine:
     def __init__(self, ...):
         # Existing code...
         self.rate_limiter = get_rate_limit_manager()
-    
+
     async def submit_workflow(self, workflow: Workflow, user_id: str = "system"):
         """Submit workflow with rate limiting"""
-        
+
         # Check rate limit
         info = await self.rate_limiter.consume('workflow_creation', user_id)
-        
+
         if not info.allowed:
             logger.warning(
                 "Workflow submission rate limited",
@@ -1363,13 +1363,13 @@ class AgentEngine:
                     'retry_after': info.retry_after
                 }
             )
-            
+
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Rate limit exceeded. Retry after {info.retry_after:.1f} seconds",
                 headers={"Retry-After": str(int(info.retry_after))}
             )
-        
+
         logger.info(
             "Workflow submission allowed",
             extra={
@@ -1378,22 +1378,22 @@ class AgentEngine:
                 'remaining_requests': info.remaining
             }
         )
-        
+
         # Existing workflow submission code...
         await self._submit_workflow_internal(workflow)
-    
+
     async def submit_task(self, task: Task, user_id: str = "system"):
         """Submit task with rate limiting"""
-        
+
         # Check rate limit
         info = await self.rate_limiter.consume('task_submission', user_id)
-        
+
         if not info.allowed:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail=f"Rate limit exceeded. Retry after {info.retry_after:.1f} seconds"
             )
-        
+
         # Existing task submission code...
         await self._submit_task_internal(task)
 ```
@@ -1423,16 +1423,16 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     Middleware to apply rate limiting to API endpoints
     Adds rate limit headers to responses
     """
-    
+
     async def dispatch(self, request: Request, call_next):
         # Get user identifier (IP address or user_id from auth)
         client_ip = request.client.host if request.client else "unknown"
         user_id = getattr(request.state, "user_id", client_ip)
-        
+
         # Check rate limit
         manager = get_rate_limit_manager()
         info = await manager.consume('api_calls', user_id)
-        
+
         if not info.allowed:
             logger.warning(
                 "API rate limit exceeded",
@@ -1442,7 +1442,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     'retry_after': info.retry_after
                 }
             )
-            
+
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Too many requests",
@@ -1453,15 +1453,15 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                     "X-RateLimit-Reset": str(int(info.reset_at))
                 }
             )
-        
+
         # Process request
         response = await call_next(request)
-        
+
         # Add rate limit headers
         response.headers["X-RateLimit-Limit"] = "1000"
         response.headers["X-RateLimit-Remaining"] = str(info.remaining)
         response.headers["X-RateLimit-Reset"] = str(int(info.reset_at))
-        
+
         return response
 
 
@@ -1513,7 +1513,7 @@ Prometheus Metrics Export
 Standard metrics for monitoring and alerting
 """
 from prometheus_client import (
-    Counter, Histogram, Gauge, Info, 
+    Counter, Histogram, Gauge, Info,
     generate_latest, REGISTRY
 )
 from prometheus_client.core import CollectorRegistry
@@ -1701,32 +1701,32 @@ class MetricsCollector:
     """
     Helper class to collect and update metrics
     """
-    
+
     def __init__(self):
         self.start_time = time.time()
-    
+
     def update_system_uptime(self):
         """Update system uptime metric"""
         uptime = time.time() - self.start_time
         system_uptime_seconds.set(uptime)
-    
+
     def record_task_start(self, agent_id: str):
         """Record task start"""
         active_tasks.inc()
         agent_tasks_active.labels(agent_id=agent_id).inc()
-    
-    def record_task_complete(self, 
-                              agent_id: str, 
-                              duration_seconds: float, 
+
+    def record_task_complete(self,
+                              agent_id: str,
+                              duration_seconds: float,
                               success: bool):
         """Record task completion"""
         active_tasks.dec()
         agent_tasks_active.labels(agent_id=agent_id).dec()
-        
+
         status = 'success' if success else 'failure'
         task_total.labels(agent_id=agent_id, status=status).inc()
         task_duration_seconds.labels(agent_id=agent_id).observe(duration_seconds)
-        
+
         logger.debug(
             "Task metrics recorded",
             extra={
@@ -1735,19 +1735,19 @@ class MetricsCollector:
                 'success': success
             }
         )
-    
+
     def record_workflow_start(self):
         """Record workflow start"""
         active_workflows.inc()
-    
-    def record_workflow_complete(self, 
-                                   duration_seconds: float, 
+
+    def record_workflow_complete(self,
+                                   duration_seconds: float,
                                    status: str):
         """Record workflow completion"""
         active_workflows.dec()
         workflow_total.labels(status=status).inc()
         workflow_duration_seconds.observe(duration_seconds)
-    
+
     def record_llm_request(self,
                             model: str,
                             duration_seconds: float,
@@ -1762,22 +1762,22 @@ class MetricsCollector:
         llm_tokens_total.labels(model=model, type='prompt').inc(prompt_tokens)
         llm_tokens_total.labels(model=model, type='completion').inc(completion_tokens)
         llm_cost_usd.labels(model=model).inc(cost_usd)
-    
+
     def record_db_query(self,
                          operation: str,
                          duration_seconds: float):
         """Record database query"""
         db_queries_total.labels(operation=operation).inc()
         db_query_duration_seconds.labels(operation=operation).observe(duration_seconds)
-    
+
     def update_agent_health(self, agent_id: str, is_healthy: bool):
         """Update agent health status"""
         agent_health.labels(agent_id=agent_id).set(1 if is_healthy else 0)
-    
+
     def update_agent_reliability(self, agent_id: str, score: float):
         """Update agent reliability score"""
         agent_reliability.labels(agent_id=agent_id).set(score)
-    
+
     def record_error(self, error_type: str):
         """Record system error"""
         system_errors_total.labels(error_type=error_type).inc()
@@ -1819,9 +1819,9 @@ app = FastAPI(title="Astro API")
 async def metrics():
     """
     Prometheus metrics endpoint
-    
+
     Scrape this with Prometheus:
-    
+
     scrape_configs:
       - job_name: 'astro'
         static_configs:
@@ -1839,9 +1839,9 @@ async def start_metrics_updater():
     """Start background task to update metrics"""
     import asyncio
     from monitoring.metrics import get_metrics_collector
-    
+
     collector = get_metrics_collector()
-    
+
     async def update_loop():
         while True:
             try:
@@ -1849,7 +1849,7 @@ async def start_metrics_updater():
                 await asyncio.sleep(15)  # Update every 15 seconds
             except Exception as e:
                 logger.error("Metrics update error", exc_info=True)
-    
+
     asyncio.create_task(update_loop())
 ```
 
@@ -1866,22 +1866,22 @@ class AgentEngine:
     def __init__(self, ...):
         # Existing code...
         self.metrics = get_metrics_collector()
-    
+
     async def _execute_task_with_agent(self, task: Task, agent_id: str):
         """Execute task with metrics collection"""
-        
+
         # Record task start
         self.metrics.record_task_start(agent_id)
-        
+
         start_time = time.time()
         success = False
-        
+
         try:
             # Existing execution code...
             result = await self._execute_task_internal(task, agent_id)
             success = result.success
             return result
-            
+
         except Exception as e:
             self.metrics.record_error(type(e).__name__)
             raise
@@ -1904,17 +1904,17 @@ class BaseAgent(ABC):
     def __init__(self, ...):
         # Existing code...
         self.metrics = get_metrics_collector()
-        
+
         # Update initial health
         self.metrics.update_agent_health(self.agent_id, True)
         self.metrics.update_agent_reliability(self.agent_id, self.reliability_score)
-    
+
     async def execute_task(self, task: Task, context: Optional[Any]) -> TaskResult:
         """Execute task with metrics"""
-        
+
         start_time = time.time()
         success = False
-        
+
         try:
             # Existing execution code...
             result = await self._execute_internal(task, context)
@@ -2020,7 +2020,7 @@ system:
   log_level: "INFO"  # DEBUG for development
   json_logging: true  # false for development
   log_file: "logs/astro.log"
-  
+
   # Rate limiting
   rate_limits:
     task_submission:
@@ -2032,10 +2032,10 @@ system:
     api_calls:
       max_requests: 1000
       window_seconds: 60
-  
+
   # Health checks
   health_check_interval: 30  # seconds
-  
+
   # Metrics
   metrics_enabled: true
   metrics_port: 8000  # Same as API port
@@ -2114,7 +2114,7 @@ def test_health_live():
     """Test liveness probe"""
     client = TestClient(app)
     response = client.get("/health/live")
-    
+
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "alive"
@@ -2125,7 +2125,7 @@ def test_health_ready():
     """Test readiness probe"""
     client = TestClient(app)
     response = client.get("/health/ready")
-    
+
     # May be 200 or 503 depending on state
     assert response.status_code in [200, 503]
     data = response.json()
@@ -2136,12 +2136,12 @@ def test_health_ready():
 async def test_rate_limiter():
     """Test rate limiting"""
     limiter = TokenBucketRateLimiter(max_requests=10, window_seconds=60)
-    
+
     # Should allow first 10 requests
     for i in range(10):
         info = await limiter.consume(f"test_key")
         assert info.allowed, f"Request {i+1} should be allowed"
-    
+
     # 11th request should be blocked
     info = await limiter.consume("test_key")
     assert not info.allowed
@@ -2152,7 +2152,7 @@ def test_metrics_endpoint():
     """Test Prometheus metrics"""
     client = TestClient(app)
     response = client.get("/metrics")
-    
+
     assert response.status_code == 200
     assert "astro_tasks_total" in response.text
     assert "astro_agent_health" in response.text
@@ -2163,22 +2163,22 @@ def test_structured_logging():
     from utils.structured_logger import get_logger, LogContext
     import json
     from io import StringIO
-    
+
     # Capture log output
     log_stream = StringIO()
     handler = logging.StreamHandler(log_stream)
     handler.setFormatter(StructuredFormatter())
-    
+
     logger = get_logger("test")
     logger.addHandler(handler)
-    
+
     with LogContext(request_id="test-123"):
         logger.info("Test message", extra={"test_key": "test_value"})
-    
+
     # Parse JSON log
     log_output = log_stream.getvalue()
     log_data = json.loads(log_output)
-    
+
     assert log_data["level"] == "INFO"
     assert log_data["message"] == "Test message"
     assert log_data["request_id"] == "test-123"
@@ -2400,7 +2400,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-  
+
   prometheus:
     image: prom/prometheus:latest
     ports:
@@ -2411,7 +2411,7 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-  
+
   grafana:
     image: grafana/grafana:latest
     ports:

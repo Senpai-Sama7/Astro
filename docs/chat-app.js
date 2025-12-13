@@ -1,7 +1,7 @@
 /**
  * ASTRO Chat Application
  * Consumer-grade AI assistant interface
- * 
+ *
  * Features:
  * - Intuitive chat interface like Claude/ChatGPT
  * - Conversation history management
@@ -219,7 +219,7 @@ class WebSocketClient {
 
   scheduleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) return;
-    
+
     this.reconnectAttempts++;
     const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
     setTimeout(() => this.connect(), delay);
@@ -228,7 +228,7 @@ class WebSocketClient {
   handleMessage(data) {
     const { type, payload } = data;
     this.emit(type, payload);
-    
+
     // Handle specific message types
     if (type === 'chat_response') {
       this.emit('response', payload);
@@ -775,9 +775,9 @@ class ChatApp {
 
   renderMessages() {
     const { messages, isTyping } = store.getState();
-    
+
     let html = messages.map(msg => UI.renderMessage(msg)).join('');
-    
+
     if (isTyping) {
       html += UI.renderTypingIndicator();
     }
@@ -836,7 +836,7 @@ class ChatApp {
 
   renderAttachedFiles() {
     const { attachedFiles } = store.getState();
-    
+
     this.elements.attachedFiles.innerHTML = attachedFiles.map((file, index) => `
       <div class="attached-file">
         <span>${UI.escapeHtml(file.name)}</span>
@@ -875,7 +875,7 @@ class ChatApp {
 
   applySettings() {
     const { settings } = store.getState();
-    
+
     // Apply theme
     if (settings.theme === 'system') {
       document.documentElement.removeAttribute('data-theme');
@@ -915,7 +915,7 @@ class ChatApp {
     // Handle streaming response from WebSocket
     const { messages } = store.getState();
     const lastMessage = messages[messages.length - 1];
-    
+
     if (lastMessage && lastMessage.role === 'assistant') {
       lastMessage.content += data.content;
       store.setState({ messages: [...messages] });
