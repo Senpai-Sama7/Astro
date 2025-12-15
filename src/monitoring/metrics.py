@@ -3,9 +3,35 @@ Prometheus Metrics Export
 """
 
 import time
-from typing import Optional
+from typing import Any, Callable, Optional, Type, TypeVar
 
 from prometheus_client import Counter, Gauge, Histogram, Info, REGISTRY, generate_latest
+
+MetricT = TypeVar("MetricT")
+
+
+def _get_existing_collector(name: str) -> Optional[Any]:
+    """Return an already-registered collector if one exists."""
+    # get_collector_for_name was added in 0.14.0
+    if hasattr(REGISTRY, "get_collector_for_name"):
+        return REGISTRY.get_collector_for_name(name)
+
+    # Fallback for older versions
+    names_to_collectors = getattr(REGISTRY, "_names_to_collectors", {})
+    return names_to_collectors.get(name)
+
+
+def _metric_or_existing(name: str, factory: Callable[[], MetricT], expected_type: Type[MetricT]) -> MetricT:
+    """Reuse collectors already registered to the global registry to avoid duplicates."""
+    existing = _get_existing_collector(name)
+    if existing is not None:
+        if not isinstance(existing, expected_type):
+            raise TypeError(
+                f"Collector '{name}' is already registered with incompatible type {type(existing)}"
+            )
+        return existing
+    return factory()
+
 
 # App info
 app_info = Info("astro_app", "Astro application information")
