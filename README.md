@@ -59,7 +59,7 @@ _"Find me the best pizza recipe"_
 **Your AI Programmer**
 
 - Writes Python code for you
-- Runs and tests the code
+- Runs in secure Docker sandbox
 - Helps debug with suggestions
 
 _"Create a script to organize my photos"_
@@ -79,8 +79,77 @@ _"Save this summary to my reports folder"_
 
 </td>
 </tr>
+<tr>
+<td width="33%" align="center">
+
+### 🔧 Git Agent
+**Your Version Control Expert**
+
+- Manages git repositories
+- Creates branches and commits
+- Shows diffs and status
+
+*"Commit my changes with a good message"*
+
+</td>
+<td width="33%" align="center">
+
+### 🧪 Test Agent
+**Your QA Engineer**
+
+- Runs test suites (pytest, npm, etc.)
+- Reports test results
+- Enables TDD workflows
+
+*"Run the tests for this project"*
+
+</td>
+<td width="33%" align="center">
+
+### 🧠 Knowledge Agent
+**Your Memory Bank**
+
+- Persists architectural decisions
+- Remembers context across sessions
+- Retrieves saved knowledge
+
+*"Remember this API design decision"*
+
+</td>
+</tr>
+<tr>
+<td width="33%" align="center">
+
+### 📊 Analysis Agent
+**Your Code Reviewer**
+
+- Runs linters (pylint, eslint)
+- Static code analysis
+- Quality checks
+
+*"Analyze this code for issues"*
+
+</td>
+<td width="33%" align="center" colspan="2">
+
+### 🚀 Production Ready
+**Enterprise-Grade Architecture**
+
+- ✅ 166/166 tests passing
+- ✅ Structured JSON logging
+- ✅ Prometheus metrics export
+- ✅ Kubernetes health probes
+- ✅ Connection pooling
+- ✅ Thread-safe operations
+- ✅ Docker security enforcement
+
+</td>
+</tr>
 </table>
 
+---
+## [Online View](https://senpai-sama7.github.io/Astro)
+## [Online Chat](https://senpai-sama7.github.io/Astro/chat)
 ---
 
 ## 🚀 Quick Start (5 Minutes)
@@ -658,11 +727,14 @@ async def cached_api_call(query):
 ### 🧪 Running Enterprise Tests
 
 ```bash
-# Run all advanced system tests
-python tests/test_advanced_systems.py
+# Run all tests (166 total)
+python -m pytest tests/ -v
 
-# Expected output:
-# ✅ ALL TESTS PASSED - SYSTEM IS PRODUCTION READY
+# Run specific test suites
+python -m pytest tests/test_security.py        # Security tests (65)
+python -m pytest tests/test_error_paths.py     # Error handling (40)
+python -m pytest tests/test_production_features.py  # Production systems (21)
+python -m pytest tests/test_advanced_systems.py     # Enterprise features
 ```
 
 You can also run the full health check:
@@ -670,6 +742,65 @@ You can also run the full health check:
 ```bash
 python health_check.py
 ```
+
+---
+
+## 📊 Production Monitoring
+
+ASTRO includes enterprise-grade observability out of the box:
+
+### Health Endpoints (Kubernetes-Compatible)
+
+| Endpoint | Purpose | Use Case |
+|----------|---------|----------|
+| `GET /health/live` | Liveness probe | Is the process alive? |
+| `GET /health/ready` | Readiness probe | Ready to serve traffic? |
+| `GET /health/startup` | Startup probe | Initial startup complete? |
+| `GET /health` | Full summary | Dashboard overview |
+
+### Prometheus Metrics
+
+Scrape metrics at `GET /metrics`:
+
+```promql
+# Task success rate
+sum(rate(astro_tasks_total{status="success"}[5m])) / sum(rate(astro_tasks_total[5m]))
+
+# P95 task duration
+histogram_quantile(0.95, rate(astro_task_duration_seconds_bucket[5m]))
+
+# Active tasks/workflows
+astro_active_tasks
+astro_active_workflows
+
+# Agent health (1=healthy, 0=unhealthy)
+astro_agent_health{agent_id="code_agent_001"}
+
+# LLM cost tracking
+sum(astro_llm_cost_usd) by (model)
+```
+
+### Structured Logging
+
+JSON logs for ELK/Splunk/Datadog ingestion:
+
+```json
+{"ts":"2025-12-04T19:00:00Z","level":"INFO","logger":"AgentEngine","msg":"Task completed","agent_id":"code_agent_001","task_id":"task_123","duration_ms":1234.5}
+```
+
+### Monitoring Stack (Docker Compose)
+
+```bash
+# Start ASTRO with Prometheus + Grafana
+docker-compose -f docker-compose.monitoring.yml up
+
+# Access:
+# - ASTRO API: http://localhost:8000
+# - Prometheus: http://localhost:9090
+# - Grafana: http://localhost:3000 (admin/admin)
+```
+
+Pre-built Grafana dashboard available at `monitoring/grafana_dashboard.json`.
 
 ---
 

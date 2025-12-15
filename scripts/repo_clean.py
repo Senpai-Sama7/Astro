@@ -38,14 +38,14 @@ def count_references(path: str, search_dir: str = ".") -> int:
     """Count inbound references to a file path."""
     try:
         result = subprocess.run(
-            ["grep", "-r", "--include=*.py", "--include=*.md", 
-             "--include=*.json", "--include=*.yaml", "-l", 
+            ["grep", "-r", "--include=*.py", "--include=*.md",
+             "--include=*.json", "--include=*.yaml", "-l",
              os.path.basename(path), search_dir],
             capture_output=True, text=True
         )
         # Exclude self-references and this script
-        refs = [r for r in result.stdout.strip().split("\n") 
-                if r and r != path and ".trash" not in r 
+        refs = [r for r in result.stdout.strip().split("\n")
+                if r and r != path and ".trash" not in r
                 and "repo_clean" not in r and "scripts/" not in r]
         return len(refs)
     except Exception:
@@ -54,7 +54,7 @@ def count_references(path: str, search_dir: str = ".") -> int:
 def get_candidates() -> List[Dict[str, Any]]:
     """Identify files/dirs to move to trash."""
     candidates = []
-    
+
     # 1. REALITY_CHECKLIST.txt - superseded
     if os.path.exists("REALITY_CHECKLIST.txt"):
         refs = count_references("REALITY_CHECKLIST.txt")
@@ -68,7 +68,7 @@ def get_candidates() -> List[Dict[str, Any]]:
                 "commit_date_iso": get_commit_date("REALITY_CHECKLIST.txt"),
                 "notes": "superseded by FEATURES_CHECKLIST.txt (more complete)"
             })
-    
+
     # 2. evidence/comprehensive_health_check.txt - superseded by v2
     old_hc = "evidence/comprehensive_health_check.txt"
     if os.path.exists(old_hc) and os.path.exists(old_hc.replace(".txt", "_v2.txt")):
@@ -81,7 +81,7 @@ def get_candidates() -> List[Dict[str, Any]]:
             "commit_date_iso": get_commit_date(old_hc),
             "notes": "superseded by comprehensive_health_check_v2.txt"
         })
-    
+
     # 3. Empty directories
     for empty_dir in [".qodo", "fixes"]:
         if os.path.isdir(empty_dir):
@@ -100,7 +100,7 @@ def get_candidates() -> List[Dict[str, Any]]:
                     "commit_date_iso": "N/A",
                     "notes": f"empty directory tree"
                 })
-    
+
     return candidates
 
 def move_to_trash(candidates: List[Dict], trash_dir: str, dry_run: bool = True) -> Dict:
@@ -111,12 +111,12 @@ def move_to_trash(candidates: List[Dict], trash_dir: str, dry_run: bool = True) 
         "trash_dir": trash_dir,
         "moved": []
     }
-    
+
     for item in candidates:
         orig = item["original_path"]
         new_path = os.path.join(trash_dir, orig)
         item["new_path"] = new_path
-        
+
         if dry_run:
             print(f"[DRY-RUN] Would move: {orig} → {new_path}")
         else:
@@ -126,9 +126,9 @@ def move_to_trash(candidates: List[Dict], trash_dir: str, dry_run: bool = True) 
             else:
                 shutil.move(orig, new_path)
             print(f"[MOVED] {orig} → {new_path}")
-        
+
         manifest["moved"].append(item)
-    
+
     return manifest
 
 def write_manifest(manifest: Dict, trash_dir: str):
@@ -142,7 +142,7 @@ def write_manifest(manifest: Dict, trash_dir: str):
 def write_restore_script(manifest: Dict, trash_dir: str):
     """Generate restore.sh script."""
     restore_path = os.path.join(trash_dir, "restore.sh")
-    
+
     lines = [
         "#!/bin/bash",
         "# Restore script - reverses all moves from this cleanup",
@@ -152,7 +152,7 @@ def write_restore_script(manifest: Dict, trash_dir: str):
         "set -e",
         ""
     ]
-    
+
     for item in manifest["moved"]:
         orig = item["original_path"]
         new = item["new_path"]
@@ -162,10 +162,10 @@ def write_restore_script(manifest: Dict, trash_dir: str):
         else:
             lines.append(f'mkdir -p "$(dirname "{orig}")"')
             lines.append(f'mv "{new}" "{orig}"')
-    
+
     lines.append("")
     lines.append('echo "Restore complete. You may delete this .trash directory."')
-    
+
     with open(restore_path, "w") as f:
         f.write("\n".join(lines))
     os.chmod(restore_path, 0o755)
@@ -178,31 +178,31 @@ def main():
     parser.add_argument("--apply", action="store_true", help="Actually move files")
     parser.add_argument("--trash-dir", default=None, help="Custom trash directory")
     args = parser.parse_args()
-    
+
     if not args.dry_run and not args.apply:
         print("Specify --dry-run or --apply")
         sys.exit(1)
-    
+
     trash_dir = args.trash_dir or os.path.join(
         TRASH_BASE, datetime.now().strftime("%Y%m%d-%H%M")
     )
-    
+
     print(f"Repo Janitor - {'DRY RUN' if args.dry_run else 'APPLYING'}")
     print(f"Trash directory: {trash_dir}\n")
-    
+
     candidates = get_candidates()
-    
+
     if not candidates:
         print("No candidates found for cleanup.")
         return
-    
+
     print(f"Found {len(candidates)} candidate(s):\n")
     for c in candidates:
         print(f"  - {c['original_path']} [{c['reason']}]")
     print()
-    
+
     manifest = move_to_trash(candidates, trash_dir, dry_run=args.dry_run)
-    
+
     if args.apply:
         write_manifest(manifest, trash_dir)
         write_restore_script(manifest, trash_dir)

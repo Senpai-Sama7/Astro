@@ -141,14 +141,14 @@ def check_llm_e2e(models: list[str]) -> bool:
     if not models:
         print("  ⚠ Skipped (no Ollama models available)")
         return True  # Not a failure, just skipped
-    
+
     try:
         import asyncio
         from core.llm_factory import LLMFactory
-        
+
         client = LLMFactory.create_client("ollama")
         model = models[0].split(":")[0]  # Use first available model
-        
+
         async def test_call():
             response = await client.chat.completions.create(
                 model=model,
@@ -156,7 +156,7 @@ def check_llm_e2e(models: list[str]) -> bool:
                 max_tokens=10
             )
             return response.choices[0].message.content
-        
+
         result = asyncio.run(test_call())
         if result and len(result) > 0:
             print(f"  ✓ LLM responded: '{result.strip()[:50]}'")
@@ -180,7 +180,7 @@ def check_web_search() -> bool:
             from duckduckgo_search import DDGS
             with DDGS() as ddgs:
                 results = list(ddgs.text("Python programming", max_results=2))
-        
+
         if results:
             print(f"  ✓ Web search OK ({len(results)} results)")
             return True
@@ -195,45 +195,45 @@ def main() -> int:
     print("=" * 50)
     print("ASTRO Comprehensive Health Check")
     print("=" * 50 + "\n")
-    
+
     results = {}
-    
+
     # Core checks (required)
     results["network"] = check_network()
     results["database"] = check_database()
     results["configs"] = check_configs()
     results["pytest"] = run_pytest()
     results["gui"] = check_gui_imports()
-    
+
     # Optional checks (Ollama-dependent)
     ollama_ok, models = check_ollama()
     results["ollama"] = ollama_ok
-    
+
     if ollama_ok:
         results["llm_e2e"] = check_llm_e2e(models)
-    
+
     results["web_search"] = check_web_search()
-    
+
     # Summary
     print("\n" + "=" * 50)
     print("SUMMARY")
     print("=" * 50)
-    
+
     required = ["database", "configs", "pytest", "gui"]
     optional = ["network", "ollama", "llm_e2e", "web_search"]
-    
+
     required_pass = all(results.get(k, False) for k in required)
     optional_pass = sum(1 for k in optional if results.get(k, False))
-    
+
     for k in required:
         status = "✓" if results.get(k, False) else "✗"
         print(f"  [{status}] {k} (required)")
-    
+
     for k in optional:
         if k in results:
             status = "✓" if results[k] else "⚠"
             print(f"  [{status}] {k} (optional)")
-    
+
     print()
     if required_pass:
         print(f"✅ HEALTH CHECK PASSED - {optional_pass}/{len(optional)} optional checks OK")

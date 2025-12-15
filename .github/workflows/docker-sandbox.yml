@@ -1,0 +1,28 @@
+name: Build Sandbox Image
+
+on:
+  push:
+    paths:
+      - 'src/agents/Dockerfile'
+      - 'requirements.txt'
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Sandbox Image
+        # In a real scenario, you would push this to GHCR or DockerHub
+        run: |
+          docker build . -f Dockerfile -t astro-sandbox:latest
+          docker save astro-sandbox:latest > astro-sandbox.tar
+
+      - name: Archive Image
+        uses: actions/upload-artifact@v4
+        with:
+          name: sandbox-image
+          path: astro-sandbox.tar

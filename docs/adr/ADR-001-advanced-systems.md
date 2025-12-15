@@ -1,7 +1,7 @@
 # ADR-001: Enterprise Advanced Systems Architecture
 
-**Date:** 2025-11-27  
-**Status:** Accepted  
+**Date:** 2025-11-27
+**Status:** Accepted
 **Deciders:** ASTRO Core Team
 
 ## Context
@@ -39,24 +39,24 @@ ASTRO needed enterprise-grade capabilities for production deployment:
 
 Add all features to existing engine.py.
 
-**Pros:** Simple, single file  
-**Cons:** Unmaintainable, tight coupling, hard to test  
+**Pros:** Simple, single file
+**Cons:** Unmaintainable, tight coupling, hard to test
 **Rejected:** Violates separation of concerns
 
 ### Option 2: Modular Plugin Architecture
 
 Each system as independent module with defined interfaces.
 
-**Pros:** Testable, maintainable, optional features  
-**Cons:** More files, coordination overhead  
+**Pros:** Testable, maintainable, optional features
+**Cons:** More files, coordination overhead
 **Chosen:** Best balance of flexibility and maintainability
 
 ### Option 3: External Microservices
 
 Each system as separate service.
 
-**Pros:** Independent scaling, language flexibility  
-**Cons:** Deployment complexity, network overhead  
+**Pros:** Independent scaling, language flexibility
+**Cons:** Deployment complexity, network overhead
 **Rejected:** Overkill for desktop application
 
 ## Decision

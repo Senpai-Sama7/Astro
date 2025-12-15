@@ -1,8 +1,8 @@
 # ADR-002: Security Audit Response - Code Execution & Terminology
 
-**Date:** 2025-11-27  
-**Status:** Accepted  
-**Deciders:** ASTRO Core Team  
+**Date:** 2025-11-27
+**Status:** Accepted
+**Deciders:** ASTRO Core Team
 **Audit Reference:** Executive Forensic Audit v1.0.0
 
 ## Context

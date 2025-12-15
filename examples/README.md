@@ -85,7 +85,7 @@ async def main():
     agent = ResearchAgent('test', {'max_search_results': 3})
     task = {'payload': {'query': 'Python best practices 2025'}}
     result = await agent.execute_task(task, None)
-    
+
     print(f"Success: {result.success}")
     if result.success:
         print(f"Sources: {len(result.result_data['sources'])}")
@@ -117,14 +117,14 @@ async def main():
         'model_name': 'llama3.2',
         'safe_mode': True
     })
-    
+
     task = {
         'payload': {
             'code_task_type': 'generate_code',
             'requirements': 'Write a function that calculates factorial'
         }
     }
-    
+
     result = await agent.execute_task(task, None)
     print(f"Success: {result.success}")
     if result.success:

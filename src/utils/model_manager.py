@@ -23,7 +23,7 @@ class ModelInfo:
 
 class ModelManager:
     """Manage AI models across different providers"""
-    
+
     # Popular models for each provider (fallback)
     DEFAULT_MODELS = {
         "openai": [
@@ -48,7 +48,7 @@ class ModelManager:
             ModelInfo("gemma2", "Gemma 2 (9B)", "ollama", "Google's open model", "5.4GB"),
         ]
     }
-    
+
     @classmethod
     def get_ollama_models(cls, base_url: str = "http://localhost:11434") -> Tuple[List[ModelInfo], bool]:
         """
@@ -64,10 +64,10 @@ class ModelManager:
                     name = model.get("name", "")
                     size_bytes = model.get("size", 0)
                     size_gb = f"{size_bytes / (1024**3):.1f}GB" if size_bytes else ""
-                    
+
                     # Clean up name for display
                     display_name = name.split(":")[0].title()
-                    
+
                     models.append(ModelInfo(
                         id=name,
                         name=display_name,
@@ -84,14 +84,14 @@ class ModelManager:
         except Exception as e:
             logger.error(f"Error fetching Ollama models: {e}")
             return [], False
-    
+
     @classmethod
     def get_available_ollama_models(cls) -> List[ModelInfo]:
         """Get list of popular Ollama models that can be downloaded"""
         return cls.DEFAULT_MODELS["ollama"]
-    
+
     @classmethod
-    def pull_ollama_model(cls, model_name: str, base_url: str = "http://localhost:11434", 
+    def pull_ollama_model(cls, model_name: str, base_url: str = "http://localhost:11434",
                           progress_callback=None) -> bool:
         """
         Download an Ollama model
@@ -104,35 +104,35 @@ class ModelManager:
                 stream=True,
                 timeout=600  # 10 minute timeout for large models
             )
-            
+
             if response.status_code == 200:
                 total_size = 0
                 downloaded = 0
-                
+
                 for line in response.iter_lines():
                     if line:
                         import json
                         data = json.loads(line)
-                        
+
                         if "total" in data:
                             total_size = data["total"]
                         if "completed" in data:
                             downloaded = data["completed"]
-                            
+
                         if progress_callback and total_size > 0:
                             progress = downloaded / total_size
                             status = data.get("status", "Downloading...")
                             progress_callback(progress, status)
-                        
+
                         if data.get("status") == "success":
                             return True
-                            
+
                 return True
             return False
         except Exception as e:
             logger.error(f"Error pulling Ollama model: {e}")
             return False
-    
+
     @classmethod
     def check_ollama_status(cls, base_url: str = "http://localhost:11434") -> Dict:
         """Check if Ollama is running and get status"""
@@ -148,12 +148,12 @@ class ModelManager:
         except:
             pass
         return {"running": False, "model_count": 0, "models": []}
-    
+
     @classmethod
-    def get_models_for_provider(cls, provider: str, api_key: str = None, 
+    def get_models_for_provider(cls, provider: str, api_key: str = None,
                                  base_url: str = None) -> List[ModelInfo]:
         """Get available models for a provider"""
-        
+
         if provider == "ollama":
             # Try to get downloaded models first
             models, is_running = cls.get_ollama_models(base_url or "http://localhost:11434")
@@ -161,12 +161,12 @@ class ModelManager:
                 return models
             # Return downloadable models if none downloaded
             return cls.DEFAULT_MODELS.get("ollama", [])
-        
+
         elif provider == "openai":
             # Could fetch from API, but use defaults for simplicity
             return cls.DEFAULT_MODELS.get("openai", [])
-        
+
         elif provider == "openrouter":
             return cls.DEFAULT_MODELS.get("openrouter", [])
-        
+
         return []

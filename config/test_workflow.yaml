@@ -1,0 +1,11 @@
+# Test workflow with simple code generation
+test_simple_code:
+  description: "Generate a simple hello world function"
+  priority: "low"
+  budget: 10.0
+  tasks:
+    - id: "hello"
+      capability: "code_generation"
+      instruction: "Generate a Python function that prints 'Hello World'"
+      payload:
+        language: "python"

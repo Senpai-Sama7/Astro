@@ -1,6 +1,6 @@
 # ASTRO Quality Gates
 
-**Version:** 1.0.0  
+**Version:** 1.0.0
 **Last Updated:** 2025-11-27
 
 ## Pre-Commit Gates
