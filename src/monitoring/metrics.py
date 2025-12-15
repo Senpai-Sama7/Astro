@@ -12,9 +12,12 @@ MetricT = TypeVar("MetricT")
 
 def _get_existing_collector(name: str) -> Optional[Any]:
     """Return an already-registered collector if one exists."""
-    names_to_collectors = getattr(REGISTRY, "_names_to_collectors", None)
-    if names_to_collectors is None:
-        return None
+    # get_collector_for_name was added in 0.14.0
+    if hasattr(REGISTRY, "get_collector_for_name"):
+        return REGISTRY.get_collector_for_name(name)
+
+    # Fallback for older versions
+    names_to_collectors = getattr(REGISTRY, "_names_to_collectors", {})
     return names_to_collectors.get(name)
 
 
