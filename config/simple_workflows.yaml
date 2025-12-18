@@ -1,0 +1,39 @@
+# Simple workflow for testing without research agent
+simple_code_task:
+  description: "Generate and execute a simple Python function"
+  priority: "medium"
+  budget: 25.0
+  tasks:
+    - id: "generate"
+      capability: "code_generation"
+      instruction: "Generate a Python function that adds two numbers"
+      payload:
+        function_name: "add_numbers"
+        parameters: ["a", "b"]
+    - id: "execute"
+      capability: "code_execution"
+      instruction: "Execute the generated function with values 5 and 3"
+      dependencies: ["generate"]
+      payload:
+        function_name: "add_numbers"
+        args: [5, 3]
+
+file_operations_task:
+  description: "Test file operations"
+  priority: "medium"
+  budget: 15.0
+  tasks:
+    - id: "write"
+      capability: "file_operations"
+      instruction: "Create a test file with current timestamp"
+      payload:
+        operation: "write_file"
+        path: "/tmp/test_astro.txt"
+        content: "ASTRO test at {{ timestamp }}"
+    - id: "read"
+      capability: "file_operations"
+      instruction: "Read back the created file"
+      dependencies: ["write"]
+      payload:
+        operation: "read_file"
+        path: "/tmp/test_astro.txt"

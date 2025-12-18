@@ -1,0 +1,16 @@
+#!/bin/bash
+# ASTRO Launcher Script
+
+INSTALL_DIR="/usr/share/astro"
+VENV_PYTHON="$INSTALL_DIR/venv/bin/python"
+
+# Check if venv exists
+if [ ! -f "$VENV_PYTHON" ]; then
+    echo "Error: ASTRO virtual environment not found."
+    echo "Try reinstalling: sudo apt reinstall astro"
+    exit 1
+fi
+
+# Launch ASTRO GUI
+cd "$INSTALL_DIR"
+exec "$VENV_PYTHON" src/gui_app.py "$@"

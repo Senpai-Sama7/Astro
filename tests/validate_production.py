@@ -16,16 +16,16 @@ def test_imports():
         from core.engine import AgentEngine, AgentConfig, Workflow, Task
         from core.database import DatabaseManager
         from core.nl_interface import NaturalLanguageInterface
-        
+
         # Agents
         from agents.base_agent import BaseAgent, AgentCapability, TaskResult
         from agents.research_agent import ResearchAgent
         from agents.code_agent import CodeAgent
         from agents.filesystem_agent import FileSystemAgent
-        
+
         # Monitoring
         from monitoring.monitoring_dashboard import MonitoringDashboard
-        
+
         print("✅ All core imports successful")
         return True
     except Exception as e:
@@ -40,7 +40,7 @@ def test_database():
         db = DatabaseManager("test_ecosystem.db")
         db.save_agent("test_agent", {"test": "data"}, "active", 0.95)
         print("✅ Database operational")
-        
+
         # Cleanup
         if os.path.exists("test_ecosystem.db"):
             os.remove("test_ecosystem.db")
@@ -55,18 +55,22 @@ def test_filesystem_agent():
     try:
         from agents.filesystem_agent import FileSystemAgent
         import asyncio
-        
+
         async def test():
             agent = FileSystemAgent("test_fs", {"root_dir": "./test_workspace"})
-            result = agent._write_file({"path": "test.txt", "content": "Hello, World!"})
-            
+            # Create workspace first
+            if not os.path.exists("./test_workspace"):
+                os.makedirs("./test_workspace")
+
+            result = await agent._write_file({"path": "test.txt", "content": "Hello, World!"})
+
             # Cleanup
             import shutil
             if os.path.exists("./test_workspace"):
                 shutil.rmtree("./test_workspace")
-                
+
             return result.success
-            
+
         success = asyncio.run(test())
         if success:
             print("✅ FileSystem Agent operational")
@@ -81,18 +85,18 @@ def check_dependencies():
     """Check all required dependencies are installed"""
     print("\nChecking dependencies...")
     required = [
-        'openai', 'duckduckgo_search', 'bs4', 'requests', 
+        'openai', 'duckduckgo_search', 'bs4', 'requests',
         'sqlalchemy', 'dotenv', 'matplotlib', 'numpy',
         'customtkinter', 'PIL', 'yaml'
     ]
-    
+
     missing = []
     for module in required:
         try:
             importlib.import_module(module)
         except ImportError:
             missing.append(module)
-    
+
     if missing:
         print(f"❌ Missing dependencies: {', '.join(missing)}")
         print("   Run: pip install -r requirements.txt")
@@ -118,15 +122,20 @@ def verify_config_files():
     print("\nVerifying configuration files...")
     try:
         import yaml
-        
+
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        config_dir = os.path.join(base_dir, "config")
+
         # Check system_config.yaml
-        with open('../config/system_config.yaml', 'r') as f:
+        sys_config_path = os.path.join(config_dir, 'system_config.yaml')
+        with open(sys_config_path, 'r') as f:
             sys_config = yaml.safe_load(f)
-        
+
         # Check agents.yaml
-        with open('../config/agents.yaml', 'r') as f:
+        agents_config_path = os.path.join(config_dir, 'agents.yaml')
+        with open(agents_config_path, 'r') as f:
             agents_config = yaml.safe_load(f)
-            
+
         print(f"✅ Config files valid. Found {len(agents_config)} agent configs")
         return True
     except Exception as e:
@@ -137,7 +146,7 @@ def main():
     print("=" * 60)
     print("PRODUCTION VALIDATION - Autonomous Agent Ecosystem")
     print("=" * 60)
-    
+
     tests = [
         ("Dependency Check", check_dependencies),
         ("Import Test", test_imports),
@@ -146,7 +155,7 @@ def main():
         ("FileSystem Agent", test_filesystem_agent),
         ("Config Files", verify_config_files),
     ]
-    
+
     results = []
     for name, test_func in tests:
         try:
@@ -155,21 +164,21 @@ def main():
         except Exception as e:
             print(f"❌ {name} crashed: {e}")
             results.append((name, False))
-    
+
     print("\n" + "=" * 60)
     print("VALIDATION SUMMARY")
     print("=" * 60)
-    
+
     passed = sum(1 for _, result in results if result)
     total = len(results)
-    
+
     for name, result in results:
         status = "✅ PASS" if result else "❌ FAIL"
         print(f"{status} - {name}")
-    
+
     print("=" * 60)
     print(f"Result: {passed}/{total} tests passed ({passed/total*100:.0f}%)")
-    
+
     if passed == total:
         print("✅ System is PRODUCTION READY")
         return 0

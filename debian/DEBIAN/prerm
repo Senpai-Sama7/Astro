@@ -1,0 +1,11 @@
+#!/bin/bash
+# Pre-removal script for ASTRO
+
+set -e
+
+echo "Removing ASTRO..."
+
+# Clean up virtual environment
+rm -rf /usr/share/astro/venv
+
+exit 0

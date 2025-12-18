@@ -1,58 +1,87 @@
 """
 LLM Client Factory
 Centralizes the creation of LLM clients for OpenAI, OpenRouter, and Ollama.
+Supports both Async and Sync clients.
 """
 import os
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, Any
 
 logger = logging.getLogger("LLMFactory")
 
 try:
-    from openai import OpenAI
+    from openai import OpenAI, AsyncOpenAI
+    HAS_OPENAI = True
 except ImportError:
     OpenAI = None
+    AsyncOpenAI = None
+    HAS_OPENAI = False
     logger.warning("OpenAI library not found. LLM features will be disabled.")
 
 class LLMFactory:
     @staticmethod
-    def create_client(provider: str = "openai", 
-                      api_key: Optional[str] = None, 
+    def create_client(provider: str = "openai",
+                      api_key: Optional[str] = None,
                       base_url: Optional[str] = None) -> Optional[Any]:
         """
-        Create and return an LLM client based on the provider.
+        Create and return an Async LLM client (AsyncOpenAI) based on the provider.
+        Preferred for this async ecosystem.
         """
-        if not OpenAI:
+        if not HAS_OPENAI:
             return None
 
         provider = provider.lower()
-        
-        # Determine API Key and Base URL based on provider
-        if provider == "openai":
-            final_api_key = api_key or os.getenv("OPENAI_API_KEY")
-            final_base_url = base_url # Default is None (standard OpenAI)
-            
-        elif provider == "openrouter":
-            final_api_key = api_key or os.getenv("OPENROUTER_API_KEY")
-            final_base_url = base_url or "https://openrouter.ai/api/v1"
-            
-        elif provider == "ollama":
-            final_api_key = "ollama" # Dummy key required
-            final_base_url = base_url or "http://localhost:11434/v1"
-            
-        else:
-            logger.warning(f"Unknown provider {provider}, defaulting to OpenAI")
-            final_api_key = api_key or os.getenv("OPENAI_API_KEY")
-            final_base_url = base_url
+        key, url = LLMFactory._get_config(provider, api_key, base_url)
 
-        if not final_api_key and provider != "ollama":
+        if not key and provider != "ollama":
             logger.warning(f"No API key found for provider {provider}")
             return None
 
         try:
-            client = OpenAI(api_key=final_api_key, base_url=final_base_url)
-            logger.info(f"Initialized LLM client for {provider}")
+            client = AsyncOpenAI(api_key=key, base_url=url)
+            logger.info(f"Initialized Async LLM client for {provider}")
             return client
         except Exception as e:
-            logger.error(f"Failed to initialize LLM client: {e}")
+            logger.error(f"Failed to initialize Async LLM client: {e}")
             return None
+
+    @staticmethod
+    def create_sync_client(provider: str = "openai",
+                           api_key: Optional[str] = None,
+                           base_url: Optional[str] = None) -> Optional[Any]:
+        """
+        Create and return a Sync LLM client (OpenAI).
+        Use only if absolutely necessary (e.g. legacy code).
+        """
+        if not HAS_OPENAI:
+            return None
+
+        provider = provider.lower()
+        key, url = LLMFactory._get_config(provider, api_key, base_url)
+
+        if not key and provider != "ollama":
+            logger.warning(f"No API key found for provider {provider}")
+            return None
+
+        try:
+            client = OpenAI(api_key=key, base_url=url)
+            logger.info(f"Initialized Sync LLM client for {provider}")
+            return client
+        except Exception as e:
+            logger.error(f"Failed to initialize Sync LLM client: {e}")
+            return None
+
+    @staticmethod
+    def _get_config(provider: str, api_key: Optional[str], base_url: Optional[str]) -> tuple:
+        if provider == "openai":
+            return api_key or os.getenv("OPENAI_API_KEY"), base_url
+
+        elif provider == "openrouter":
+            return api_key or os.getenv("OPENROUTER_API_KEY"), base_url or "https://openrouter.ai/api/v1"
+
+        elif provider == "ollama":
+            return "ollama", base_url or "http://localhost:11434/v1"
+
+        else:
+            logger.warning(f"Unknown provider {provider}, defaulting to OpenAI")
+            return api_key or os.getenv("OPENAI_API_KEY"), base_url

@@ -1,0 +1,24 @@
+#!/bin/bash
+# Post-installation script for ASTRO
+
+set -e
+
+INSTALL_DIR="/usr/share/astro"
+
+echo "Setting up ASTRO virtual environment..."
+
+# Create virtual environment
+python3 -m venv "$INSTALL_DIR/venv"
+
+# Install dependencies
+"$INSTALL_DIR/venv/bin/pip" install --upgrade pip
+"$INSTALL_DIR/venv/bin/pip" install -r "$INSTALL_DIR/requirements.txt"
+
+# Set permissions
+chmod +x /usr/bin/astro
+chmod -R 755 "$INSTALL_DIR"
+
+echo "ASTRO installation complete!"
+echo "Launch from Applications menu or run 'astro' in terminal"
+
+exit 0

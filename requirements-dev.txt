@@ -1,0 +1,16 @@
+# Development dependencies for ASTRO
+# Install with: pip install -r requirements-dev.txt
+
+# Testing
+pytest==8.3.3
+pytest-asyncio==0.24.0
+pytest-cov==4.1.0
+
+# Linting & Formatting
+ruff==0.1.9
+black==23.12.1
+mypy==1.8.0
+
+# Type stubs
+types-requests==2.31.0.10
+types-PyYAML==6.0.12.12

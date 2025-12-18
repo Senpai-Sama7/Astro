@@ -1,6 +1,6 @@
 research_agent_001:
   max_search_results: 6
-  max_pages_to_scrape: 4
+  max_scrape_results: 4
   quality_threshold: 0.7
   preferred_domains:
     - arxiv.org
@@ -18,6 +18,12 @@ code_agent_001:
   include_documentation: true
   max_concurrent_tasks: 3
   safe_mode: true
+  # SECURITY: Docker sandbox is REQUIRED by default
+  # Set use_docker_sandbox: false AND allow_local_execution: true to disable (NOT RECOMMENDED)
+  use_docker_sandbox: true
+  allow_local_execution: false  # Set true ONLY for trusted code in dev environments
+  docker_image: "python:3.11-slim"
+  docker_execution_timeout: 30
 
 filesystem_agent_001:
   root_dir: "./workspace"

@@ -1,242 +1,893 @@
-# Autonomous Agent Ecosystem
+<p align="center">
+  <img src="astro-logo.png" alt="ASTRO" width="300"/>
+</p>
 
-A production-ready, fully autonomous multi-agent system with natural language control, real web search, code execution, and persistent storage.
+<div align="center">
 
-## 🚀 Production Features
+# 🌟 ASTRO - Autonomous Agent Ecosystem
 
-### ✅ Real Capabilities (No Simulations)
+### *Your Personal AI Team That Actually Gets Things Done*
 
-- **Web Search & Scraping**: DuckDuckGo API + BeautifulSoup for live internet research
-- **Code Generation**: OpenAI/OpenRouter/Ollama integration for generating Python code
-- **Code Execution**: Safe subprocess execution with security sandboxing
-- **File Operations**: Secure filesystem operations with path validation
-- **Persistent Storage**: SQLite database with indexed tables
-- **Natural Language Control**: LLM-powered intent parsing for plain English commands
-- **Modern GUI**: Clay-morphic design with real-time monitoring
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://python.org)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/Senpai-Sama7/Astrom/pulls)
 
-### 🎯 Agent Types
-
-1. **Research Agent**: Web search, content extraction, knowledge synthesis
-2. **Code Agent**: Code generation, optimization, debugging, execution
-3. **FileSystem Agent**: Safe file read/write/list operations
-
-## 📦 Installation
-
-### 1. Install Dependencies
-
-```powershell
-pip install -r requirements.txt
-```
-
-### 2. Configure Environment (Optional)
-
-Create a `.env` file:
-
-```env
-OPENAI_API_KEY=your_key_here
-OPENROUTER_API_KEY=your_openrouter_key
-```
-
-### 3. Validate Installation
-
-```powershell
-python tests/validate_production.py
-```
-
-## 🎮 Usage
-
-### CLI Mode (Default)
-
-```powershell
-python src/main.py --duration 120
-```
-
-### Interactive Natural Language Mode
-
-```powershell
-# With OpenAI
-python src/main.py --interactive --api-key "sk-..."
-
-# With Ollama (Local)
-python src/main.py --interactive --llm-provider ollama --model-name llama3
-
-# With OpenRouter
-python src/main.py --interactive --llm-provider openrouter --api-key "..." --model-name "anthropic/claude-3-opus"
-```
-
-### GUI Mode
-
-```powershell
-python src/gui_app.py
-```
-
-## 🛠️ Configuration
-
-### System Config (`config/system_config.yaml`)
-
-```yaml
-system:
-  environment: "production"
-  log_level: "INFO"
-  max_concurrent_workflows: 10
-
-llm:
-  provider: "openai"
-  model_name: "gpt-3.5-turbo"
-  timeout: 60
-```
-
-### Agent Config (`config/agents.yaml`)
-
-```yaml
-research_agent_001:
-  max_search_results: 6
-  max_pages_to_scrape: 4
-  quality_threshold: 0.7
-```
-
-## 📊 Architecture
-
-```
-┌─────────────────────────────────────┐
-│   Natural Language Interface        │
-│   (LLM-powered intent parsing)      │
-└─────────────────┬───────────────────┘
-                  │
-┌─────────────────▼───────────────────┐
-│      Agent Engine (Core)            │
-│  - Task Queue & Scheduling          │
-│  - Dependency Tracking              │
-│  - Failure Recovery                 │
-│  - Incentive System                 │
-└─────────────────┬───────────────────┘
-                  │
-        ┌─────────┴─────────┬─────────────┐
-        │                   │             │
-    ┌───▼────┐       ┌──────▼───┐   ┌────▼─────┐
-    │Research│       │   Code   │   │FileSystem│
-    │ Agent  │       │  Agent   │   │  Agent   │
-    └────────┘       └──────────┘   └──────────┘
-```
-
-## 🔧 Production Deployment
-
-### Database
-
-- **Default**: SQLite (`ecosystem.db`)
-- **Production**: PostgreSQL recommended
-- **Indices**: Automatically created on workflow_id, agent_id, timestamps
-
-### Security
-
-- **Code Execution**: Safe mode enabled by default (blocks `os`, `sys`, `subprocess` imports)
-- **Filesystem**: Sandboxed to `./workspace` directory
-- **API Keys**: Loaded from environment variables
-
-### Monitoring
-
-- Real-time dashboard tracking agent health, task completion, system metrics
-- Persistent metrics in database
-- Configurable alerting thresholds
-
-## 📝 Example Workflows
-
-### Research & Code Generation
-
-```python
-"Research the latest quantum computing algorithms and generate a Python implementation"
-```
-
-This automatically:
-
-1. Searches the web for quantum computing info
-2. Generates Python code based on findings
-3. Optionally executes and tests the code
-
-### File Operations
-
-```python
-"Create a report summarizing agent performance and save it to reports/summary.md"
-```
-
-## 🧪 Testing
-
-Run the validation suite:
-
-```powershell
-python tests/validate_production.py
-```
-
-Expected output:
-
-```
-✅ PASS - Dependency Check
-✅ PASS - Import Test
-✅ PASS - Database Test
-✅ PASS - Engine Initialization
-✅ PASS - FileSystem Agent
-✅ PASS - Config Files
-
-Result: 6/6 tests passed (100%)
-✅ System is PRODUCTION READY
-```
-
-## 📂 Project Structure
-
-```
-agent_ecosystem/
-├── config/
-│   ├── system_config.yaml
-│   └── agents.yaml
-├── src/
-│   ├── agents/
-│   │   ├── base_agent.py
-│   │   ├── research_agent.py
-│   │   ├── code_agent.py
-│   │   └── filesystem_agent.py
-│   ├── core/
-│   │   ├── engine.py
-│   │   ├── database.py
-│   │   └── nl_interface.py
-│   ├── monitoring/
-│   │   └── monitoring_dashboard.py
-│   ├── utils/
-│   │   ├── config_loader.py
-│   │   ├── logger.py
-│   │   └── helpers.py
-│   ├── main.py
-│   └── gui_app.py
-├── tests/
-│   └── validate_production.py
-├── requirements.txt
-└── README.md
-```
-
-## 🔒 Security Considerations
-
-1. **Code Execution**: Uses subprocess with 10s timeout and import restrictions
-2. **File Access**: Limited to workspace directory
-3. **API Keys**: Never hardcoded, always from environment
-4. **Database**: SQL injection protected via parameterized queries
-
-## 🚨 Known Limitations
-
-- Web scraping may fail on JavaScript-heavy sites
-- Code execution sandbox is subprocess-based (not container-level isolation)
-- SQLite not suitable for high-concurrency production (use PostgreSQL)
-
-## 🔮 Future Enhancements
-
-- Docker containerization for code execution
-- PostgreSQL migration
-- Web API (FastAPI)
-- Kubernetes deployment manifests
-- Advanced ML-based anomaly detection
-
-## 📄 License
-
-MIT License - See LICENSE file for details
+<img src="https://img.shields.io/badge/AI%20Powered-OpenAI%20|%20Ollama%20|%20OpenRouter-purple" alt="AI Powered">
 
 ---
 
-**Status**: ✅ Production Ready (v1.0.0)
+**Imagine having a team of AI assistants that can research the internet, write code, and manage your files — all from a single command in plain English.**
+
+[Get Started](#-quick-start-5-minutes) • [Watch Demo](#-see-it-in-action) • [User Guide](#-complete-user-guide) • [FAQ](#-frequently-asked-questions)
+
+</div>
+
+---
+
+## 🎬 See It In Action
+
+```
+You: "Research the latest trends in AI and create a summary report"
+
+🔍 Research Agent: Searching the web...
+📝 Research Agent: Found 6 relevant sources
+💾 FileSystem Agent: Created reports/ai_trends_2025.md
+✅ Done! Your report is ready.
+```
+
+**That's it.** No complex commands. No programming required. Just tell it what you want.
+
+---
+
+## ✨ What Can ASTRO Do For You?
+
+<table>
+<tr>
+<td width="33%" align="center">
+
+### 🔬 Research Agent
+**Your Personal Researcher**
+
+- Searches the web via DuckDuckGo
+- Reads and summarizes articles
+- Finds the information you need
+
+*"Find me the best pizza recipe"*
+
+</td>
+<td width="33%" align="center">
+
+### 💻 Code Agent
+**Your AI Programmer**
+
+- Writes Python code for you
+- Runs in secure Docker sandbox
+- Helps debug with suggestions
+
+*"Create a script to organize my photos"*
+
+</td>
+<td width="33%" align="center">
+
+### 📁 File Agent
+**Your Digital Secretary**
+
+- Creates and edits files
+- Organizes your documents
+- Saves reports and summaries
+
+*"Save this summary to my reports folder"*
+
+</td>
+</tr>
+<tr>
+<td width="33%" align="center">
+
+### 🔧 Git Agent
+**Your Version Control Expert**
+
+- Manages git repositories
+- Creates branches and commits
+- Shows diffs and status
+
+*"Commit my changes with a good message"*
+
+</td>
+<td width="33%" align="center">
+
+### 🧪 Test Agent
+**Your QA Engineer**
+
+- Runs test suites (pytest, npm, etc.)
+- Reports test results
+- Enables TDD workflows
+
+*"Run the tests for this project"*
+
+</td>
+<td width="33%" align="center">
+
+### 🧠 Knowledge Agent
+**Your Memory Bank**
+
+- Persists architectural decisions
+- Remembers context across sessions
+- Retrieves saved knowledge
+
+*"Remember this API design decision"*
+
+</td>
+</tr>
+<tr>
+<td width="33%" align="center">
+
+### 📊 Analysis Agent
+**Your Code Reviewer**
+
+- Runs linters (pylint, eslint)
+- Static code analysis
+- Quality checks
+
+*"Analyze this code for issues"*
+
+</td>
+<td width="33%" align="center" colspan="2">
+
+### 🚀 Production Ready
+**Enterprise-Grade Architecture**
+
+- ✅ 166/166 tests passing
+- ✅ Structured JSON logging
+- ✅ Prometheus metrics export
+- ✅ Kubernetes health probes
+- ✅ Connection pooling
+- ✅ Thread-safe operations
+- ✅ Docker security enforcement
+
+</td>
+</tr>
+</table>
+
+---
+## [Online View](https://senpai-sama7.github.io/Astro)
+## [Online Chat](https://senpai-sama7.github.io/Astro/chat)
+---
+
+## 🚀 Quick Start (5 Minutes)
+
+### What You'll Need
+
+- ✅ A computer (Windows, Mac, or Linux)
+- ✅ Python installed ([Download here](https://python.org/downloads) if you don't have it)
+- ✅ An API key (free options available!)
+
+### Step 1: Download ASTRO
+
+**Option A: Download ZIP** (Easiest)
+1. Click the green "Code" button above
+2. Click "Download ZIP"
+3. Extract the folder to your Desktop
+
+**Option B: Use Git** (For developers)
+```bash
+git clone https://github.com/Senpai-Sama7/Astro.git
+cd Astro
+```
+
+### Step 2: Install Requirements
+
+Open your terminal (Command Prompt on Windows, Terminal on Mac) and run:
+
+```bash
+pip install -r requirements.txt
+```
+
+> 💡 **Tip**: If you see an error, try `pip3` instead of `pip`
+
+### Step 3: Set Up Your AI Provider
+
+Choose ONE of these options:
+
+<details>
+<summary><b>🆓 Option A: Use Ollama (FREE - Runs on Your Computer)</b></summary>
+
+1. Download Ollama from [ollama.ai](https://ollama.ai)
+2. Install it (just double-click the installer)
+3. Open terminal and run: `ollama pull llama3`
+4. That's it! No API key needed.
+
+</details>
+
+<details>
+<summary><b>💳 Option B: Use OpenAI (Best Quality)</b></summary>
+
+1. Go to [platform.openai.com](https://platform.openai.com)
+2. Create an account and add billing
+3. Go to API Keys and create a new key
+4. Create a file named `.env` in the ASTRO folder with:
+```
+OPENAI_API_KEY=sk-your-key-here
+```
+
+</details>
+
+<details>
+<summary><b>🔄 Option C: Use OpenRouter (Many Models)</b></summary>
+
+1. Go to [openrouter.ai](https://openrouter.ai)
+2. Create an account
+3. Get your API key
+4. Create a file named `.env` in the ASTRO folder with:
+```
+OPENROUTER_API_KEY=your-key-here
+```
+
+</details>
+
+### Step 4: Launch ASTRO!
+
+**For the Beautiful GUI (Recommended):**
+```bash
+python src/gui_app.py
+```
+
+**For Command Line:**
+```bash
+python src/main.py --interactive
+```
+
+🎉 **Congratulations!** You're ready to use your personal AI team!
+
+---
+
+## 📖 Complete User Guide
+
+### Using the Desktop App (GUI)
+
+When you launch `gui_app.py`, you'll see a beautiful dark-themed interface:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  AGENT ECO                              [System Online 🟢]  │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  💬 Ask Your Agents                                         │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ Type your command here...                       [▶] │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  📡 System Activity          │  📜 Workflow History        │
+│  ─────────────────────────── │  ────────────────────────   │
+│  10:30 - Research started... │  🟡 Research AI trends      │
+│  10:31 - Found 5 sources...  │  ✅ Generate report         │
+│  10:32 - Task completed ✅   │  ⏳ File organization       │
+│                              │                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**How to Use:**
+
+1. **Click "🚀 Start System"** - Wait for "System Online" to appear
+2. **Type your request** - Use plain English, like talking to a person
+3. **Press Enter or click "Execute ▶"** - Watch the magic happen
+4. **See results** - Check the Activity log and your files
+
+### Example Commands You Can Try
+
+| What You Want | What to Type |
+|---------------|--------------|
+| Search the web | *"Search for the best laptop under $1000"* |
+| Create a file | *"Create a file called notes.txt with my meeting notes"* |
+| Write code | *"Write a Python script that calculates my monthly budget"* |
+| Research + Save | *"Research climate change and save a summary to climate_report.md"* |
+| Complex tasks | *"Find Python tutorials, summarize the best ones, and save to learning_path.md"* |
+
+### Understanding the Interface
+
+| Section | What It Shows |
+|---------|---------------|
+| **System Status** (top-left) | 🟢 Green = Running, ⚫ Gray = Offline |
+| **Agent Cards** (left sidebar) | Shows each AI agent and what it's doing |
+| **Command Input** (top) | Where you type your requests |
+| **Reasoning & Logs** (bottom-left) | AI chain-of-thought and detailed system logs |
+| **Workflow History** (bottom-right) | List of your past commands |
+
+### Settings & Configuration
+
+Click **"⚙️ Settings"** to configure:
+
+- **Provider**: Choose your AI (OpenAI, Ollama, or OpenRouter)
+- **Model**: Select which AI model to use
+- **API Key**: Enter your API key (hidden for security)
+
+### Reasoning, Logs & Errors
+
+- **Reasoning** tab shows the AI's Chain of Thought for each request.
+- **Logs** tab shows detailed system and debug logs.
+- When something goes wrong, an **error popup** appears with suggested fixes
+  (for example: open Settings to set an API key, start Ollama, or switch models).
+
+---
+
+## 🎯 Tips for Best Results
+
+### ✅ DO: Be Specific
+```
+Good: "Search for Python tutorials for beginners and save the top 5 to tutorials.md"
+Bad:  "Find stuff"
+```
+
+### ✅ DO: Use Natural Language
+```
+Good: "Create a summary of today's tech news"
+Good: "Help me write code to sort a list of names"
+Bad:  "RUN_SEARCH --query='tech' --output=summary"
+```
+
+### ✅ DO: Chain Tasks Together
+```
+"Research machine learning, then create a Python example, and save everything to ml_notes.md"
+```
+
+### ❌ DON'T: Ask for Harmful Content
+The system has built-in safety measures and won't:
+- Access files outside the workspace folder
+- Run dangerous code
+- Perform harmful searches
+
+---
+
+## ❓ Frequently Asked Questions
+
+<details>
+<summary><b>Is my data safe?</b></summary>
+
+Yes! ASTRO has multiple security layers:
+- **Path Protection**: Files restricted to `workspace` folder (enforced via `os.path.commonpath`)
+- **Code Sandbox**: Docker sandbox **required by default** for code execution
+- **AST Validation**: Code is analyzed for dangerous patterns before execution
+- **No Data Upload**: Your files never leave your computer (only search queries sent)
+- **Local Secrets**: API keys stored in `.env` file (keep private, not encrypted)
+
+</details>
+
+<details>
+<summary><b>Do I need to pay?</b></summary>
+
+Not necessarily! You have free options:
+- **Ollama**: Completely free, runs on your computer
+- **OpenAI**: Pay-per-use, usually pennies per request
+- **OpenRouter**: Some free models available
+
+</details>
+
+<details>
+<summary><b>Why isn't it working?</b></summary>
+
+Try these fixes:
+
+1. **"Module not found" error**: Run `pip install -r requirements.txt` again
+2. **"API key invalid" error**: Check your `.env` file has the correct key
+3. **"System Offline"**: Click "🚀 Start System" first
+4. **Slow responses**: Ollama is slower than cloud APIs - this is normal
+
+</details>
+
+<details>
+<summary><b>Can I use this for my business?</b></summary>
+
+Yes! ASTRO is MIT licensed, meaning you can:
+- ✅ Use it commercially
+- ✅ Modify it for your needs
+- ✅ Distribute it
+- Just keep the license notice
+
+</details>
+
+<details>
+<summary><b>How do I update ASTRO?</b></summary>
+
+```bash
+git pull origin main
+pip install -r requirements.txt
+```
+
+Or download the latest ZIP from GitHub.
+
+</details>
+
+---
+
+## 🔒 Security Model
+
+ASTRO implements defense-in-depth security for code execution:
+
+| Layer | Protection | Status |
+|-------|------------|--------|
+| **Docker Sandbox** | Isolated container with no network, read-only FS, memory limits | ✅ Default |
+| **AST Validation** | Parses code to block `exec()`, `eval()`, dangerous imports | ✅ Enabled |
+| **Regex Fallback** | Catches `getattr(__`, `globals()`, base64 obfuscation | ✅ Enabled |
+| **Path Validation** | Prevents directory traversal via `os.path.commonpath` | ✅ Enabled |
+| **Extension Whitelist** | Only `.txt`, `.py`, `.md`, `.json`, `.csv`, `.log`, `.yaml` | ✅ Enabled |
+
+### Code Execution Flow
+
+```
+User Request → LLM Generates Code → AST Check → Regex Check → Docker Sandbox → Result
+                                      ↓              ↓              ↓
+                                   BLOCKED       BLOCKED      ISOLATED
+                                  (if dangerous) (if suspicious) (no system access)
+```
+
+### For Developers
+
+```yaml
+# config/agents.yaml - Security Settings
+code_agent_001:
+  safe_mode: true                # Enable AST + regex validation
+  use_docker_sandbox: true       # REQUIRED for production
+  allow_local_execution: false   # Only enable for trusted code
+  docker_image: "python:3.11-slim"
+  docker_execution_timeout: 30   # Seconds before kill
+```
+
+> ⚠️ **Warning**: Setting `allow_local_execution: true` bypasses Docker sandbox.
+> The AST/regex checks provide defense-in-depth but can be bypassed by
+> sophisticated attacks. Only use for code you trust completely.
+
+---
+
+## 🏗️ How It Works (For the Curious)
+
+```
+                    ┌─────────────────────┐
+                    │    Your Command     │
+                    │  "Research AI..."   │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │   Natural Language  │
+                    │     Interpreter     │
+                    │  (Understands you)  │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │    Agent Engine     │
+                    │ (The Brain/Manager) │
+                    └──────────┬──────────┘
+                               │
+          ┌────────────────────┼────────────────────┐
+          │                    │                    │
+   ┌──────▼──────┐     ┌───────▼──────┐    ┌───────▼──────┐
+   │  Research   │     │     Code     │    │  FileSystem  │
+   │   Agent     │     │    Agent     │    │    Agent     │
+   │ 🔍 Search   │     │ 💻 Program   │    │ 📁 Files     │
+   └─────────────┘     └──────────────┘    └──────────────┘
+```
+
+**The magic happens in 4 steps:**
+
+1. **You speak naturally** → "Find me information about..."
+2. **AI understands** → Converts your words into tasks
+3. **Agents work together** → Each specialist does their part
+4. **Results delivered** → Files created, code run, answers found
+
+---
+
+## 🛠️ Advanced Configuration
+
+### For Power Users
+
+Edit `config/system_config.yaml`:
+
+```yaml
+system:
+  environment: "production"    # or "development" for more logs
+  log_level: "INFO"           # DEBUG, INFO, WARNING, ERROR
+  max_concurrent_workflows: 10 # How many tasks at once
+
+llm:
+  provider: "openai"          # openai, ollama, openrouter
+  model_name: "gpt-4"         # Your preferred model
+  timeout: 60                 # Seconds to wait for response
+```
+
+### Agent-Specific Settings
+
+Edit `config/agents.yaml`:
+
+```yaml
+research_agent_001:
+  max_search_results: 6       # Number of search results to fetch
+  max_scrape_results: 4       # Pages to read in full (actual config key)
+
+code_agent_001:
+  safe_mode: true               # AST + regex security validation
+  use_docker_sandbox: true      # REQUIRED for secure execution (default: true)
+  allow_local_execution: false  # Set true ONLY for trusted code
+  docker_image: "python:3.11-slim"
+  max_code_length: 10000
+
+filesystem_agent_001:
+  root_dir: "./workspace"     # Where files are saved
+  allowed_extensions:         # What files can be created
+    - .txt
+    - .py
+    - .md
+    - .json
+```
+
+---
+
+## 🧠 Enterprise Advanced Systems
+
+ASTRO includes cutting-edge enterprise-grade systems for production deployments:
+
+### 🔌 MCP (Model Context Protocol) Integration
+
+Connect to external tools and resources via the standardized MCP protocol:
+
+```python
+from core.mcp_integration import MCPRegistry, MCPServerConfig
+
+# Register an MCP server
+registry = MCPRegistry()
+await registry.register_server(MCPServerConfig(
+    name="my_server",
+    transport="http",
+    url="http://localhost:3000"
+))
+
+# Call tools from any registered server
+result = await registry.call_tool("search", {"query": "AI trends"})
+```
+
+**Features:**
+- Multi-server support with automatic tool routing
+- JSON-RPC 2.0 compliant protocol
+- Retry logic with exponential backoff
+- Tool discovery and capability negotiation
+
+### 🤝 A2A (Agent-to-Agent) Protocol
+
+Enable direct communication between agents using Google's A2A protocol:
+
+```python
+from core.a2a_protocol import A2ACoordinator, AgentCard, A2ATask
+
+# Agents can discover and delegate tasks
+coordinator = get_a2a_coordinator()
+await coordinator.start()
+
+# Request another agent to perform a task
+task = A2ATask(task_id="001", name="research", input_data={"topic": "AI"})
+capable_agent = coordinator.find_capable_agent(["research", "web_search"])
+```
+
+**Features:**
+- Async message bus for agent communication
+- Capability-based agent discovery
+- Task delegation and collaboration
+- Heartbeat and status monitoring
+
+### 🏥 Self-Healing System
+
+Automatic failure detection, recovery, and resilience:
+
+```python
+from core.self_healing import get_self_healing_system, CircuitBreaker
+
+healing = get_self_healing_system()
+await healing.start()
+
+# Register components for monitoring
+healing.register_component(
+    "api_service",
+    health_check=check_api_health,
+    recovery_callback=restart_api
+)
+
+# Execute with full protection
+success, result = await healing.execute_with_protection(
+    "api_service", api_call, params
+)
+```
+
+**Features:**
+- Circuit breaker pattern (prevents cascade failures)
+- Configurable retry policies with exponential backoff
+- Health monitoring with latency tracking
+- Automatic recovery strategies
+
+### 🧮 Structured Reasoning Engine
+
+> **What This Actually Does**: Orchestrates structured prompts (Chain-of-Thought, Tree-of-Thought) to improve LLM response quality. It does NOT add reasoning capabilities beyond the base model—it forces the model to show its work, reducing hallucination.
+
+```python
+from core.zero_reasoning import create_reasoner, ReasoningMode
+
+reasoner = create_reasoner()
+
+# Chain-of-thought reasoning
+result = await reasoner.reason(
+    "What are the implications of quantum computing for cryptography?",
+    mode=ReasoningMode.DEDUCTIVE
+)
+
+# First-principles analysis
+analysis = await reasoner.reason_from_first_principles(
+    "How to design a scalable distributed system?"
+)
+```
+
+**Features:**
+- Chain-of-Thought (CoT) reasoning
+- Tree-of-Thought (ToT) for complex problems
+- Meta-cognitive self-evaluation
+- Dynamic knowledge base with axioms
+
+### 📚 Contextual Memory System
+
+> **What This Actually Does**: A RAG-like pattern that stores successful task outcomes in SQLite and retrieves them for similar future tasks. The LLM does NOT learn or update weights—this creates persistent "memory" of what worked.
+
+```python
+from core.recursive_learning import get_recursive_learner, ExperienceType
+
+learner = get_recursive_learner()
+
+# Record experiences
+learner.record_experience(
+    experience_type=ExperienceType.TASK_COMPLETION,
+    context={"task": "research"},
+    action="web_search",
+    outcome={"success": True},
+    reward=0.9
+)
+
+# Learn from experiences
+await learner.learn_batch(batch_size=32)
+
+# Get action suggestions
+action, confidence = learner.suggest_action({"task": "research"})
+```
+
+**Features:**
+- Experience replay buffer with priority sampling
+- Automatic pattern extraction
+- Skill building from patterns
+- Persistent knowledge storage
+
+### 🔄 Refactory Feedback Loop
+
+Automated code quality improvement:
+
+```python
+from core.refactory_loop import get_feedback_loop
+
+loop = get_feedback_loop()
+
+# Analyze and get suggestions
+result = await loop.run_iteration(source_code, auto_apply=False)
+
+print(f"Quality score: {result['before_score']:.2f} → {result['after_score']:.2f}")
+print(f"Suggestions: {result['suggestion_count']}")
+```
+
+**Features:**
+- Static code analysis (complexity, coverage, documentation)
+- Automated refactoring suggestions
+- Quality metrics tracking over time
+- LLM-powered code transformation
+
+### ⚡ Adaptive Caching System
+
+> **What This Actually Does**: Smart memoization that profiles function calls and automatically caches hot paths. This is NOT a JIT compiler (no bytecode compilation)—it's intelligent caching with LRU/LFU/TTL strategies.
+
+```python
+from core.adaptive_jit import get_adaptive_jit, jit_profile, jit_memoize
+
+jit = get_adaptive_jit()
+await jit.start()
+
+@jit.profile
+def frequently_called(x):
+    return expensive_computation(x)
+
+@jit.memoize(ttl=300)
+async def cached_api_call(query):
+    return await api.search(query)
+```
+
+**Features:**
+- Hot path detection
+- Automatic memoization
+- Adaptive caching strategies (LRU, LFU, TTL)
+- Performance profiling and statistics
+
+### 🧪 Running Enterprise Tests
+
+```bash
+# Run all tests (166 total)
+python -m pytest tests/ -v
+
+# Run specific test suites
+python -m pytest tests/test_security.py        # Security tests (65)
+python -m pytest tests/test_error_paths.py     # Error handling (40)
+python -m pytest tests/test_production_features.py  # Production systems (21)
+python -m pytest tests/test_advanced_systems.py     # Enterprise features
+```
+
+You can also run the full health check:
+
+```bash
+python health_check.py
+```
+
+---
+
+## 📊 Production Monitoring
+
+ASTRO includes enterprise-grade observability out of the box:
+
+### Health Endpoints (Kubernetes-Compatible)
+
+| Endpoint | Purpose | Use Case |
+|----------|---------|----------|
+| `GET /health/live` | Liveness probe | Is the process alive? |
+| `GET /health/ready` | Readiness probe | Ready to serve traffic? |
+| `GET /health/startup` | Startup probe | Initial startup complete? |
+| `GET /health` | Full summary | Dashboard overview |
+
+### Prometheus Metrics
+
+Scrape metrics at `GET /metrics`:
+
+```promql
+# Task success rate
+sum(rate(astro_tasks_total{status="success"}[5m])) / sum(rate(astro_tasks_total[5m]))
+
+# P95 task duration
+histogram_quantile(0.95, rate(astro_task_duration_seconds_bucket[5m]))
+
+# Active tasks/workflows
+astro_active_tasks
+astro_active_workflows
+
+# Agent health (1=healthy, 0=unhealthy)
+astro_agent_health{agent_id="code_agent_001"}
+
+# LLM cost tracking
+sum(astro_llm_cost_usd) by (model)
+```
+
+### Structured Logging
+
+JSON logs for ELK/Splunk/Datadog ingestion:
+
+```json
+{"ts":"2025-12-04T19:00:00Z","level":"INFO","logger":"AgentEngine","msg":"Task completed","agent_id":"code_agent_001","task_id":"task_123","duration_ms":1234.5}
+```
+
+### Monitoring Stack (Docker Compose)
+
+```bash
+# Start ASTRO with Prometheus + Grafana
+docker-compose -f docker-compose.monitoring.yml up
+
+# Access:
+# - ASTRO API: http://localhost:8000
+# - Prometheus: http://localhost:9090
+# - Grafana: http://localhost:3000 (admin/admin)
+```
+
+Pre-built Grafana dashboard available at `monitoring/grafana_dashboard.json`.
+
+---
+
+## ✅ Production Checklist
+
+Before using ASTRO in a production-like environment, walk through this checklist:
+
+1. **Install dependencies**
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\\Scripts\\activate
+   pip install -r requirements.txt
+   ```
+
+2. **Configure your AI provider**
+
+   - Create a `.env` file with your API key(s) **or** use the in-app **Settings** dialog.
+   - Supported options: **OpenAI**, **OpenRouter**, or local **Ollama**.
+
+3. **Run automated checks**
+
+   ```bash
+   python -m pytest tests/test_advanced_systems.py
+   python health_check.py
+   ```
+
+4. **Launch ASTRO (GUI)**
+
+   ```bash
+   python src/gui_app.py
+   ```
+
+---
+
+---
+
+## 📁 Project Structure
+
+```
+astro/
+├── 📁 config/                 # Settings files
+│   ├── system_config.yaml    # Main configuration
+│   └── agents.yaml           # Agent-specific settings
+│
+├── 📁 src/                    # Source code
+│   ├── 📁 agents/            # The AI workers
+│   │   ├── research_agent.py # Searches the web
+│   │   ├── code_agent.py     # Writes code
+│   │   └── filesystem_agent.py # Manages files
+│   │
+│   ├── 📁 core/              # The brain + Enterprise systems
+│   │   ├── engine.py         # Task manager
+│   │   ├── nl_interface.py   # Understands you
+│   │   ├── mcp_integration.py # MCP protocol support
+│   │   ├── a2a_protocol.py   # Agent-to-Agent comms
+│   │   ├── self_healing.py   # Fault tolerance
+│   │   ├── zero_reasoning.py # First-principles AI
+│   │   ├── recursive_learning.py # Self-improvement
+│   │   ├── refactory_loop.py # Code quality
+│   │   └── adaptive_jit.py   # Runtime optimization
+│   │
+│   ├── main.py               # Command-line version
+│   └── gui_app.py            # Desktop app
+│
+├── 📁 workspace/              # Your files go here
+├── 📁 tests/                  # Quality checks
+├── requirements.txt          # Dependencies
+└── README.md                 # You are here!
+```
+
+---
+
+## 🆘 Getting Help
+
+**Something not working?** Here's how to get help:
+
+1. 📖 Check the [FAQ](#-frequently-asked-questions) above
+2. 🔍 Search [existing issues](https://github.com/Senpai-Sama7/Astro/issues)
+3. 🐛 [Report a bug](https://github.com/Senpai-Sama7/Astro/issues/new)
+4. 💬 [Start a discussion](https://github.com/Senpai-Sama7/Astro/discussions)
+
+---
+
+## 🤝 Contributing
+
+We love contributions! Whether it's:
+
+- 🐛 Bug fixes
+- ✨ New features
+- 📖 Documentation improvements
+- 🎨 UI enhancements
+
+See our [Contributing Guide](CONTRIBUTING.md) to get started.
+
+---
+
+## 📄 License
+
+MIT License - Use it freely, modify it, share it!
+
+---
+
+<div align="center">
+
+### Made with ❤️ by the ASTRO Team
+
+**[⬆ Back to Top](#-astro---Astrom)**
+
+</div>

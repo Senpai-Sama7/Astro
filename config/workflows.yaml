@@ -1,0 +1,45 @@
+workflows:
+  research_topic:
+    description: "Execute deep web research and summarize findings"
+    priority: "high"
+    budget: 50.0
+    tasks:
+      - id: "search"
+        capability: "web_search"
+        instruction: "Search the web for detailed information on: {{ query }}"
+        payload:
+          query: "{{ query }}"
+
+      - id: "extract"
+        capability: "content_extraction"
+        instruction: "Extract key facts and statistics from the search results."
+        dependencies: ["search"]
+
+      - id: "summarize"
+        capability: "knowledge_synthesis"
+        instruction: "Synthesize the extracted information into a comprehensive briefing."
+        dependencies: ["extract"]
+
+      - id: "save"
+        capability: "file_operations"
+        instruction: "Save the briefing to '{{ query }}_brief.md'."
+        dependencies: ["summarize"]
+        payload:
+          operation: "write_file"
+          path: "{{ query }}_brief.md"
+
+  code_generator:
+    description: "Generate and audit code for a specific requirement"
+    priority: "medium"
+    tasks:
+      - id: "plan"
+        capability: "optimization"
+        instruction: "Create an implementation plan for: {{ requirement }}. Outline classes and functions."
+
+      - id: "implement"
+        capability: "code_generation"
+        instruction: "Generate Python code based on the plan."
+        dependencies: ["plan"]
+        payload:
+          code_task_type: "generate_code"
+          requirements: "{{ requirement }}"
