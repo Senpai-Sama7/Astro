@@ -16,6 +16,7 @@ import asyncio
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
+from threading import Lock
 import logging
 
 import warnings
@@ -107,6 +108,7 @@ class DatabaseManager:
         self._closed = False
         self._pool: Optional[ConnectionPool] = None
         self._pool_size = pool_size
+        self._sync_init_lock = Lock()
         # Note: Database initialization moved to async_init() to avoid blocking
 
     async def async_init(self):
@@ -219,7 +221,7 @@ class DatabaseManager:
         # Knowledge items table
         await db.execute(
             """CREATE TABLE IF NOT EXISTS knowledge_items
-                         (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                         (id TEXT PRIMARY KEY,
                           title TEXT,
                           content TEXT,
                           type TEXT,
@@ -322,7 +324,7 @@ class DatabaseManager:
         # Knowledge items table
         c.execute(
             """CREATE TABLE IF NOT EXISTS knowledge_items
-                     (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                     (id TEXT PRIMARY KEY,
                       title TEXT,
                       content TEXT,
                       type TEXT,

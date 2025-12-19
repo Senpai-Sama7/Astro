@@ -1,27 +1,24 @@
-"""Main entrypoint for Astro."""
+"""Command line entrypoint for the ASTRO autonomous agent ecosystem."""
 
-import asyncio
-import json
-import uuid
-from typing import Dict, Any, List
+from __future__ import annotations
+
 import argparse
-import os
+import asyncio
+import uuid
+from typing import Any, Dict, List
 
-import sys
-
-
-def main() -> None:
-    """Entrypoint executed via ``python -m src.main``."""
-
-# from agents.research_agent import ResearchAgent  # Temporarily disabled
 from agents.base_agent import TaskResult
 from agents.code_agent import CodeAgent
 from agents.filesystem_agent import FileSystemAgent
-from monitoring.monitoring_dashboard import MonitoringDashboard
+from core.engine import AgentConfig, AgentEngine, Task, Workflow
 from core.llm_factory import LLMFactory
+from core.nl_interface import NaturalLanguageInterface
+from core.task_queue import WorkflowPriority
+from monitoring.monitoring_dashboard import MonitoringDashboard
 from utils.config_loader import ConfigLoader
+from utils.logger import configure_logging, get_logger
 
-# Logger will be configured in main() based on CLI args
+
 logger = get_logger("MainApplication")
 
 
@@ -33,7 +30,9 @@ class UnavailableAgent:
         self.capabilities = capabilities
         self.is_available = False
 
-    async def execute_task(self, task: Dict[str, Any] | None = None, context: Any | None = None) -> TaskResult:
+    async def execute_task(
+        self, task: Dict[str, Any] | None = None, context: Any | None = None
+    ) -> TaskResult:
         return TaskResult(
             success=False,
             error_message=f"Agent {self.agent_id} unavailable",
@@ -42,36 +41,28 @@ class UnavailableAgent:
 
 
 class AutonomousAgentEcosystem:
-    """
-    Main application class that orchestrates the entire autonomous agent ecosystem.
-    """
+    """Main application class orchestrating agents, workflows, and monitoring."""
 
-    def __init__(self, config: Dict[str, Any] | None = None):
-        if config is None:
-            config = {}
-        """Initialize the ecosystem"""
+    def __init__(self, config: Dict[str, Any] | None = None) -> None:
+        runtime_config = config or {}
+
         self.engine = AgentEngine()
         self.dashboard = MonitoringDashboard()
-        self.agents = {}
-        self.workflows = {}
+        self.agents: Dict[str, Any] = {}
+        self.workflows: Dict[str, Workflow] = {}
 
-        # 1. Initialize ConfigLoader and load file-based configs
         self.config_loader = ConfigLoader()
         self.loaded_configs = self.config_loader.load_configs()
-
-        # 2. Merge CLI config (overrides files)
-        self.config = config or {}
+        self.config = runtime_config
 
         logger.info("Autonomous Agent Ecosystem initialized")
 
-    async def initialize_agents(self):
-        """Initialize and register all agents"""
+    async def initialize_agents(self) -> None:
+        """Initialize and register all configured agents."""
+
         logger.info("Initializing agents...")
 
-        # Get agent configs from loader
         agent_configs = self.loaded_configs.get("agents", {})
-
-        # Determine LLM settings: CLI > Config File > Default
         llm_config = self.loaded_configs.get("llm", {})
 
         provider = self.config.get("llm_provider") or getattr(
@@ -83,21 +74,11 @@ class AutonomousAgentEcosystem:
             llm_config, "model_name", "gpt-3.5-turbo"
         )
 
-        # Create shared LLM client
         llm_client = LLMFactory.create_client(
             provider=provider, api_key=api_key, base_url=base_url
         )
 
-        # --- Research Agent ---
-        # research_config_dict = agent_configs.get("research_agent_001", {})
-        # research_agent = ResearchAgent(
-        #     agent_id="research_agent_001", config=research_config_dict
-        # )
-        research_agent = None  # Temporarily disabled
-
-        # --- Code Agent ---
         code_config_dict = agent_configs.get("code_agent_001", {})
-        # Update with runtime LLM settings
         code_config_dict.update(
             {
                 "llm_provider": provider,
@@ -107,12 +88,14 @@ class AutonomousAgentEcosystem:
             }
         )
 
+        fs_config_dict = agent_configs.get("filesystem_agent_001", {})
+
+        # TODO: research agent currently unavailable pending implementation
+        research_agent = None
+
         code_agent = CodeAgent(
             agent_id="code_agent_001", config=code_config_dict, llm_client=llm_client
         )
-
-        # --- FileSystem Agent ---
-        fs_config_dict = agent_configs.get("filesystem_agent_001", {})
         fs_agent = FileSystemAgent(
             agent_id="filesystem_agent_001", config=fs_config_dict
         )
@@ -151,37 +134,33 @@ class AutonomousAgentEcosystem:
             cost_per_operation=0.5,
         )
 
-        # Register agents with the engine, substituting stubs when needed
         await self._safe_register_agent(research_config, research_agent)
         await self._safe_register_agent(code_config, code_agent)
         await self._safe_register_agent(filesystem_config, fs_agent)
 
-    async def _safe_register_agent(self, config: AgentConfig, instance: Any | None) -> None:
-        if instance is None:
+        logger.info("Agents initialized and registered successfully")
+
+    async def _safe_register_agent(
+        self, config: AgentConfig, instance: Any | None
+    ) -> None:
+        """Register an agent or a stub implementation when unavailable."""
+
+        agent_instance = instance
+        if agent_instance is None:
             logger.warning(
                 "Agent implementation unavailable; registering stub", extra={"agent_id": config.agent_id}
             )
-            instance = UnavailableAgent(config.agent_id, config.capabilities)
+            agent_instance = UnavailableAgent(config.agent_id, config.capabilities)
 
-        await self.engine.register_agent(config, instance=instance)
-        self.agents[config.agent_id] = instance
+        await self.engine.register_agent(config, instance=agent_instance)
+        self.agents[config.agent_id] = agent_instance
 
-        # Register with dashboard
         self.dashboard.register_agent(
-            "research_agent_001", {"state": "active", "capabilities": ["web_search"]}
-        )
-        self.dashboard.register_agent(
-            "code_agent_001", {"state": "active", "capabilities": ["code_generation"]}
-        )
-        self.dashboard.register_agent(
-            "filesystem_agent_001",
-            {"state": "active", "capabilities": ["file_operations"]},
+            config.agent_id, {"state": "active", "capabilities": config.capabilities}
         )
 
-        logger.info("Agents initialized and registered successfully")
-
-    async def create_sample_workflows(self):
-        """Create sample workflows from YAML configuration."""
+    async def create_sample_workflows(self) -> None:
+        """Create sample workflows from YAML/JSON configuration files."""
 
         logger.info("Creating sample workflows from config...")
 
@@ -218,9 +197,7 @@ class AutonomousAgentEcosystem:
                     cost_budget=wf_config.get("budget", 100.0),
                 )
             except KeyError as exc:
-                logger.error(
-                    "Workflow '%s' missing required field: %s. Skipping.", wf_name, exc
-                )
+                logger.error("Workflow '%s' missing required field: %s. Skipping.", wf_name, exc)
                 continue
 
             self.workflows[workflow.workflow_id] = workflow
@@ -229,32 +206,25 @@ class AutonomousAgentEcosystem:
                 "Submitted test workflow: %s (%s)", wf_name, wf_config.get("description", "")
             )
 
-    async def start_system(self):
-        """Start the entire autonomous agent ecosystem"""
+    async def start_system(self) -> None:
+        """Start the autonomous agent ecosystem and run for the configured duration."""
+
         logger.info("🚀 Starting Autonomous Agent Ecosystem (PRODUCTION MODE)")
         logger.info("=" * 60)
 
         try:
-            # Initialize agents
             await self.initialize_agents()
-
-            # Create sample workflows
             await self.create_sample_workflows()
 
-            # Start engine and monitoring in parallel
             engine_task = asyncio.create_task(self.engine.start_engine())
             monitoring_task = asyncio.create_task(self.dashboard.start_monitoring())
 
-            # Run for specified duration
             duration = self.config.get("duration", 120)
-            logger.info(
-                f"System running for {duration} seconds... Press Ctrl+C to stop."
-            )
+            logger.info("System running for %s seconds... Press Ctrl+C to stop.", duration)
             logger.info("=" * 60)
 
             await asyncio.sleep(duration)
 
-            # Cancel tasks gracefully
             engine_task.cancel()
             monitoring_task.cancel()
 
@@ -268,32 +238,33 @@ class AutonomousAgentEcosystem:
 
         except KeyboardInterrupt:
             logger.info("🛑 System interrupted by user")
-        except Exception as e:
-            logger.error(f"❌ System error: {str(e)}", exc_info=True)
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.error("❌ System error: %s", str(exc), exc_info=True)
         finally:
             await self.generate_final_report()
 
-    async def generate_final_report(self):
-        """Generate a comprehensive final report of system execution"""
+    async def generate_final_report(self) -> None:
+        """Generate a final execution summary for monitoring."""
+
         logger.info("\n" + "=" * 60)
         logger.info("📊 FINAL SYSTEM REPORT")
         logger.info("=" * 60)
 
-        # System health summary
         system_health = self.dashboard.get_system_health()
         logger.info(
-            f"📈 System Health Score: {system_health['health_score']:.2f} ({system_health['status']})"
+            "📈 System Health Score: %.2f (%s)",
+            system_health["health_score"],
+            system_health["status"],
         )
-        logger.info(f"🤖 Active Agents: {system_health['active_agents_count']}")
+        logger.info("🤖 Active Agents: %s", system_health["active_agents_count"])
 
-        # Workflow execution summary
         logger.info("\n" + "-" * 40)
         logger.info("_WORKFLOW EXECUTION SUMMARY_")
         logger.info("-" * 40)
 
-        for workflow_id, workflow in self.workflows.items():
+        for workflow in self.workflows.values():
             completed_tasks = sum(
-                1 for t in workflow.tasks if t.task_id in self.engine.completed_tasks
+                1 for task in workflow.tasks if task.task_id in self.engine.completed_tasks
             )
             total_tasks = len(workflow.tasks)
             status = (
@@ -301,15 +272,16 @@ class AutonomousAgentEcosystem:
                 if completed_tasks == total_tasks
                 else f"⚠️ {completed_tasks}/{total_tasks} Tasks"
             )
-            logger.info(f"\n{workflow.name}: {status}")
+            logger.info("\n%s: %s", workflow.name, status)
 
         logger.info("\n" + "=" * 60)
         logger.info("✨ EXECUTION COMPLETE")
         logger.info("=" * 60)
 
 
-def parse_arguments():
-    """Parse command line arguments"""
+def parse_arguments(args: List[str] | None = None) -> argparse.Namespace:
+    """Parse command line arguments."""
+
     parser = argparse.ArgumentParser(description="Autonomous Agent Ecosystem")
     parser.add_argument(
         "--duration",
@@ -318,40 +290,34 @@ def parse_arguments():
         help="Duration to run the system in seconds (default: 120)",
     )
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    parser.add_argument(
-        "--interactive", action="store_true", help="Run in interactive mode"
-    )
+    parser.add_argument("--interactive", action="store_true", help="Run in interactive mode")
 
-    # LLM Configuration
     parser.add_argument(
         "--llm-provider",
         type=str,
+        dest="llm_provider",
         help="LLM provider to use (openai, openrouter, ollama)",
     )
     parser.add_argument("--model-name", type=str, help="Model name to use")
-    parser.add_argument("--api-key", type=str, help="API key for the LLM provider")
-    parser.add_argument("--api-base", type=str, help="Base URL for the LLM API")
+    parser.add_argument("--api-key", type=str, dest="api_key", help="API key for the LLM provider")
+    parser.add_argument("--api-base", type=str, dest="api_base", help="Base URL for the LLM API")
     parser.add_argument(
         "--sample-workflows",
         type=str,
+        dest="sample_workflows",
         help="Path to sample workflows YAML file (relative to config/ by default)",
     )
 
-    return parser.parse_args()
+    return parser.parse_args(args)
 
 
-async def main():
-    """Main entry point"""
+async def run_main() -> None:
+    """Main entry point for CLI execution."""
+
     args = parse_arguments()
-
-    # Configure logging
     configure_logging(log_level="DEBUG" if args.debug else "INFO", log_to_file=True)
 
-    # Convert args to config dict
-    config = vars(args)
-    # Remove None values so they don't override defaults
-    config = {k: v for k, v in config.items() if v is not None}
-
+    config = {k: v for k, v in vars(args).items() if v is not None}
     ecosystem = AutonomousAgentEcosystem(config=config)
 
     if args.interactive:
@@ -360,62 +326,51 @@ async def main():
         await ecosystem.start_system()
 
 
-async def interactive_mode(ecosystem, args):
-    """Run interactive mode"""
-    try:
-        await ecosystem.initialize_agents()
+async def interactive_mode(
+    ecosystem: AutonomousAgentEcosystem, args: argparse.Namespace
+) -> None:
+    """Run the interactive CLI loop."""
 
-        # Start engine in background
-        engine_task = asyncio.create_task(ecosystem.engine.start_engine())
-        monitor_task = asyncio.create_task(ecosystem.dashboard.start_monitoring())
+    await ecosystem.initialize_agents()
 
-        # Setup NL Interface
-        llm_config = ecosystem.loaded_configs.get("llm")
+    engine_task = asyncio.create_task(ecosystem.engine.start_engine())
+    monitor_task = asyncio.create_task(ecosystem.dashboard.start_monitoring())
 
-        llm_client = LLMFactory.create_client(
-            provider=args.llm_provider or getattr(llm_config, "provider", "openai"),
-            api_key=args.api_key or getattr(llm_config, "api_key", None),
-            base_url=args.api_base or getattr(llm_config, "api_base", None),
-        )
+    llm_config = ecosystem.loaded_configs.get("llm")
+    llm_client = LLMFactory.create_client(
+        provider=args.llm_provider or getattr(llm_config, "provider", "openai"),
+        api_key=args.api_key or getattr(llm_config, "api_key", None),
+        base_url=args.api_base or getattr(llm_config, "api_base", None),
+    )
 
-        nl_interface = NaturalLanguageInterface(
-            engine=ecosystem.engine,
-            llm_client=llm_client,
-            model_name=args.model_name
-            or getattr(llm_config, "model_name", "gpt-3.5-turbo"),
-        )
+    nl_interface = NaturalLanguageInterface(
+        engine=ecosystem.engine,
+        llm_client=llm_client,
+        model_name=args.model_name or getattr(llm_config, "model_name", "gpt-3.5-turbo"),
+    )
 
-        print("\n💬 Interactive Mode Enabled. Type your request (or 'exit'):")
-        while True:
-            user_input = await asyncio.get_event_loop().run_in_executor(
-                None, input, ">> "
-            )
-            if user_input.lower() in ["exit", "quit"]:
-                break
+    print("\n💬 Interactive Mode Enabled. Type your request (or 'exit'):")
+    while True:
+        user_input = await asyncio.get_event_loop().run_in_executor(None, input, ">> ")
+        if user_input.lower() in ["exit", "quit"]:
+            break
 
-            try:
-                # 1. Try to match a template first (Agentic shortcut)
-                # In a real system, we'd use the LLM to pick the template.
-                # For now, we rely on the NL interface or direct parsing.
-                workflow_id = await nl_interface.process_request(user_input)
-                print(f"✅ Workflow submitted: {workflow_id}")
-            except Exception as e:
-                print(f"❌ Error: {e}")
-
-        # Cleanup
-        engine_task.cancel()
-        monitor_task.cancel()
         try:
-            await engine_task
-            await monitor_task
-        except asyncio.CancelledError:
-            pass
+            workflow_id = await nl_interface.process_request(user_input)
+            if workflow_id:
+                await ecosystem.engine.process_workflow(workflow_id)
+        except Exception as exc:  # pylint: disable=broad-except
+            logger.error("Failed to process request: %s", exc, exc_info=True)
 
-    except KeyboardInterrupt:
-        print("\nStopping...")
-    finally:
-        await ecosystem.generate_final_report()
+    engine_task.cancel()
+    monitor_task.cancel()
+
+    try:
+        await engine_task
+        await monitor_task
+    except asyncio.CancelledError:
+        pass
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(run_main())

@@ -135,7 +135,7 @@ _"Save this summary to my reports folder"_
 ### 🚀 Production Ready
 **Enterprise-Grade Architecture**
 
-- ✅ 166/166 tests passing
+- ✅ 194/194 automated tests passing (security, workflows, observability)
 - ✅ Structured JSON logging
 - ✅ Prometheus metrics export
 - ✅ Kubernetes health probes
@@ -146,6 +146,14 @@ _"Save this summary to my reports folder"_
 </td>
 </tr>
 </table>
+
+## ✅ Verified Capabilities (Automated Tests)
+
+- **Workflow orchestration**: agent registration, task prioritization, dependency handling, and sample workflow submission.
+- **Security hardening**: AST and regex code validation, SQL injection prevention, path traversal checks, CSRF tokens, signed requests, and rate limiting.
+- **Observability**: structured logging, health checks, and Prometheus metrics for tasks, workflows, LLM calls, databases, and agent health.
+- **Advanced systems**: MCP integration, agent-to-agent protocol, self-healing engine behaviors, and adaptive JIT caching.
+- **Persistence**: SQLite-backed storage for agents, chat sessions, knowledge items, and audit history.
 
 ---
 ## [Online View](https://senpai-sama7.github.io/Astro)
@@ -727,14 +735,14 @@ async def cached_api_call(query):
 ### 🧪 Running Enterprise Tests
 
 ```bash
-# Run all tests (166 total)
+# Run all tests (194 total)
 python -m pytest tests/ -v
 
 # Run specific test suites
-python -m pytest tests/test_security.py        # Security tests (65)
-python -m pytest tests/test_error_paths.py     # Error handling (40)
-python -m pytest tests/test_production_features.py  # Production systems (21)
-python -m pytest tests/test_advanced_systems.py     # Enterprise features
+python -m pytest tests/test_security.py        # Security hardening checks
+python -m pytest tests/test_error_paths.py     # Error handling paths
+python -m pytest tests/test_production_features.py  # Observability and platform systems
+python -m pytest tests/test_advanced_systems.py     # Enterprise agent capabilities
 ```
 
 You can also run the full health check:
