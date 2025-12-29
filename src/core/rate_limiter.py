@@ -21,7 +21,15 @@ class TokenBucketRateLimiter:
         self.max_requests = max_requests
         self.window_seconds = window_seconds
         self.buckets: Dict[str, Deque[float]] = {}
-        self._lock = asyncio.Lock()
+        self._locks: Dict[str, asyncio.Lock] = {}
+
+        def _get_lock(self, key: str) -> asyncio.Lock:
+            return self._locks.setdefault(key, asyncio.Lock())
+
+        # In check/consume replace:
+        #   async with self._lock:
+        # with:
+        #   async with self._get_lock(key):
 
     def _get_bucket(self, key: str) -> Deque[float]:
         return self.buckets.setdefault(key, deque())
