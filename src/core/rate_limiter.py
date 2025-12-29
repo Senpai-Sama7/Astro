@@ -108,10 +108,10 @@ class RateLimitManager:
             return RateLimitInfo(True, 999, time.time())
         return await self.limiters[limiter_name].consume(key)
 
-    def get_stats(self, limiter_name: str, key: str) -> Dict[str, int | float]:
+    async def get_stats(self, limiter_name: str, key: str) -> Dict[str, int | float]:
         if limiter_name not in self.limiters:
             return {}
-        return self.limiters[limiter_name].get_stats(key)
+        return await self.limiters[limiter_name].get_stats(key)
 
 
 _manager: Optional[RateLimitManager] = None
