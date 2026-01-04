@@ -22,7 +22,7 @@ services:
       - ./data:/app/data
     command: npm run dev
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/v1/health', (r) => {if (r.statusCode !== 200) throw new Error()})"]
+      test: ["CMD", "node", "-e", "const http = require('http'); http.get('http://localhost:5000/api/v1/health', (res) => { if (res.statusCode !== 200) { process.exit(1); } process.exit(0); }).on('error', () => process.exit(1));"]
       interval: 10s
       timeout: 5s
       retries: 5
