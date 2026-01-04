@@ -24,7 +24,8 @@ export const logger = winston.createLogger({
     environment: process.env.NODE_ENV || 'development',
   },
   transports: [
-ew winston.transports.Console()],
+    new winston.transports.Console()
+  ]
 });
 
 if (process.env.NODE_ENV === 'production') {
