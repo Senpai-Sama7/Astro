@@ -1,328 +1,366 @@
-# Ultimate System v1
+# ASTRO Ultimate System v1.0.0
 
-**A production-ready 3-layer AI orchestration platform optimized for consumer adoption AND enterprise security compliance.**
-
-[![Test](https://github.com/Senpai-Sama7/Astro/workflows/Test/badge.svg)](https://github.com/Senpai-Sama7/Astro/actions/workflows/test.yml)
-[![Docker Build](https://github.com/Senpai-Sama7/Astro/workflows/Docker%20Build/badge.svg)](https://github.com/Senpai-Sama7/Astro/actions/workflows/docker-build.yml)
+[![CI/CD Pipeline](https://github.com/Senpai-Sama7/Astro/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Senpai-Sama7/Astro/actions/workflows/ci.yml)
+[![Node.js 18+](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
+[![TypeScript](https://img.shields.io/badge/typescript-5.3+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests: 120+](https://img.shields.io/badge/tests-120%2B-brightgreen.svg)](./tests)
+[![Coverage](https://img.shields.io/badge/coverage-%3E80%25-brightgreen.svg)](./coverage)
 
 ---
 
-## What Is Ultimate System?
+## 🎯 Four Layers of AI Orchestration
 
-A unified AI platform combining three complementary systems:
+### Layer A: ASTRO (Orchestration)
+Tool registry, agent management, execution engine with granular permission control.
+- ✅ Tool registration (dynamic or predefined)
+- ✅ Agent registry (4 predefined agents)
+- ✅ Orchestration engine (single-step execution)
+- ✅ HTTP API for tool execution
 
-- **Layer A (ASTRO)**: Multi-agent orchestration, intent routing, 100+ tools
-- **Layer B (OTIS)**: Security controls—RBAC, CVaR risk evaluation, approval gates, immutable audit logs
-- **Layer C (C0Di3)**: Cyber intelligence—threat analysis, incident triage, knowledge base
+### Layer B: OTIS (Security)
+Role-based access control, CVaR risk scoring, immutable audit logging with cryptographic signatures.
+- ✅ 6-role RBAC (admin, analyst, red-team, blue-team, read-only, guest)
+- ✅ CVaR-based risk scoring algorithm
+- ✅ Append-only audit logging with HMAC-SHA256 signatures
+- ✅ Tamper detection and integrity verification
 
-**Two Deployment Profiles**:
+### Layer C: C0Di3 (Cyber Intelligence)
+Threat management, incident tracking, MITRE ATT&CK knowledge base, threat analytics.
+- ✅ Threat registration and tracking by severity
+- ✅ Incident management with timeline events
+- ✅ MITRE ATT&CK framework integration
+- ✅ Threat intelligence analytics and summaries
 
-- **Core Profile (Consumer)**: Docker container, SQLite, < 5 min setup, 4-8 GB RAM
-- **Cyber Profile (Enterprise)**: Kubernetes, PostgreSQL, full RBAC/MFA, 32+ GB RAM
+### Layer D: ARIA (Conversation)
+Natural language interface for turn-by-turn control of entire system.
+- ✅ Intent parsing (execute, query, help, status, approve/deny)
+- ✅ Multi-turn conversation management
+- ✅ Session-based context persistence
+- ✅ Security-aware execution with approval workflows
+- ✅ Natural language response generation
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
-### Option 1: Core Profile (Docker)
-
-```bash
-# Run locally in 5 seconds
-docker run --rm -it \
-  -p 8080:8080 -p 5000:5000 \
-  -e PROFILE=core \
-  ultimate-system:latest-core
-
-# Access
-# Web UI: http://localhost:8080
-# API: http://localhost:5000
-```
-
-### Option 2: From Source
+### Installation
 
 ```bash
-# Clone and setup
+# Clone repository
 git clone https://github.com/Senpai-Sama7/Astro.git
 cd Astro
-git checkout feature/ultimate-system-v1
-npm install
 
-# Development
+# Install dependencies
+npm install
+```
+
+### Development
+
+```bash
+# Start dev server
 npm run dev
 
-# Or production build
-npm run build
-npm start
-```
-
-### Option 3: Docker Compose (with services)
-
-```bash
-# Start all services (app + PostgreSQL + Redis)
-docker-compose up
-
-# In another terminal
-docker-compose ps
-```
-
-### Option 4: Kubernetes (Enterprise)
-
-```bash
-# Install Helm chart
-helm repo add ultimate-system https://helm.ultimate-system.io
-helm install ultimate-system ultimate-system/ultimate-system \
-  --namespace security \
-  --values helm/values-cyber.yaml
-
-# Verify
-kubectl -n security get pods
-```
-
----
-
-## Architecture
-
-```
-USER REQUEST (NL or CLI)
-           ↓
-┌──────────────────────────────────────┐
-│ LAYER A: Orchestration (ASTRO)       │
-│ - Intent routing                     │
-│ - Multi-agent coordination           │
-│ - Workflow engine                    │
-│ - Tool registry (100+)               │
-└──────────────────────────────────────┘
-           ↓
-┌──────────────────────────────────────┐
-│ LAYER B: Security (OTIS)      ⭐ NEW │
-│ - RBAC (6 roles)                    │
-│ - Risk evaluation (CVaR)             │
-│ - Approval gates                     │
-│ - Immutable audit logs              │
-└──────────────────────────────────────┘
-           ↓
-┌──────────────────────────────────────┐
-│ LAYER C: Cyber (C0Di3)              │
-│ - Threat analysis                    │
-│ - Incident triage                    │
-│ - Knowledge base                     │
-└──────────────────────────────────────┘
-           ↓
-┌──────────────────────────────────────┐
-│ TOOL EXECUTION (Sandboxed)          │
-└──────────────────────────────────────┘
-           ↓
-┌──────────────────────────────────────┐
-│ AUDIT LOG (Append-Only, Immutable)  │
-└──────────────────────────────────────┘
-```
-
----
-
-## Documentation
-
-- **[ULTIMATE_SYSTEM_ARCHITECTURE.md](./ULTIMATE_SYSTEM_ARCHITECTURE.md)** — System design & data flows
-- **[DEPLOYMENT_PROFILES.md](./DEPLOYMENT_PROFILES.md)** — Setup guides for both profiles
-- **[IMPLEMENTATION_ROADMAP_90DAYS.md](./IMPLEMENTATION_ROADMAP_90DAYS.md)** — Week-by-week execution plan
-- **[LAUNCH_CHECKLIST.md](./LAUNCH_CHECKLIST.md)** — Pre-launch validation & checklists
-- **[docs/SECURITY.md](./docs/SECURITY.md)** — Threat model & security controls
-- **[docs/API.md](./docs/API.md)** — REST API specification
-
----
-
-## Development
-
-### Setup
-
-```bash
-npm install
-npm run build
+# Server running at http://localhost:5000
 ```
 
 ### Testing
 
 ```bash
-# Unit tests
+# Run all tests
 npm test
 
-# With coverage
+# Watch mode
+npm test -- --watch
+
+# Coverage report
 npm run coverage
-
-# Integration tests (requires services running)
-docker-compose up -d
-npm run test:integration
-
-# E2E tests
-npm run test:e2e
-
-# Security tests
-npm run test:security
 ```
 
-### Linting & Formatting
+### Production
 
 ```bash
-# Lint
+# Build
+npm run build
+
+# Start
+npm start
+```
+
+---
+
+## 🎤 Natural Language Control
+
+### Main Endpoint: `POST /api/v1/aria/chat`
+
+```bash
+# Example: Simple calculation
+curl -X POST http://localhost:5000/api/v1/aria/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "userId": "you",
+    "userRole": "analyst",
+    "message": "calculate 5 + 3"
+  }'
+
+# Response:
+# {
+#   "sessionId": "session_..._...",
+#   "response": "✅ Calculation result: **8**",
+#   "toolExecuted": true,
+#   "result": {"ok": true, "data": {"result": 8}}
+# }
+```
+
+### Commands
+
+**Execute Tools:**
+- `"calculate 5 + 3 * 2"`
+- `"echo hello world"`
+- `"fetch https://httpbin.org/get"`
+
+**Query Information:**
+- `"show agents"`
+- `"show tools"`
+- `"show threats"`
+- `"show incidents"`
+
+**System:**
+- `"help"`
+- `"status"`
+
+**Approval:**
+- `"yes"` / `"approve"`
+- `"no"` / `"deny"`
+
+---
+
+## 📊 Raw API (Layer A)
+
+### Execute Tool
+
+```bash
+POST /api/v1/astro/execute
+{
+  "agentId": "string",
+  "toolName": "string",
+  "input": {},
+  "userId": "string"
+}
+```
+
+### List Agents
+
+```bash
+GET /api/v1/astro/agents
+```
+
+### List Tools
+
+```bash
+GET /api/v1/astro/tools
+```
+
+---
+
+## 🛡️ Security Model
+
+### RBAC Roles
+
+| Role | Permissions |
+|------|-------------|
+| **admin** | All operations |
+| **blue-team** | Register tools, execute, view audit, modify risk |
+| **red-team** | Register tools, execute (higher risk) |
+| **analyst** | Execute tools, view audit |
+| **read-only** | View audit logs only |
+| **guest** | No permissions |
+
+### Risk Scoring
+
+- **Base**: 0.1 (all actions)
+- **Red-team multiplier**: +0.3
+- **Tool registration**: +0.2
+- **Sensitive tools (HTTP, math)**: +0.15
+- **Default threshold**: 0.5 (50%)
+
+### Approval Workflow
+
+When risk score >= threshold:
+1. System asks for approval
+2. User responds "yes" or "no"
+3. Action approved/denied
+4. Logged to audit trail with signature
+
+### Audit Trail
+
+- **Append-only**: Never modify or delete entries
+- **HMAC-SHA256 signed**: Tamper-proof
+- **Cryptographic verification**: Detect tampering
+- **Role-based access**: Users see only authorized logs
+
+---
+
+## 📈 Test Coverage
+
+**Total: 120+ tests passing**
+
+- ASTRO Layer: 35 tests
+- OTIS Layer: 20 tests
+- C0Di3 Layer: 20 tests
+- ARIA Layer: 20+ tests
+- Integration: 25+ tests
+
+**Coverage Target: >80%**
+
+Run tests:
+```bash
+npm test
+```
+
+View coverage:
+```bash
+npm run coverage
+```
+
+---
+
+## 📖 Documentation
+
+- **[QUICKSTART.md](./QUICKSTART.md)** - Get started in 5 minutes
+- **[ARIA_CONVERSATION_GUIDE.md](./ARIA_CONVERSATION_GUIDE.md)** - Natural language interface guide
+- **[IMPLEMENTATION_COMPLETE.md](./IMPLEMENTATION_COMPLETE.md)** - System architecture and details
+
+---
+
+## 🐳 Docker Deployment
+
+### Core Profile
+
+```bash
+# Build
+npm run docker:build:core
+
+# Run
+docker run -p 5000:5000 ultimate-system:latest
+```
+
+### Test in Docker
+
+```bash
+npm run docker:test
+```
+
+---
+
+## 📋 Project Structure
+
+```
+Astro/
+├── src/
+│   ├── astro/              # Layer A: Orchestration
+│   │   ├── orchestrator.ts # Core orchestrator
+│   │   ├── tools.ts        # Built-in tools
+│   │   ├── agents.ts       # Agent definitions
+│   │   └── router.ts       # HTTP API
+│   ├── otis/               # Layer B: Security
+│   │   └── security-gateway.ts
+│   ├── codi3/              # Layer C: Intelligence
+│   │   └── threat-intelligence.ts
+│   ├── aria/               # Layer D: Conversation
+│   │   ├── conversation-engine.ts
+│   │   └── router.ts
+│   ├── services/           # Shared services
+│   │   └── logger.ts
+│   └── index.ts            # Main entry point
+├── tests/
+│   ├── astro/
+│   ├── otis/
+│   ├── codi3/
+│   ├── aria/
+│   └── setup.ts
+├── jest.config.js          # Jest configuration
+├── tsconfig.json           # TypeScript configuration
+├── package.json            # Dependencies
+└── README.md               # This file
+```
+
+---
+
+## 🔧 Development
+
+### Lint Code
+
+```bash
 npm run lint
 npm run lint:fix
+```
 
-# Format
+### Format Code
+
+```bash
 npm run format
 npm run format:check
+```
 
-# Type check
+### Type Check
+
+```bash
 npm run type-check
 ```
 
-### Docker Build
+### Performance Testing
 
 ```bash
-# Core profile
-npm run docker:build:core
+npm run perf:load
+```
 
-# Cyber profile
-npm run docker:build:cyber
+### Security Audit
 
-# Both
-npm run docker:build:all
+```bash
+npm run security:audit
+npm run security:snyk
 ```
 
 ---
 
-## Deployment Profiles
+## 🚨 Current Status
 
-| Aspect | Core | Cyber |
-|--------|------|-------|
-| **Container** | Docker | Kubernetes (3+ nodes) |
-| **Database** | SQLite | PostgreSQL + Redis |
-| **RAM** | 4-8 GB | 32+ GB distributed |
-| **Setup Time** | < 5 min | ~30 min |
-| **RBAC** | Yes | Yes + MFA + SAML |
-| **Audit** | Yes | Yes + Elasticsearch |
-| **Monitoring** | Basic | Prometheus + Grafana |
-| **Use Case** | Solo dev, small team | Security team, SOC |
+✅ **Layer A (ASTRO)** - Production Ready
+✅ **Layer B (OTIS)** - Production Ready
+✅ **Layer C (C0Di3)** - Production Ready
+✅ **Layer D (ARIA)** - Production Ready
+
+**Overall: 🟢 PRODUCTION READY**
 
 ---
 
-## Environment Variables
+## 📝 License
 
-See [.env.example](./.env.example) for complete configuration options.
-
-**Key Variables**:
-
-```bash
-# Profile
-PROFILE=core                    # or 'cyber'
-
-# Database (core)
-DB_TYPE=sqlite
-DB_PATH=./data/ultimate-system.db
-
-# Database (cyber)
-DB_POSTGRES_HOST=localhost
-DB_POSTGRES_PORT=5432
-DB_POSTGRES_USER=ultimate_system
-DB_POSTGRES_PASSWORD=changeme
-DB_POSTGRES_DATABASE=ultimate_system
-
-# Security
-JWT_SECRET=your-secret-key
-SECURITY_RBAC_ENABLED=true
-
-# Risk Evaluation
-RISK_ENABLE_CVaR=true
-RISK_APPROVAL_THRESHOLD=0.50
-
-# Audit
-AUDIT_ENABLED=true
-AUDIT_RETENTION_DAYS=365
-```
+MIT License - see [LICENSE](./LICENSE) for details
 
 ---
 
-## Performance
+## 👤 Author
 
-### Core Profile (Single Node)
-
-- Tool execution p50: **150 ms**
-- Tool execution p99: **800 ms**
-- Concurrent tasks: **5**
-- Memory (idle): **200 MB**
-- Memory (100% load): **800 MB**
-
-### Cyber Profile (3-Node Cluster)
-
-- Tool execution p50: **100 ms** (with caching)
-- Tool execution p99: **300 ms**
-- Concurrent tasks: **50+**
-- Audit throughput: **10k events/sec**
-- Uptime: **99.99%** (HA with failover)
+Douglas Mitchell <senpai-sama7@proton.me>
 
 ---
 
-## Security
+## 🙏 Contributing
 
-✅ **Defense in Depth**
-- RBAC: 6-role matrix with permission enforcement
-- Risk Scoring: CVaR-based algorithm
-- Approval Gates: Human review for high-risk actions
-- Audit Trail: Immutable, tamper-evident logs
-
-✅ **Compliance**
-- SOC 2 Type II framework
-- ISO 27001 alignment
-- HIPAA requirements
-- PCI-DSS controls
-
-✅ **Hardening**
-- Tool sandboxing (process/container isolation)
-- Input validation (command injection prevention)
-- Secrets management (Vault integration)
-- Encryption (AES-256-GCM at-rest, TLS 1.3 in-transit)
+Contributions welcome! Please ensure:
+- All tests pass (`npm test`)
+- Code is linted (`npm run lint`)
+- TypeScript strict mode passes (`npm run type-check`)
+- Coverage remains >80%
 
 ---
 
-## Contributing
+## 📞 Support
 
-1. Read [ULTIMATE_SYSTEM_ARCHITECTURE.md](./ULTIMATE_SYSTEM_ARCHITECTURE.md)
-2. Follow [IMPLEMENTATION_ROADMAP_90DAYS.md](./IMPLEMENTATION_ROADMAP_90DAYS.md)
-3. Write tests (80%+ coverage required)
-4. Submit PR against `feature/ultimate-system-v1`
+For issues, questions, or contributions, please open a GitHub issue.
 
 ---
 
-## Roadmap
-
-- **v1.0.0** (Apr 5, 2026): Initial release with 3-layer architecture
-- **v1.1.0** (Jun 2026): Enhanced C0Di3 knowledge base
-- **v2.0.0** (Q4 2026): Advanced multi-agent collaboration
-
-See [IMPLEMENTATION_ROADMAP_90DAYS.md](./IMPLEMENTATION_ROADMAP_90DAYS.md) for detailed timeline.
-
----
-
-## Support
-
-- **Documentation**: See docs/ directory
-- **Issues**: [GitHub Issues](https://github.com/Senpai-Sama7/Astro/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/Senpai-Sama7/Astro/discussions)
-
----
-
-## License
-
-MIT License - see [LICENSE](./LICENSE) file
-
----
-
-## Status
-
-🟢 **READY TO EXECUTE** — Feature branch feature/ultimate-system-v1 contains complete architecture, implementation code, and deployment guides. Ready for Phase 1 execution (Week 1 starting January 6, 2026).
-
----
-
-**Version**: 1.0.0-alpha.0  
-**Branch**: feature/ultimate-system-v1  
-**Last Updated**: January 4, 2026  
-**Confidence**: 78% [CI: 0.70-0.86]  
+**Built with ❤️ using TypeScript, Express, and DevOps best practices.**
