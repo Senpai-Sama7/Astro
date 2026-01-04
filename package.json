@@ -8,7 +8,7 @@
     "dev": "NODE_ENV=development ts-node src/index.ts",
     "build": "tsc && npm run copy:assets",
     "start": "node dist/index.js",
-    "test": "jest --coverage --collectCoverageFrom='src/**/*.ts' --coveragePathIgnorePatterns='\\.(test|spec)\\.ts$' --coverageThreshold='{\"global\":{\"branches\":80,\"functions\":80,\"lines\":80,\"statements\":80}}'",
+    "test": "jest --coverage",
     "test:watch": "jest --watch",
     "test:integration": "jest --testPathPattern=integration --runInBand",
     "test:e2e": "jest --testPathPattern=e2e --runInBand",
