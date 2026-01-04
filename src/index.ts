@@ -5,6 +5,8 @@ import helmet from 'helmet';
 import cors from 'cors';
 import { createServer } from 'http';
 import { logger } from './services/logger';
+import { AstroOrchestrator } from './astro/orchestrator';
+import { createAstroRouter } from './astro/router';
 
 // Load environment variables
 dotenv.config();
@@ -14,11 +16,29 @@ const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const PROFILE = process.env.PROFILE || 'core';
 
+// Create ASTRO orchestrator (Layer A)
+const orchestrator = new AstroOrchestrator();
+
 // Middleware
 app.use(helmet());
 app.use(cors({ origin: process.env.SECURITY_CORS_ORIGIN }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Logging middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger.info('HTTP Request', {
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      duration,
+    });
+  });
+  next();
+});
 
 // Health check endpoint
 app.get('/api/v1/health', (req, res) => {
@@ -34,11 +54,20 @@ app.get('/api/v1/health', (req, res) => {
 // Version endpoint
 app.get('/api/v1/version', (req, res) => {
   res.json({
-    version: '1.0.0-alpha.0',
+    version: '1.0.0-alpha.1',
     name: 'Ultimate System',
     profile: PROFILE,
+    layers: {
+      a: 'ASTRO (Orchestration) - IMPLEMENTED',
+      b: 'OTIS (Security) - IN PROGRESS',
+      c: 'C0Di3 (Cyber Intelligence) - PLANNED',
+    },
   });
 });
+
+// Mount ASTRO Layer A router
+const astroRouter = createAstroRouter(orchestrator);
+app.use('/api/v1/astro', astroRouter);
 
 // 404 handler
 app.use((req, res) => {
@@ -69,6 +98,7 @@ server.listen(PORT, () => {
     port: PORT,
     environment: NODE_ENV,
     profile: PROFILE,
+    layers: ['ASTRO (Layer A)', 'OTIS (Layer B - pending)', 'C0Di3 (Layer C - pending)'],
     timestamp: new Date().toISOString(),
   });
 });
@@ -90,4 +120,4 @@ process.on('SIGINT', () => {
   });
 });
 
-export { app, server };
+export { app, server, orchestrator };
