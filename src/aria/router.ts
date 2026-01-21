@@ -1,11 +1,9 @@
 import { Router, Request, Response } from 'express';
 import { ARIAConversationEngine } from './conversation-engine';
-import { RoleType } from '../otis/security-gateway';
+import { authenticateRequest } from '../middleware/auth';
 
 export interface ConversationRequest {
   sessionId?: string;
-  userId: string;
-  userRole: RoleType;
   message: string;
 }
 
@@ -24,6 +22,7 @@ export function createConversationRouter(
   conversationEngine: ARIAConversationEngine
 ): Router {
   const router = Router();
+  router.use(authenticateRequest);
 
   /**
    * POST /api/v1/aria/chat
@@ -31,11 +30,12 @@ export function createConversationRouter(
    */
   router.post('/chat', async (req: Request, res: Response) => {
     try {
-      const { sessionId: incomingSessionId, userId, userRole, message } = req.body as ConversationRequest;
+      const { sessionId: incomingSessionId, message } = req.body as ConversationRequest;
+      const user = req.user;
 
-      if (!userId || !userRole || !message) {
+      if (!user || !message) {
         return res.status(400).json({
-          error: 'Missing required fields: userId, userRole, message',
+          error: 'Missing required fields: message',
         });
       }
 
@@ -43,7 +43,7 @@ export function createConversationRouter(
 
       // Create new session if not provided
       if (!sessionId) {
-        const context = conversationEngine.startConversation(userId, userRole);
+        const context = conversationEngine.startConversation(user.userId, user.role);
         sessionId = context.sessionId;
       }
 
@@ -51,7 +51,7 @@ export function createConversationRouter(
       const chatResult = await conversationEngine.chat(sessionId, message);
 
       // Get conversation history
-      const history = conversationEngine.getConversationHistory(sessionId);
+      const history = await conversationEngine.getConversationHistory(sessionId);
 
       const response: ConversationResponse = {
         sessionId,
@@ -78,11 +78,11 @@ export function createConversationRouter(
    * GET /api/v1/aria/sessions/:sessionId
    * Get conversation history for a session.
    */
-  router.get('/sessions/:sessionId', (req: Request, res: Response) => {
+  router.get('/sessions/:sessionId', async (req: Request, res: Response) => {
     try {
       const { sessionId } = req.params;
 
-      const history = conversationEngine.getConversationHistory(sessionId);
+      const history = await conversationEngine.getConversationHistory(sessionId);
 
       if (history.length === 0) {
         return res.status(404).json({
@@ -114,15 +114,15 @@ export function createConversationRouter(
    */
   router.post('/sessions', (req: Request, res: Response) => {
     try {
-      const { userId, userRole } = req.body;
+      const user = req.user;
 
-      if (!userId || !userRole) {
+      if (!user) {
         return res.status(400).json({
-          error: 'Missing required fields: userId, userRole',
+          error: 'Missing required fields: user',
         });
       }
 
-      const context = conversationEngine.startConversation(userId, userRole);
+      const context = conversationEngine.startConversation(user.userId, user.role);
 
       res.json({
         sessionId: context.sessionId,
