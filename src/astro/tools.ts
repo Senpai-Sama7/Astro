@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import { ToolInput, ToolResult, ToolContext } from '../orchestrator';
+import { ToolInput, ToolResult, ToolContext } from './orchestrator';
 
 /**
  * Echo tool - returns input as-is (useful for testing and debugging)

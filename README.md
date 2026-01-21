@@ -94,12 +94,19 @@ npm start
 ### Main Endpoint: `POST /api/v1/aria/chat`
 
 ```bash
-# Example: Simple calculation
-curl -X POST http://localhost:5000/api/v1/aria/chat \
+# (Development) Issue a dev token
+curl -X POST http://localhost:5000/api/v1/auth/dev-token \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "you",
-    "userRole": "analyst",
+    "role": "analyst"
+  }'
+
+# Example: Simple calculation
+curl -X POST http://localhost:5000/api/v1/aria/chat \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <YOUR_TOKEN>" \
+  -d '{
     "message": "calculate 5 + 3"
   }'
 
@@ -164,6 +171,10 @@ GET /api/v1/astro/tools
 ---
 
 ## 🛡️ Security Model
+
+### Authentication
+
+All `/api/v1/aria` and `/api/v1/astro` endpoints require a JWT bearer token. In development, use `POST /api/v1/auth/dev-token` to obtain a token. In production, set `JWT_SECRET` and issue tokens from your identity provider.
 
 ### RBAC Roles
 

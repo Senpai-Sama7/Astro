@@ -2,6 +2,7 @@ import { EventEmitter } from 'events';
 import { AstroOrchestrator } from '../astro/orchestrator';
 import { OTISSecurityGateway, RoleType } from '../otis/security-gateway';
 import { C0Di3CyberIntelligence } from '../codi3/threat-intelligence';
+import { SQLiteStorage } from '../services/storage';
 
 export interface ConversationContext {
   userId: string;
@@ -20,6 +21,8 @@ export interface ConversationTurn {
   intent?: string; // Parsed intent (execute_tool, query_status, get_help, etc)
   toolName?: string;
   agentId?: string;
+  parameters?: Record<string, unknown>;
+  sessionId?: string;
   result?: unknown;
   error?: string;
   riskScore?: number;
@@ -46,16 +49,19 @@ export class ARIAConversationEngine extends EventEmitter {
   private threatIntelligence: C0Di3CyberIntelligence;
   private contexts: Map<string, ConversationContext> = new Map();
   private pendingApprovals: Map<string, ConversationTurn> = new Map();
+  private storage?: SQLiteStorage;
 
   constructor(
     orchestrator: AstroOrchestrator,
     security: OTISSecurityGateway,
-    intelligence: C0Di3CyberIntelligence
+    intelligence: C0Di3CyberIntelligence,
+    storage?: SQLiteStorage
   ) {
     super();
     this.orchestrator = orchestrator;
     this.securityGateway = security;
     this.threatIntelligence = intelligence;
+    this.storage = storage;
   }
 
   /**
@@ -69,10 +75,11 @@ export class ARIAConversationEngine extends EventEmitter {
       userRole,
       conversationHistory: [],
       agentAssignments: new Map(),
-      metadata: {},
+      metadata: { profile: (process.env.PROFILE as 'core' | 'cyber') || 'core' },
     };
 
     this.contexts.set(sessionId, context);
+    void this.persistSession(context);
 
     return context;
   }
@@ -90,7 +97,7 @@ export class ARIAConversationEngine extends EventEmitter {
     requiresApproval?: boolean;
     approvalId?: string;
   }> {
-    const context = this.contexts.get(sessionId);
+    const context = await this.getContext(sessionId);
     if (!context) {
       throw new Error(`Session '${sessionId}' not found`);
     }
@@ -116,6 +123,7 @@ export class ARIAConversationEngine extends EventEmitter {
       let toolExecuted = false;
       let requiresApproval = false;
       let approvalId: string | undefined;
+      let riskScore: number | undefined;
 
       switch (parsedIntent.intent) {
         case 'execute':
@@ -125,11 +133,13 @@ export class ARIAConversationEngine extends EventEmitter {
             toolExecuted,
             requiresApproval,
             approvalId,
+            riskScore,
           } = await this.handleExecuteIntent(
             context,
             parsedIntent,
             userMessage
           ));
+          userTurn.riskScore = riskScore;
           break;
 
         case 'query':
@@ -176,6 +186,7 @@ export class ARIAConversationEngine extends EventEmitter {
         result,
       };
       context.conversationHistory.push(systemTurn);
+      void this.persistSession(context);
 
       // Log to security gateway
       this.securityGateway.logAction({
@@ -208,6 +219,7 @@ export class ARIAConversationEngine extends EventEmitter {
         error: errorMessage,
       };
       context.conversationHistory.push(systemTurn);
+      void this.persistSession(context);
 
       return {
         response: `Sorry, I encountered an error: ${errorMessage}`,
@@ -357,12 +369,14 @@ export class ARIAConversationEngine extends EventEmitter {
     toolExecuted: boolean;
     requiresApproval: boolean;
     approvalId?: string;
+    riskScore?: number;
   }> {
     if (!parsedIntent.toolName) {
       return {
         response: `I found a tool mention but couldn't parse the parameters. Can you be more specific?`,
         toolExecuted: false,
         requiresApproval: false,
+        riskScore: undefined,
       };
     }
 
@@ -373,6 +387,7 @@ export class ARIAConversationEngine extends EventEmitter {
         response: `No agent available to execute tool '${parsedIntent.toolName}'. Your role might not have permission.`,
         toolExecuted: false,
         requiresApproval: false,
+        riskScore: undefined,
       };
     }
 
@@ -382,6 +397,7 @@ export class ARIAConversationEngine extends EventEmitter {
         response: `Your role '${context.userRole}' does not have permission to execute tools.`,
         toolExecuted: false,
         requiresApproval: false,
+        riskScore: undefined,
       };
     }
 
@@ -404,27 +420,42 @@ export class ARIAConversationEngine extends EventEmitter {
         content: userMessage,
         toolName: parsedIntent.toolName,
         agentId,
+        parameters: parsedIntent.parameters || {},
+        sessionId: context.sessionId,
         riskScore,
         requiresApproval: true,
       };
       this.pendingApprovals.set(approvalId, turn);
+      if (this.storage) {
+        await this.storage.saveApproval({
+          approvalId,
+          sessionId: context.sessionId,
+          toolName: parsedIntent.toolName,
+          agentId,
+          parameters: parsedIntent.parameters || {},
+          riskScore,
+          createdAt: new Date().toISOString(),
+        });
+      }
 
       return {
         response: `⚠️ This action has a risk score of ${(riskScore * 100).toFixed(1)}% and requires approval. Do you want to proceed? (yes/no)`,
         toolExecuted: false,
         requiresApproval: true,
         approvalId,
+        riskScore,
       };
     }
 
     // Execute tool
     try {
-      const result = await this.orchestrator.orchestrate({
+      const result = await this.orchestrator.orchestrateToolCall({
         agentId,
         toolName: parsedIntent.toolName,
         input: parsedIntent.parameters || {},
         userId: context.userId,
-        sessionId: context.sessionId,
+        profile: (context.metadata.profile as 'core' | 'cyber') || 'core',
+        metadata: { sessionId: context.sessionId },
       });
 
       const response = this.generateExecutionResponse(parsedIntent.toolName, result);
@@ -433,6 +464,7 @@ export class ARIAConversationEngine extends EventEmitter {
         result,
         toolExecuted: true,
         requiresApproval: false,
+        riskScore,
       };
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : String(error);
@@ -440,6 +472,7 @@ export class ARIAConversationEngine extends EventEmitter {
         response: `Failed to execute tool: ${errorMsg}`,
         toolExecuted: false,
         requiresApproval: false,
+        riskScore,
       };
     }
   }
@@ -460,7 +493,7 @@ export class ARIAConversationEngine extends EventEmitter {
         agents
           .map(
             (a) =>
-              `- ${a.id}: ${a.description} (tools: ${a.toolIds.join(', ')})`
+              `- ${a.id}: ${a.description} (tools: ${a.tools.join(', ')})`
           )
           .join('\n')
       );
@@ -579,6 +612,10 @@ Pending Approvals: ${this.pendingApprovals.size}
     toolExecuted: boolean;
   }> {
     if (this.pendingApprovals.size === 0) {
+      await this.loadPendingApprovals();
+    }
+
+    if (this.pendingApprovals.size === 0) {
       return {
         response: `No pending approvals to ${approved ? 'approve' : 'deny'}.`,
         toolExecuted: false,
@@ -586,10 +623,22 @@ Pending Approvals: ${this.pendingApprovals.size}
     }
 
     // Get the most recent pending approval
-    const [approvalId, turn] = Array.from(this.pendingApprovals.entries())[0];
+    const matchingApproval = Array.from(this.pendingApprovals.entries()).find(
+      ([, turn]) => turn.sessionId === context.sessionId
+    );
+    const [approvalId, turn] = matchingApproval ?? this.pendingApprovals.entries().next().value;
+    if (!approvalId || !turn) {
+      return {
+        response: `No pending approvals to ${approved ? 'approve' : 'deny'}.`,
+        toolExecuted: false,
+      };
+    }
 
     if (!approved) {
       this.pendingApprovals.delete(approvalId);
+      if (this.storage) {
+        await this.storage.deleteApproval(approvalId);
+      }
       return {
         response: `Action denied: Tool execution cancelled.`,
         toolExecuted: false,
@@ -605,15 +654,19 @@ Pending Approvals: ${this.pendingApprovals.size}
     }
 
     try {
-      const result = await this.orchestrator.orchestrate({
+      const result = await this.orchestrator.orchestrateToolCall({
         agentId: turn.agentId,
         toolName: turn.toolName,
-        input: {},
+        input: turn.parameters || {},
         userId: context.userId,
-        sessionId: context.sessionId,
+        profile: (context.metadata.profile as 'core' | 'cyber') || 'core',
+        metadata: { sessionId: context.sessionId },
       });
 
       this.pendingApprovals.delete(approvalId);
+      if (this.storage) {
+        await this.storage.deleteApproval(approvalId);
+      }
 
       const response = this.generateExecutionResponse(turn.toolName, result);
       return {
@@ -636,7 +689,7 @@ Pending Approvals: ${this.pendingApprovals.size}
   private findBestAgent(context: ConversationContext, toolName: string): string | undefined {
     const agents = this.orchestrator.listAgents();
     for (const agent of agents) {
-      if (agent.toolIds.includes(toolName)) {
+      if (agent.tools.includes(toolName)) {
         return agent.id;
       }
     }
@@ -647,32 +700,34 @@ Pending Approvals: ${this.pendingApprovals.size}
    * Generate natural language response for tool execution.
    */
   private generateExecutionResponse(toolName: string, result: unknown): string {
+    const toolResult = (result as { result?: unknown })?.result ?? result;
+
     if (toolName === 'math_eval') {
-      const mathResult = result as any;
+      const mathResult = toolResult as any;
       if (mathResult?.ok) {
         return `✅ Calculation result: **${mathResult.data?.result}**`;
       }
     }
 
     if (toolName === 'echo') {
-      return `🔊 Echo: ${JSON.stringify(result)}`;
+      return `🔊 Echo: ${JSON.stringify(toolResult)}`;
     }
 
     if (toolName === 'http_request') {
-      const httpResult = result as any;
+      const httpResult = toolResult as any;
       if (httpResult?.ok) {
         return `✅ HTTP request successful. Response: ${JSON.stringify(httpResult.data).substring(0, 200)}...`;
       }
     }
 
-    return `✅ Tool executed successfully: ${JSON.stringify(result)}`;
+    return `✅ Tool executed successfully: ${JSON.stringify(toolResult)}`;
   }
 
   /**
    * Get conversation history.
    */
-  getConversationHistory(sessionId: string): ConversationTurn[] {
-    const context = this.contexts.get(sessionId);
+  async getConversationHistory(sessionId: string): Promise<ConversationTurn[]> {
+    const context = await this.getContext(sessionId);
     return context?.conversationHistory || [];
   }
 
@@ -681,6 +736,9 @@ Pending Approvals: ${this.pendingApprovals.size}
    */
   endConversation(sessionId: string): void {
     this.contexts.delete(sessionId);
+    if (this.storage) {
+      void this.storage.deleteSession(sessionId);
+    }
   }
 
   private generateSessionId(): string {
@@ -689,5 +747,77 @@ Pending Approvals: ${this.pendingApprovals.size}
 
   private generateApprovalId(): string {
     return `approval_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  }
+
+  private async getContext(sessionId: string): Promise<ConversationContext | undefined> {
+    const existing = this.contexts.get(sessionId);
+    if (existing) {
+      return existing;
+    }
+
+    if (!this.storage) {
+      return undefined;
+    }
+
+    const stored = await this.storage.getSession(sessionId);
+    if (!stored) {
+      return undefined;
+    }
+
+    const context: ConversationContext = {
+      userId: stored.userId,
+      sessionId: stored.sessionId,
+      userRole: stored.userRole as RoleType,
+      conversationHistory: stored.conversationHistory.map((turn) => ({
+        ...turn,
+        timestamp: new Date(turn.timestamp),
+      })),
+      agentAssignments: new Map(),
+      activeAgent: stored.activeAgent,
+      metadata: stored.metadata,
+    };
+
+    this.contexts.set(sessionId, context);
+    return context;
+  }
+
+  private async persistSession(context: ConversationContext): Promise<void> {
+    if (!this.storage) {
+      return;
+    }
+    await this.storage.saveSession({
+      sessionId: context.sessionId,
+      userId: context.userId,
+      userRole: context.userRole,
+      conversationHistory: context.conversationHistory.map((turn) => ({
+        ...turn,
+        timestamp: turn.timestamp.toISOString(),
+      })),
+      activeAgent: context.activeAgent,
+      metadata: context.metadata,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  private async loadPendingApprovals(): Promise<void> {
+    if (!this.storage) {
+      return;
+    }
+    const approvals = await this.storage.getApprovals();
+    for (const approval of approvals) {
+      if (!this.pendingApprovals.has(approval.approvalId)) {
+        this.pendingApprovals.set(approval.approvalId, {
+          timestamp: new Date(approval.createdAt),
+          role: 'user',
+          content: 'Pending approval',
+          toolName: approval.toolName,
+          agentId: approval.agentId,
+          parameters: approval.parameters,
+          sessionId: approval.sessionId,
+          riskScore: approval.riskScore,
+          requiresApproval: true,
+        });
+      }
+    }
   }
 }

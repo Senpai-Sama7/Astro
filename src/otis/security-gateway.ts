@@ -1,5 +1,6 @@
 import { randomBytes, createHmac } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
+import { SQLiteStorage } from '../services/storage';
 
 export type RoleType = 'admin' | 'analyst' | 'red-team' | 'blue-team' | 'read-only' | 'guest';
 
@@ -105,10 +106,39 @@ export class OTISSecurityGateway {
   private auditLog: AuditLogEntry[] = [];
   private signingKey: string; // Secret key for audit log signatures
   private riskThreshold: number = 0.5; // CVaR threshold (default 50%)
+  private storage?: SQLiteStorage;
 
-  constructor() {
-    // Generate a signing key for audit log integrity
+  constructor(storage?: SQLiteStorage) {
+    this.storage = storage;
     this.signingKey = randomBytes(32).toString('hex');
+  }
+
+  async init(): Promise<void> {
+    if (!this.storage) {
+      return;
+    }
+
+    const storedKey = await this.storage.getSetting('otis.signingKey');
+    if (storedKey) {
+      this.signingKey = storedKey;
+    } else {
+      this.signingKey = randomBytes(32).toString('hex');
+      await this.storage.setSetting('otis.signingKey', this.signingKey);
+    }
+
+    const storedLogs = await this.storage.getAuditLogs();
+    this.auditLog = storedLogs.map((entry) => ({
+      id: entry.id,
+      timestamp: new Date(entry.timestamp),
+      userId: entry.userId,
+      role: entry.role as RoleType,
+      action: entry.action,
+      resource: entry.resource,
+      decision: entry.decision as AuditLogEntry['decision'],
+      riskScore: entry.riskScore,
+      metadata: entry.metadata,
+      signature: entry.signature,
+    }));
   }
 
   /**
@@ -193,6 +223,20 @@ export class OTISSecurityGateway {
 
     // Append-only: never modify or delete previous entries
     this.auditLog.push(logEntry);
+    if (this.storage) {
+      void this.storage.appendAuditLog({
+        id: logEntry.id,
+        timestamp: logEntry.timestamp.toISOString(),
+        userId: logEntry.userId,
+        role: logEntry.role,
+        action: logEntry.action,
+        resource: logEntry.resource,
+        decision: logEntry.decision,
+        riskScore: logEntry.riskScore,
+        metadata: logEntry.metadata,
+        signature: logEntry.signature,
+      });
+    }
     return logEntry;
   }
 
@@ -244,7 +288,6 @@ export class OTISSecurityGateway {
     invalidEntries: string[];
   } {
     const invalidEntries: string[] = [];
-
     for (const entry of this.auditLog) {
       const entryString = JSON.stringify({
         id: entry.id,

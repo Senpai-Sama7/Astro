@@ -3,9 +3,11 @@ import { AstroOrchestrator, ToolInput } from './orchestrator';
 import { echoTool, httpRequestTool, mathEvalTool } from './tools';
 import { AGENTS } from './agents';
 import { logger } from '../services/logger';
+import { authenticateRequest } from '../middleware/auth';
 
 export function createAstroRouter(orchestrator: AstroOrchestrator): Router {
   const router = express.Router();
+  router.use(authenticateRequest);
 
   // Register built-in tools at router creation time
   orchestrator.registerTool({

@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import { SQLiteStorage } from '../services/storage';
 
 export type ThreatLevel = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
 
@@ -51,6 +52,44 @@ export class C0Di3CyberIntelligence {
   private threats: Map<string, Threat> = new Map();
   private incidents: Map<string, ThreatIncident> = new Map();
   private knowledgeBase: Map<string, C0Di3KnowledgeEntry> = new Map();
+  private storage?: SQLiteStorage;
+
+  constructor(storage?: SQLiteStorage) {
+    this.storage = storage;
+  }
+
+  async init(): Promise<void> {
+    if (!this.storage) {
+      return;
+    }
+
+    const threats = await this.storage.loadThreats<Threat>();
+    threats.forEach((threat) => {
+      this.threats.set(threat.id, {
+        ...threat,
+        detectedAt: new Date(threat.detectedAt),
+        updatedAt: new Date(threat.updatedAt),
+      });
+    });
+
+    const incidents = await this.storage.loadIncidents<ThreatIncident>();
+    incidents.forEach((incident) => {
+      this.incidents.set(incident.id, {
+        ...incident,
+        createdAt: new Date(incident.createdAt),
+        updatedAt: new Date(incident.updatedAt),
+        timeline: incident.timeline.map((entry) => ({
+          ...entry,
+          timestamp: new Date(entry.timestamp),
+        })),
+      });
+    });
+
+    const knowledgeEntries = await this.storage.loadKnowledgeEntries<C0Di3KnowledgeEntry>();
+    knowledgeEntries.forEach((entry) => {
+      this.knowledgeBase.set(entry.id, entry);
+    });
+  }
 
   /**
    * Register a new threat in the knowledge base.
@@ -71,6 +110,9 @@ export class C0Di3CyberIntelligence {
     };
 
     this.threats.set(id, registered);
+    if (this.storage) {
+      void this.storage.saveThreat(id, registered);
+    }
     return registered;
   }
 
@@ -102,6 +144,9 @@ export class C0Di3CyberIntelligence {
     };
 
     this.incidents.set(id, incident);
+    if (this.storage) {
+      void this.storage.saveIncident(id, incident);
+    }
     return incident;
   }
 
@@ -119,6 +164,9 @@ export class C0Di3CyberIntelligence {
       event,
     });
     incident.updatedAt = new Date();
+    if (this.storage) {
+      void this.storage.saveIncident(incidentId, incident);
+    }
   }
 
   /**
@@ -136,6 +184,9 @@ export class C0Di3CyberIntelligence {
     incident.status = status;
     incident.updatedAt = new Date();
     this.addIncidentEvent(incidentId, `Status changed to ${status}`);
+    if (this.storage) {
+      void this.storage.saveIncident(incidentId, incident);
+    }
   }
 
   /**
@@ -152,6 +203,9 @@ export class C0Di3CyberIntelligence {
     const registered: C0Di3KnowledgeEntry = { ...entry, id };
 
     this.knowledgeBase.set(id, registered);
+    if (this.storage) {
+      void this.storage.saveKnowledgeEntry(id, registered);
+    }
     return registered;
   }
 
