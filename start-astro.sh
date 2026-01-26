@@ -46,8 +46,10 @@ if [ ! -d "dist" ]; then
 fi
 
 # Install Python dependencies
-if command -v python3 &> /dev/null; then
-    pip3 install -q textual rich httpx 2>/dev/null
+if command -v pip3 &> /dev/null; then
+    if ! pip3 install -q textual rich httpx 2>/dev/null; then
+        echo "Warning: Failed to install Python dependencies; TUI may not work."
+    fi
 fi
 
 echo ""

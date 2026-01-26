@@ -26,10 +26,7 @@ from rich.syntax import Syntax
 from rich.panel import Panel
 from rich.text import Text
 
-# Add parent to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
-
-from src.cli.agent import AstroAgent
+from src.client.agent import AstroAgent
 
 
 CSS = """
@@ -415,13 +412,14 @@ class AstroTUI(App):
         Binding("escape", "cancel", "Cancel", show=False),
     ]
     
-    def __init__(self):
+    def __init__(self, api_url: str = "http://localhost:5000"):
         super().__init__()
-        self.agent = AstroAgent()
+        self.agent = AstroAgent(api_url=api_url)
         self.history: List[Dict[str, str]] = []
         self.is_processing = False
         self.sidebar_visible = False
         self.first_launch = True
+        self._message_task: Optional[asyncio.Task] = None
         
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -443,7 +441,7 @@ class AstroTUI(App):
             
             # Main chat area
             with Container(id="main-area"):
-                with Container(id="chat-container", border_title="Chat"):
+                with Container(id="chat-container"):
                     with ScrollableContainer(id="messages"):
                         yield Static(
                             "👋 Hi! I'm ASTRO, your AI assistant.\n\n"
@@ -498,8 +496,12 @@ class AstroTUI(App):
     
     def action_cancel(self) -> None:
         """Cancel current operation"""
-        if self.is_processing:
-            self.notify("Cancelling...", severity="warning")
+        if self.is_processing and self._message_task:
+            self._message_task.cancel()
+            self.notify("Cancelling operation...", severity="warning")
+            self.show_thinking(False)
+            self.is_processing = False
+            self.query_one("#user-input", Input).focus()
     
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handle button presses"""
@@ -606,9 +608,9 @@ class AstroTUI(App):
             input_widget.focus()
 
 
-def main():
+def main(api_url: str = "http://localhost:5000"):
     """Entry point for the TUI"""
-    app = AstroTUI()
+    app = AstroTUI(api_url=api_url)
     app.run()
 
 
