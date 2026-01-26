@@ -139,7 +139,7 @@ class KnowledgeBase:
 
     def add_axiom(self, statement: str) -> str:
         """Add a fundamental axiom"""
-        premise_id = hashlib.md5(statement.encode()).hexdigest()[:12]
+        premise_id = hashlib.md5(statement.encode(), usedforsecurity=False).hexdigest()[:12]
         premise = Premise(
             premise_id=premise_id,
             statement=statement,
@@ -153,7 +153,7 @@ class KnowledgeBase:
     def add_premise(self, statement: str, confidence: float = 1.0,
                     source: str = "derived", dependencies: List[str] = None) -> str:
         """Add a premise to the knowledge base"""
-        premise_id = hashlib.md5(f"{statement}{datetime.now().isoformat()}".encode()).hexdigest()[:12]
+        premise_id = hashlib.md5(f"{statement}{datetime.now().isoformat()}".encode(), usedforsecurity=False).hexdigest()[:12]
         premise = Premise(
             premise_id=premise_id,
             statement=statement,
@@ -602,7 +602,7 @@ class AbsoluteZeroReasoner:
         # Record conclusion
         if confidence > 0.5:
             conclusion = Conclusion(
-                conclusion_id=hashlib.md5(f"{question}{answer}".encode()).hexdigest()[:12],
+                conclusion_id=hashlib.md5(f"{question}{answer}".encode(), usedforsecurity=False).hexdigest()[:12],
                 statement=answer,
                 confidence=confidence,
                 supporting_premises=[],

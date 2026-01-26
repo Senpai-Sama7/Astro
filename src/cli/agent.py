@@ -193,9 +193,12 @@ class AstroCLI:
     def _execute_command(self, command: str) -> Dict[str, Any]:
         """Execute a shell command and capture output."""
         try:
+            # Use shlex to safely parse command for shell=False
+            import shlex
+            args = shlex.split(command)
             result = subprocess.run(
-                command,
-                shell=True,
+                args,
+                shell=False,
                 cwd=self.cwd,
                 capture_output=True,
                 text=True,

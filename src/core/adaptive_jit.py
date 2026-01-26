@@ -294,7 +294,8 @@ class MemoizationStrategy(OptimizationStrategy):
         def memoized(*args, **kwargs):
             # Create cache key
             key = hashlib.md5(
-                f"{func.__name__}{args}{sorted(kwargs.items())}".encode()
+                f"{func.__name__}{args}{sorted(kwargs.items())}".encode(),
+                usedforsecurity=False
             ).hexdigest()
 
             result = cache.get(key)
@@ -325,7 +326,8 @@ class AsyncMemoizationStrategy(OptimizationStrategy):
         @functools.wraps(func)
         async def memoized(*args, **kwargs):
             key = hashlib.md5(
-                f"{func.__name__}{args}{sorted(kwargs.items())}".encode()
+                f"{func.__name__}{args}{sorted(kwargs.items())}".encode(),
+                usedforsecurity=False
             ).hexdigest()
 
             result = cache.get(key)
@@ -526,8 +528,9 @@ class AdaptiveJIT:
                 @functools.wraps(fn)
                 async def memoized(*args, **kwargs):
                     key = hashlib.md5(
-                        f"{fn.__name__}{args}{sorted(kwargs.items())}".encode()
-                    ).hexdigest()
+                        f"{fn.__name__}{args}{sorted(kwargs.items())}".encode(),
+                usedforsecurity=False
+            ).hexdigest()
 
                     result = cache.get(key)
                     if result is not None:
@@ -542,8 +545,9 @@ class AdaptiveJIT:
                 @functools.wraps(fn)
                 def memoized(*args, **kwargs):
                     key = hashlib.md5(
-                        f"{fn.__name__}{args}{sorted(kwargs.items())}".encode()
-                    ).hexdigest()
+                        f"{fn.__name__}{args}{sorted(kwargs.items())}".encode(),
+                usedforsecurity=False
+            ).hexdigest()
 
                     result = cache.get(key)
                     if result is not None:

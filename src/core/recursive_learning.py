@@ -201,7 +201,8 @@ class PatternExtractor:
             # Create context signature
             context_keys = sorted(exp.context.keys())
             signature = hashlib.md5(
-                json.dumps(context_keys, sort_keys=True).encode()
+                json.dumps(context_keys, sort_keys=True).encode(),
+                usedforsecurity=False
             ).hexdigest()[:8]
 
             if signature not in groups:
@@ -243,7 +244,7 @@ class PatternExtractor:
         expected_outcome = str(positive_outcomes[0]) if positive_outcomes else "success"
 
         return Pattern(
-            pattern_id=hashlib.md5(f"{conditions}{best_action}".encode()).hexdigest()[:12],
+            pattern_id=hashlib.md5(f"{conditions}{best_action}".encode(), usedforsecurity=False).hexdigest()[:12],
             pattern_type="extracted",
             conditions=conditions,
             action=best_action,
@@ -275,7 +276,7 @@ class SkillBuilder:
 
     def create_skill(self, name: str, description: str, patterns: List[Pattern]) -> Skill:
         """Create a new skill from patterns"""
-        skill_id = hashlib.md5(f"{name}{datetime.now().isoformat()}".encode()).hexdigest()[:12]
+        skill_id = hashlib.md5(f"{name}{datetime.now().isoformat()}".encode(), usedforsecurity=False).hexdigest()[:12]
 
         skill = Skill(
             skill_id=skill_id,
@@ -427,7 +428,8 @@ class RecursiveLearner:
 
         experience = Experience(
             experience_id=hashlib.md5(
-                f"{context}{action}{datetime.now().isoformat()}".encode()
+                f"{context}{action}{datetime.now().isoformat()}".encode(),
+                usedforsecurity=False
             ).hexdigest()[:12],
             experience_type=experience_type,
             context=context,
