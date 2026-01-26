@@ -4,7 +4,8 @@
 [![Node.js 18+](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.3+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests: 79](https://img.shields.io/badge/tests-79%20passing-brightgreen.svg)](./tests)
+[![Tests: 173](https://img.shields.io/badge/tests-173%20passing-brightgreen.svg)](./tests)
+[![Coverage: 85%](https://img.shields.io/badge/coverage-85%25-brightgreen.svg)](./coverage)
 
 ---
 
@@ -82,18 +83,37 @@ curl -X POST http://localhost:5000/api/v1/aria/chat \
 
 ## 🤖 Agents & Tools
 
-### Current Agents (Backend)
+### Specialized Agents
 | Agent | Tools | Purpose |
 |-------|-------|---------|
+| Research Agent | web_search, content_extract, http_request | Web research & summarization |
+| Code Agent | echo, math_eval | Code generation & debugging |
+| FileSystem Agent | read_file, write_file, list_dir | File operations (sandboxed) |
+| Git Agent | git_status, git_diff | Version control |
+| Test Agent | run_tests | Test execution (pytest, npm) |
+| Analysis Agent | lint_code | Static analysis (eslint, pylint) |
+| Knowledge Agent | save_knowledge, retrieve_knowledge | Semantic memory |
 | General Assistant | echo, http_request, math_eval | General tasks |
-| Analyst Agent | http_request, math_eval | Data analysis |
-| Echo Agent | echo | Testing |
 | Math Agent | math_eval | Calculations |
+| Echo Agent | echo | Testing/debugging |
 
-### Available Tools
-- **echo** - Returns input as-is (testing)
-- **http_request** - HTTP requests to whitelisted domains
-- **math_eval** - Mathematical expression evaluation
+### Available Tools (12 total)
+| Tool | Description |
+|------|-------------|
+| `echo` | Returns input as-is (testing) |
+| `http_request` | HTTP requests to whitelisted domains |
+| `math_eval` | Mathematical expression evaluation |
+| `web_search` | DuckDuckGo web search |
+| `content_extract` | Extract text from URLs |
+| `read_file` | Read files (workspace sandboxed) |
+| `write_file` | Write files (workspace sandboxed) |
+| `list_dir` | List directory contents |
+| `git_status` | Git repository status |
+| `git_diff` | Git diff output |
+| `run_tests` | Execute test suites |
+| `lint_code` | Run linters on code |
+| `save_knowledge` | Persist key-value data |
+| `retrieve_knowledge` | Retrieve stored data |
 
 ---
 
@@ -116,14 +136,21 @@ curl -X POST http://localhost:5000/api/v1/aria/chat \
 
 ---
 
-## 📊 Test Status
+## 📊 Test Coverage
 
 ```bash
 npm test          # Run all tests
 npm run coverage  # Coverage report
 ```
 
-**Current:** 79 tests passing | ~52% coverage (target: 80%)
+| Metric | Coverage |
+|--------|----------|
+| Statements | 85.53% ✅ |
+| Branches | 73.15% ✅ |
+| Functions | 85.61% ✅ |
+| Lines | 85.97% ✅ |
+
+**Total: 173 tests passing**
 
 ---
 
@@ -142,12 +169,17 @@ docker run -p 5000:5000 ultimate-system:latest
 Astro/
 ├── src/
 │   ├── astro/          # Layer A: Orchestration
+│   │   ├── agents.ts   # 10 specialized agents
+│   │   ├── tools.ts    # 12 tool implementations
+│   │   └── orchestrator.ts
 │   ├── otis/           # Layer B: Security
 │   ├── codi3/          # Layer C: Intelligence
 │   ├── aria/           # Layer D: Conversation
+│   ├── middleware/     # Auth middleware
+│   ├── services/       # Storage, logging
 │   └── index.ts        # Entry point
 ├── web/                # Frontend UI
-├── tests/              # Test suites
+├── tests/              # Test suites (173 tests)
 ├── screenshots/        # UI screenshots
 └── astro_os/           # Python TUI (experimental)
 ```
@@ -165,13 +197,20 @@ npm run type-check    # TypeScript check
 
 ---
 
+## ✅ Completed Features
+
+- [x] 7 specialized agents (Research, Code, FileSystem, Git, Test, Analysis, Knowledge)
+- [x] 12 tool implementations
+- [x] Frontend-backend API integration
+- [x] Test coverage at 85%+
+- [x] Enhanced Python TUI with status bar and agent cards
+
 ## 📋 Roadmap
 
-- [ ] Implement specialized agents (Research, Code, FileSystem, Git, Test, Analysis, Knowledge)
-- [ ] Connect chat UI to backend API
-- [ ] Increase test coverage to 80%
 - [ ] Add WebSocket support for real-time updates
-- [ ] Implement agent status API for frontend
+- [ ] Implement streaming responses
+- [ ] Add more tool integrations
+- [ ] Production deployment guide
 
 ---
 
