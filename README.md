@@ -4,7 +4,7 @@
 [![Node.js 18+](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.3+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests: 173](https://img.shields.io/badge/tests-173%20passing-brightgreen.svg)](./tests)
+[![Tests: 186](https://img.shields.io/badge/tests-186%20passing-brightgreen.svg)](./tests)
 [![Coverage: 85%](https://img.shields.io/badge/coverage-85%25-brightgreen.svg)](./coverage)
 
 ---
@@ -44,7 +44,34 @@ cp .env.example .env
 npm run build && npm start
 
 # Server: http://localhost:5000
+# WebSocket: ws://localhost:5000/ws
 # Web UI: serve ./web on port 8080
+```
+
+---
+
+## 🔌 WebSocket Support
+
+Real-time bidirectional communication via Socket.IO:
+
+```javascript
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:5000', { path: '/ws' });
+
+// Chat with streaming
+socket.emit('chat', { message: 'hello', sessionId: 'abc123' });
+socket.on('chat:response', (data) => console.log(data));
+
+// Streaming responses
+socket.emit('chat:stream', { message: 'explain AI', sessionId: 'abc123' });
+socket.on('stream:chunk', (chunk) => process.stdout.write(chunk));
+socket.on('stream:end', () => console.log('\nDone'));
+
+// Approval flow
+socket.on('approval:required', (data) => {
+  socket.emit('approve', { actionId: data.actionId });
+});
 ```
 
 ---
@@ -83,7 +110,7 @@ curl -X POST http://localhost:5000/api/v1/aria/chat \
 
 ## 🤖 Agents & Tools
 
-### Specialized Agents
+### Specialized Agents (10)
 | Agent | Tools | Purpose |
 |-------|-------|---------|
 | Research Agent | web_search, content_extract, http_request | Web research & summarization |
@@ -97,7 +124,7 @@ curl -X POST http://localhost:5000/api/v1/aria/chat \
 | Math Agent | math_eval | Calculations |
 | Echo Agent | echo | Testing/debugging |
 
-### Available Tools (12 total)
+### Available Tools (18)
 | Tool | Description |
 |------|-------------|
 | `echo` | Returns input as-is (testing) |
@@ -114,6 +141,12 @@ curl -X POST http://localhost:5000/api/v1/aria/chat \
 | `lint_code` | Run linters on code |
 | `save_knowledge` | Persist key-value data |
 | `retrieve_knowledge` | Retrieve stored data |
+| `json_query` | Query JSON with dot notation |
+| `text_transform` | upper/lower/reverse/base64 |
+| `system_info` | OS/memory/CPU/disk info |
+| `timestamp` | now/parse/format operations |
+| `hash` | MD5/SHA1/SHA256/SHA512 |
+| `uuid` | Generate UUIDs |
 
 ---
 
@@ -150,7 +183,31 @@ npm run coverage  # Coverage report
 | Functions | 85.61% ✅ |
 | Lines | 85.97% ✅ |
 
-**Total: 173 tests passing**
+**Total: 186 tests passing**
+
+---
+
+## 🐍 Python Shells
+
+### Vibe Shell (LLM-powered ReAct)
+```bash
+# Set API key
+export ANTHROPIC_API_KEY=your-key  # or OPENAI_API_KEY
+
+# Run
+python vibe_shell.py
+```
+
+Features:
+- Natural language → shell command bridging
+- ReAct loop: Reason → Act → Observe → Answer
+- Persistent sessions with history
+- Tools: shell, read_file, write_file, search
+
+### Basic Shell
+```bash
+python astro_shell.py
+```
 
 ---
 
@@ -161,6 +218,8 @@ npm run docker:build:core
 docker run -p 5000:5000 ultimate-system:latest
 ```
 
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for production deployment guide.
+
 ---
 
 ## 📁 Project Structure
@@ -170,17 +229,20 @@ Astro/
 ├── src/
 │   ├── astro/          # Layer A: Orchestration
 │   │   ├── agents.ts   # 10 specialized agents
-│   │   ├── tools.ts    # 12 tool implementations
+│   │   ├── tools.ts    # 18 tool implementations
 │   │   └── orchestrator.ts
 │   ├── otis/           # Layer B: Security
 │   ├── codi3/          # Layer C: Intelligence
 │   ├── aria/           # Layer D: Conversation
+│   ├── services/       # WebSocket, Storage, Logging
 │   ├── middleware/     # Auth middleware
-│   ├── services/       # Storage, logging
 │   └── index.ts        # Entry point
 ├── web/                # Frontend UI
-├── tests/              # Test suites (173 tests)
-├── screenshots/        # UI screenshots
+├── tests/              # Test suites (186 tests)
+├── docs/               # Documentation
+│   └── DEPLOYMENT.md   # Production deployment guide
+├── astro_shell.py      # Basic ReAct shell
+├── vibe_shell.py       # LLM-powered ReAct shell
 └── astro_os/           # Python TUI (experimental)
 ```
 
@@ -199,18 +261,22 @@ npm run type-check    # TypeScript check
 
 ## ✅ Completed Features
 
-- [x] 7 specialized agents (Research, Code, FileSystem, Git, Test, Analysis, Knowledge)
-- [x] 12 tool implementations
+- [x] 10 specialized agents
+- [x] 18 tool implementations (6 new utility tools)
+- [x] WebSocket support with Socket.IO
+- [x] Streaming responses
 - [x] Frontend-backend API integration
-- [x] Test coverage at 85%+
+- [x] Test coverage at 85%+ (186 tests)
+- [x] Production deployment guide
+- [x] Python ReAct shells (basic + LLM-powered)
 - [x] Enhanced Python TUI with status bar and agent cards
 
 ## 📋 Roadmap
 
-- [ ] Add WebSocket support for real-time updates
-- [ ] Implement streaming responses
-- [ ] Add more tool integrations
-- [ ] Production deployment guide
+- [ ] Plugin system for custom tools
+- [ ] Multi-model LLM support
+- [ ] Workflow automation UI
+- [ ] Metrics dashboard
 
 ---
 
@@ -220,4 +286,4 @@ MIT License - see [LICENSE](./LICENSE)
 
 ---
 
-**Built with TypeScript, Express, and ❤️**
+**Built with TypeScript, Express, Socket.IO, and ❤️**
