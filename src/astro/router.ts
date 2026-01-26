@@ -1,6 +1,21 @@
 import express, { Router } from 'express';
 import { AstroOrchestrator, ToolInput } from './orchestrator';
-import { echoTool, httpRequestTool, mathEvalTool } from './tools';
+import {
+  echoTool,
+  httpRequestTool,
+  mathEvalTool,
+  webSearchTool,
+  contentExtractTool,
+  readFileTool,
+  writeFileTool,
+  listDirTool,
+  gitStatusTool,
+  gitDiffTool,
+  runTestsTool,
+  lintCodeTool,
+  saveKnowledgeTool,
+  retrieveKnowledgeTool,
+} from './tools';
 import { AGENTS } from './agents';
 import { logger } from '../services/logger';
 import { authenticateRequest } from '../middleware/auth';
@@ -18,16 +33,86 @@ export function createAstroRouter(orchestrator: AstroOrchestrator): Router {
 
   orchestrator.registerTool({
     name: 'http_request',
-    description:
-      'Make HTTP requests to whitelisted domains. Input: { url, method?, headers?, data? }',
+    description: 'Make HTTP requests to whitelisted domains. Input: { url, method?, headers?, data? }',
     handler: httpRequestTool,
   });
 
   orchestrator.registerTool({
     name: 'math_eval',
-    description:
-      'Evaluate mathematical expressions. Input: { expression }. Supports +, -, *, /, parentheses.',
+    description: 'Evaluate mathematical expressions. Input: { expression }. Supports +, -, *, /, parentheses.',
     handler: mathEvalTool,
+  });
+
+  // Research Agent tools
+  orchestrator.registerTool({
+    name: 'web_search',
+    description: 'Search the web using DuckDuckGo. Input: { query, maxResults? }',
+    handler: webSearchTool,
+  });
+
+  orchestrator.registerTool({
+    name: 'content_extract',
+    description: 'Extract text content from a URL. Input: { url }',
+    handler: contentExtractTool,
+  });
+
+  // FileSystem Agent tools
+  orchestrator.registerTool({
+    name: 'read_file',
+    description: 'Read file contents. Input: { path }',
+    handler: readFileTool,
+  });
+
+  orchestrator.registerTool({
+    name: 'write_file',
+    description: 'Write content to file. Input: { path, content }',
+    handler: writeFileTool,
+  });
+
+  orchestrator.registerTool({
+    name: 'list_dir',
+    description: 'List directory contents. Input: { path? }',
+    handler: listDirTool,
+  });
+
+  // Git Agent tools
+  orchestrator.registerTool({
+    name: 'git_status',
+    description: 'Get git status. Input: { cwd? }',
+    handler: gitStatusTool,
+  });
+
+  orchestrator.registerTool({
+    name: 'git_diff',
+    description: 'Get git diff. Input: { cwd?, file? }',
+    handler: gitDiffTool,
+  });
+
+  // Test Agent tools
+  orchestrator.registerTool({
+    name: 'run_tests',
+    description: 'Run test suite. Input: { command?, cwd? }',
+    handler: runTestsTool,
+  });
+
+  // Analysis Agent tools
+  orchestrator.registerTool({
+    name: 'lint_code',
+    description: 'Run linter on code. Input: { path?, linter? }',
+    handler: lintCodeTool,
+  });
+
+  // Knowledge Agent tools
+  orchestrator.registerTool({
+    name: 'save_knowledge',
+    description: 'Save knowledge to persistent storage. Input: { key, value }',
+    handler: saveKnowledgeTool,
+  });
+
+  orchestrator.registerTool({
+    name: 'retrieve_knowledge',
+    description: 'Retrieve knowledge from storage. Input: { key? }',
+    handler: retrieveKnowledgeTool,
   });
 
   // Register predefined agents

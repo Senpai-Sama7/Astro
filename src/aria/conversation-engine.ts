@@ -308,13 +308,22 @@ export class ARIAConversationEngine extends EventEmitter {
     }
 
     // Execute intent (tool usage)
-    // Try to match tool names
+    // Try to match tool names or natural language triggers
     const toolNames = ['echo', 'http_request', 'math_eval'];
     let matchedTool: string | undefined;
-    for (const tool of toolNames) {
-      if (lower.includes(tool.replace('_', ' ')) || lower.includes(tool)) {
-        matchedTool = tool;
-        break;
+    
+    // Check for natural language triggers first
+    if (/\b(calculate|compute|evaluate|what is|what's)\b.*\d/i.test(lower)) {
+      matchedTool = 'math_eval';
+    } else if (/\b(fetch|get|request)\b.*https?:/i.test(lower) || /https?:\/\//.test(lower)) {
+      matchedTool = 'http_request';
+    } else {
+      // Fall back to explicit tool name matching
+      for (const tool of toolNames) {
+        if (lower.includes(tool.replace('_', ' ')) || lower.includes(tool)) {
+          matchedTool = tool;
+          break;
+        }
       }
     }
 
@@ -327,8 +336,15 @@ export class ARIAConversationEngine extends EventEmitter {
     }
 
     if (matchedTool === 'math_eval') {
-      const match = userMessage.match(/(?:calculate|compute|evaluate)\s+(?:the\s+)?([^.!?]+)/i);
-      if (match) parameters.expression = match[1].trim();
+      // Match "calculate X", "what is X", or just extract the math expression
+      const match = userMessage.match(/(?:calculate|compute|evaluate|what is|what's)\s+(?:the\s+)?([0-9+\-*/().\s]+)/i);
+      if (match) {
+        parameters.expression = match[1].trim();
+      } else {
+        // Try to extract any math expression
+        const mathMatch = userMessage.match(/([0-9]+\s*[+\-*/]\s*[0-9+\-*/().\s]+)/);
+        if (mathMatch) parameters.expression = mathMatch[1].trim();
+      }
     }
 
     if (matchedTool === 'http_request') {
