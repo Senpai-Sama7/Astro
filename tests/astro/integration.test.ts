@@ -94,6 +94,7 @@ describe('ASTRO API Integration Tests', () => {
         });
 
       expect(response.status).toBe(400);
+      expect(response.body.error).toContain('Missing required fields');
     });
 
     it('should return 401 without auth token', async () => {
