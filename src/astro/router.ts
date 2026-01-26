@@ -15,6 +15,12 @@ import {
   lintCodeTool,
   saveKnowledgeTool,
   retrieveKnowledgeTool,
+  jsonQueryTool,
+  textTransformTool,
+  systemInfoTool,
+  timestampTool,
+  hashTool,
+  uuidTool,
 } from './tools';
 import { AGENTS } from './agents';
 import { logger } from '../services/logger';
@@ -113,6 +119,43 @@ export function createAstroRouter(orchestrator: AstroOrchestrator): Router {
     name: 'retrieve_knowledge',
     description: 'Retrieve knowledge from storage. Input: { key? }',
     handler: retrieveKnowledgeTool,
+  });
+
+  // Utility tools
+  orchestrator.registerTool({
+    name: 'json_query',
+    description: 'Query JSON data with dot notation. Input: { data, query }',
+    handler: jsonQueryTool,
+  });
+
+  orchestrator.registerTool({
+    name: 'text_transform',
+    description: 'Transform text. Input: { text, operation: upper|lower|reverse|count|base64_encode|base64_decode }',
+    handler: textTransformTool,
+  });
+
+  orchestrator.registerTool({
+    name: 'system_info',
+    description: 'Get system info. Input: { type: os|memory|cpu|disk|env }',
+    handler: systemInfoTool,
+  });
+
+  orchestrator.registerTool({
+    name: 'timestamp',
+    description: 'Date/time operations. Input: { operation: now|parse|format, value? }',
+    handler: timestampTool,
+  });
+
+  orchestrator.registerTool({
+    name: 'hash',
+    description: 'Compute hash. Input: { text, algorithm?: md5|sha1|sha256|sha512 }',
+    handler: hashTool,
+  });
+
+  orchestrator.registerTool({
+    name: 'uuid',
+    description: 'Generate UUIDs. Input: { count?: number }',
+    handler: uuidTool,
   });
 
   // Register predefined agents

@@ -569,3 +569,109 @@ describe('Knowledge Agent Tools', () => {
     });
   });
 });
+
+
+describe('Utility Tools', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  describe('jsonQueryTool', () => {
+    it('should query JSON with dot notation', async () => {
+      const { jsonQueryTool } = await import('../../src/astro/tools');
+      const result = await jsonQueryTool({ data: { a: { b: 1 } }, query: 'a.b' }, mockContext);
+      expect(result.ok).toBe(true);
+      expect((result.data as any).result).toBe(1);
+    });
+
+    it('should require data and query', async () => {
+      const { jsonQueryTool } = await import('../../src/astro/tools');
+      const result = await jsonQueryTool({}, mockContext);
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('textTransformTool', () => {
+    it('should transform text to uppercase', async () => {
+      const { textTransformTool } = await import('../../src/astro/tools');
+      const result = await textTransformTool({ text: 'hello', operation: 'upper' }, mockContext);
+      expect(result.ok).toBe(true);
+      expect((result.data as any).result).toBe('HELLO');
+    });
+
+    it('should encode base64', async () => {
+      const { textTransformTool } = await import('../../src/astro/tools');
+      const result = await textTransformTool({ text: 'hello', operation: 'base64_encode' }, mockContext);
+      expect(result.ok).toBe(true);
+      expect((result.data as any).result).toBe('aGVsbG8=');
+    });
+
+    it('should reject unknown operation', async () => {
+      const { textTransformTool } = await import('../../src/astro/tools');
+      const result = await textTransformTool({ text: 'hello', operation: 'unknown' }, mockContext);
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('timestampTool', () => {
+    it('should return current timestamp', async () => {
+      const { timestampTool } = await import('../../src/astro/tools');
+      const result = await timestampTool({ operation: 'now' }, mockContext);
+      expect(result.ok).toBe(true);
+      expect((result.data as any).iso).toBeDefined();
+    });
+
+    it('should parse timestamp', async () => {
+      const { timestampTool } = await import('../../src/astro/tools');
+      const result = await timestampTool({ operation: 'parse', value: '2024-01-01' }, mockContext);
+      expect(result.ok).toBe(true);
+      expect((result.data as any).valid).toBe(true);
+    });
+  });
+
+  describe('hashTool', () => {
+    it('should compute sha256 hash', async () => {
+      const { hashTool } = await import('../../src/astro/tools');
+      const result = await hashTool({ text: 'hello' }, mockContext);
+      expect(result.ok).toBe(true);
+      expect((result.data as any).algorithm).toBe('sha256');
+      expect((result.data as any).hash).toHaveLength(64);
+    });
+
+    it('should require text', async () => {
+      const { hashTool } = await import('../../src/astro/tools');
+      const result = await hashTool({}, mockContext);
+      expect(result.ok).toBe(false);
+    });
+  });
+
+  describe('uuidTool', () => {
+    it('should generate UUID', async () => {
+      const { uuidTool } = await import('../../src/astro/tools');
+      const result = await uuidTool({}, mockContext);
+      expect(result.ok).toBe(true);
+      expect((result.data as any).uuids).toHaveLength(1);
+    });
+
+    it('should generate multiple UUIDs', async () => {
+      const { uuidTool } = await import('../../src/astro/tools');
+      const result = await uuidTool({ count: 3 }, mockContext);
+      expect(result.ok).toBe(true);
+      expect((result.data as any).uuids).toHaveLength(3);
+    });
+  });
+
+  describe('systemInfoTool', () => {
+    it('should return OS info', async () => {
+      const { systemInfoTool } = await import('../../src/astro/tools');
+      const result = await systemInfoTool({ type: 'os' }, mockContext);
+      expect(result.ok).toBe(true);
+      expect((result.data as any).platform).toBeDefined();
+    });
+
+    it('should return memory info', async () => {
+      const { systemInfoTool } = await import('../../src/astro/tools');
+      const result = await systemInfoTool({ type: 'memory' }, mockContext);
+      expect(result.ok).toBe(true);
+      expect((result.data as any).heapUsed).toBeDefined();
+    });
+  });
+});

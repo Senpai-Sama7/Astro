@@ -633,3 +633,225 @@ export async function retrieveKnowledgeTool(
     };
   }
 }
+
+
+// ============================================
+// ADDITIONAL TOOL INTEGRATIONS
+// ============================================
+
+/**
+ * JSON Query tool - query JSON data with JSONPath-like syntax
+ * Input: { data: object, query: string }
+ */
+export async function jsonQueryTool(
+  input: ToolInput,
+  context: ToolContext
+): Promise<ToolResult> {
+  const start = Date.now();
+  try {
+    const data = input.data as Record<string, unknown>;
+    const query = input.query as string;
+    if (!data || !query) {
+      return { ok: false, error: 'data and query are required', elapsedMs: Date.now() - start };
+    }
+
+    // Simple dot-notation query
+    const parts = query.split('.');
+    let result: unknown = data;
+    for (const part of parts) {
+      if (result && typeof result === 'object') {
+        result = (result as Record<string, unknown>)[part];
+      } else {
+        result = undefined;
+        break;
+      }
+    }
+
+    return { ok: true, data: { query, result }, elapsedMs: Date.now() - start };
+  } catch (error) {
+    return { ok: false, error: `JSON query failed: ${error instanceof Error ? error.message : 'unknown'}`, elapsedMs: Date.now() - start };
+  }
+}
+
+/**
+ * Text transform tool - various text transformations
+ * Input: { text: string, operation: 'upper'|'lower'|'reverse'|'count'|'base64_encode'|'base64_decode' }
+ */
+export async function textTransformTool(
+  input: ToolInput,
+  context: ToolContext
+): Promise<ToolResult> {
+  const start = Date.now();
+  try {
+    const text = input.text as string;
+    const operation = input.operation as string;
+    if (!text || !operation) {
+      return { ok: false, error: 'text and operation are required', elapsedMs: Date.now() - start };
+    }
+
+    let result: string | number;
+    switch (operation) {
+      case 'upper': result = text.toUpperCase(); break;
+      case 'lower': result = text.toLowerCase(); break;
+      case 'reverse': result = text.split('').reverse().join(''); break;
+      case 'count': result = text.length; break;
+      case 'base64_encode': result = Buffer.from(text).toString('base64'); break;
+      case 'base64_decode': result = Buffer.from(text, 'base64').toString('utf-8'); break;
+      default: return { ok: false, error: `Unknown operation: ${operation}`, elapsedMs: Date.now() - start };
+    }
+
+    return { ok: true, data: { operation, result }, elapsedMs: Date.now() - start };
+  } catch (error) {
+    return { ok: false, error: `Text transform failed: ${error instanceof Error ? error.message : 'unknown'}`, elapsedMs: Date.now() - start };
+  }
+}
+
+/**
+ * System info tool - get system information
+ * Input: { type: 'os'|'memory'|'cpu'|'disk'|'env' }
+ */
+export async function systemInfoTool(
+  input: ToolInput,
+  context: ToolContext
+): Promise<ToolResult> {
+  const start = Date.now();
+  try {
+    const type = (input.type as string) || 'os';
+    let data: Record<string, unknown>;
+
+    switch (type) {
+      case 'os':
+        data = {
+          platform: process.platform,
+          arch: process.arch,
+          nodeVersion: process.version,
+          uptime: process.uptime(),
+        };
+        break;
+      case 'memory':
+        const mem = process.memoryUsage();
+        data = {
+          heapUsed: Math.round(mem.heapUsed / 1024 / 1024) + 'MB',
+          heapTotal: Math.round(mem.heapTotal / 1024 / 1024) + 'MB',
+          rss: Math.round(mem.rss / 1024 / 1024) + 'MB',
+        };
+        break;
+      case 'cpu':
+        data = { cpus: require('os').cpus().length };
+        break;
+      case 'disk':
+        const diskOutput = execSync('df -h / 2>/dev/null || echo "N/A"', { encoding: 'utf-8' });
+        data = { disk: diskOutput.trim() };
+        break;
+      case 'env':
+        data = {
+          NODE_ENV: process.env.NODE_ENV,
+          PROFILE: process.env.PROFILE,
+          cwd: process.cwd(),
+        };
+        break;
+      default:
+        return { ok: false, error: `Unknown type: ${type}`, elapsedMs: Date.now() - start };
+    }
+
+    return { ok: true, data, elapsedMs: Date.now() - start };
+  } catch (error) {
+    return { ok: false, error: `System info failed: ${error instanceof Error ? error.message : 'unknown'}`, elapsedMs: Date.now() - start };
+  }
+}
+
+/**
+ * Timestamp tool - date/time operations
+ * Input: { operation: 'now'|'parse'|'format', value?: string, format?: string }
+ */
+export async function timestampTool(
+  input: ToolInput,
+  context: ToolContext
+): Promise<ToolResult> {
+  const start = Date.now();
+  try {
+    const operation = (input.operation as string) || 'now';
+    let result: Record<string, unknown>;
+
+    switch (operation) {
+      case 'now':
+        const now = new Date();
+        result = {
+          iso: now.toISOString(),
+          unix: Math.floor(now.getTime() / 1000),
+          utc: now.toUTCString(),
+          local: now.toLocaleString(),
+        };
+        break;
+      case 'parse':
+        const value = input.value as string;
+        if (!value) return { ok: false, error: 'value required for parse', elapsedMs: Date.now() - start };
+        const parsed = new Date(value);
+        result = {
+          iso: parsed.toISOString(),
+          unix: Math.floor(parsed.getTime() / 1000),
+          valid: !isNaN(parsed.getTime()),
+        };
+        break;
+      case 'format':
+        const ts = input.value ? new Date(input.value as string) : new Date();
+        result = {
+          date: ts.toDateString(),
+          time: ts.toTimeString(),
+          iso: ts.toISOString(),
+        };
+        break;
+      default:
+        return { ok: false, error: `Unknown operation: ${operation}`, elapsedMs: Date.now() - start };
+    }
+
+    return { ok: true, data: result, elapsedMs: Date.now() - start };
+  } catch (error) {
+    return { ok: false, error: `Timestamp failed: ${error instanceof Error ? error.message : 'unknown'}`, elapsedMs: Date.now() - start };
+  }
+}
+
+/**
+ * Hash tool - compute hashes
+ * Input: { text: string, algorithm?: 'md5'|'sha1'|'sha256'|'sha512' }
+ */
+export async function hashTool(
+  input: ToolInput,
+  context: ToolContext
+): Promise<ToolResult> {
+  const start = Date.now();
+  try {
+    const text = input.text as string;
+    const algorithm = (input.algorithm as string) || 'sha256';
+    if (!text) {
+      return { ok: false, error: 'text is required', elapsedMs: Date.now() - start };
+    }
+
+    const crypto = require('crypto');
+    const hash = crypto.createHash(algorithm).update(text).digest('hex');
+
+    return { ok: true, data: { algorithm, hash }, elapsedMs: Date.now() - start };
+  } catch (error) {
+    return { ok: false, error: `Hash failed: ${error instanceof Error ? error.message : 'unknown'}`, elapsedMs: Date.now() - start };
+  }
+}
+
+/**
+ * UUID tool - generate UUIDs
+ * Input: { count?: number }
+ */
+export async function uuidTool(
+  input: ToolInput,
+  context: ToolContext
+): Promise<ToolResult> {
+  const start = Date.now();
+  try {
+    const count = Math.min((input.count as number) || 1, 10);
+    const crypto = require('crypto');
+    const uuids = Array.from({ length: count }, () => crypto.randomUUID());
+
+    return { ok: true, data: { uuids, count }, elapsedMs: Date.now() - start };
+  } catch (error) {
+    return { ok: false, error: `UUID failed: ${error instanceof Error ? error.message : 'unknown'}`, elapsedMs: Date.now() - start };
+  }
+}

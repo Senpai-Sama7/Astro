@@ -15,6 +15,7 @@ import { OTISSecurityGateway } from './otis/security-gateway';
 import { C0Di3CyberIntelligence } from './codi3/threat-intelligence';
 import { SQLiteStorage } from './services/storage';
 import { createAuthRouter } from './auth/router';
+import { WebSocketServer } from './services/websocket';
 
 // Load environment variables
 dotenv.config();
@@ -31,6 +32,7 @@ let securityGateway: OTISSecurityGateway;
 let threatIntelligence: C0Di3CyberIntelligence;
 let conversationEngine: ARIAConversationEngine;
 let server: ReturnType<typeof createServer>;
+let wsServer: WebSocketServer;
 
 // Middleware
 app.use(helmet());
@@ -131,6 +133,10 @@ async function bootstrap() {
   // Start server
   server = createServer(app);
 
+  // Initialize WebSocket server
+  wsServer = new WebSocketServer(server, conversationEngine);
+  logger.info('WebSocket server initialized', { path: '/ws' });
+
   server.listen(PORT, () => {
     logger.info('✅ Ultimate System Started', {
       port: PORT,
@@ -227,4 +233,4 @@ process.on('SIGINT', () => {
   });
 });
 
-export { app, server, orchestrator, conversationEngine, securityGateway, threatIntelligence };
+export { app, server, wsServer, orchestrator, conversationEngine, securityGateway, threatIntelligence };
