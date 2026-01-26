@@ -1,355 +1,167 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="ASTRO - Autonomous Agent Ecosystem. Orchestrate AI research, code, and workflows from one unified interface." />
-    <meta name="theme-color" content="#050507" />
-    <title>ASTRO · Autonomous Agent Console</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
-    <div class="grain"></div>
-
-    <header class="hero">
-      <div class="hero__brand">
-        <span class="mark">ASTRO</span>
-        <span class="badge" id="status-badge">Checking...</span>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ARIA - Your AI Assistant</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0f; color: #e0e0e0; height: 100vh; display: flex; flex-direction: column; }
+    header { background: #12121a; padding: 16px 24px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 12px; }
+    header h1 { font-size: 1.4em; color: #3282b8; }
+    header span { color: #666; font-size: 0.9em; }
+    .chat-container { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+    .message { max-width: 80%; padding: 14px 18px; border-radius: 16px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+    .message.user { background: #3282b8; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+    .message.system { background: #1a1a2e; align-self: flex-start; border-bottom-left-radius: 4px; }
+    .message code { background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 4px; font-family: 'SF Mono', Monaco, monospace; font-size: 0.9em; }
+    .message pre { background: rgba(0,0,0,0.3); padding: 12px; border-radius: 8px; overflow-x: auto; margin: 8px 0; }
+    .input-area { background: #12121a; padding: 16px 24px; border-top: 1px solid #222; }
+    .input-wrapper { display: flex; gap: 12px; max-width: 900px; margin: 0 auto; }
+    input { flex: 1; background: #1a1a2e; border: 1px solid #333; border-radius: 24px; padding: 14px 20px; color: #e0e0e0; font-size: 16px; outline: none; transition: border-color 0.2s; }
+    input:focus { border-color: #3282b8; }
+    input::placeholder { color: #666; }
+    button { background: #3282b8; color: white; border: none; border-radius: 24px; padding: 14px 28px; font-size: 16px; cursor: pointer; transition: background 0.2s; }
+    button:hover { background: #0f4c75; }
+    button:disabled { background: #333; cursor: not-allowed; }
+    .typing { color: #666; font-style: italic; padding: 8px 18px; }
+    .welcome { text-align: center; padding: 40px; color: #666; }
+    .welcome h2 { color: #3282b8; margin-bottom: 16px; font-size: 1.8em; }
+    .welcome p { margin-bottom: 24px; line-height: 1.6; }
+    .suggestions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+    .suggestion { background: #1a1a2e; border: 1px solid #333; padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: all 0.2s; font-size: 14px; }
+    .suggestion:hover { background: #3282b8; border-color: #3282b8; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🤖 ARIA</h1>
+    <span>Your AI Assistant - Just chat naturally</span>
+  </header>
+  
+  <div class="chat-container" id="chat">
+    <div class="welcome">
+      <h2>👋 Hi, I'm ARIA!</h2>
+      <p>I'm your conversational AI assistant. Just type what you need - no commands to memorize.</p>
+      <div class="suggestions">
+        <span class="suggestion" onclick="send('what can you do?')">What can you do?</span>
+        <span class="suggestion" onclick="send('calculate 42 * 17')">Calculate 42 × 17</span>
+        <span class="suggestion" onclick="send('show me the available tools')">Show tools</span>
+        <span class="suggestion" onclick="send('how is the system doing?')">System status</span>
       </div>
+    </div>
+  </div>
+  
+  <div class="input-area">
+    <div class="input-wrapper">
+      <input type="text" id="input" placeholder="Type anything... (e.g., 'what's 100 divided by 4?')" autocomplete="off">
+      <button id="sendBtn" onclick="sendMessage()">Send</button>
+    </div>
+  </div>
 
-      <div class="hero__copy">
-        <p class="eyebrow">Autonomous Multi-Agent System</p>
-        <h1>Your AI team that actually gets things done.</h1>
-        <p>Deploy and orchestrate AI agents for research, code generation, file management, testing, and more—all from natural language commands.</p>
-      </div>
+  <script>
+    const API = '/api/v1';
+    let sessionId = null;
+    let welcomeShown = true;
 
-      <div class="hero__cta">
-        <a href="chat.html" class="btn btn--primary">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-          </svg>
-          Start Chatting
-        </a>
-        <button class="btn btn--ghost" id="deploy-btn">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-          </svg>
-          <span id="deploy-text">Deploy Agents</span>
-        </button>
-      </div>
+    async function init() {
+      try {
+        // Get auth token
+        const authRes = await fetch(`${API}/auth/dev-token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: 'web-user', role: 'admin' })
+        });
+        const { token } = await authRes.json();
+        localStorage.setItem('token', token);
 
-      <dl class="hero__stats">
-        <div>
-          <dt>Agents Available</dt>
-          <dd id="stat-agents">7</dd>
-        </div>
-        <div>
-          <dt>Tests Passing</dt>
-          <dd>21/21</dd>
-        </div>
-        <div>
-          <dt>System Status</dt>
-          <dd id="system-status">
-            <span class="status-dot" id="status-dot"></span>
-            <span id="status-text">Checking...</span>
-          </dd>
-        </div>
-      </dl>
-    </header>
-
-    <section class="access-grid">
-      <header>
-        <p class="eyebrow">Access Points</p>
-        <h2>Choose your interface</h2>
-        <p>Jump into conversational AI, orchestrate complex workflows, manage your knowledge base, or browse generated files.</p>
-      </header>
-
-      <div class="access-grid__cards">
-        <article class="access-card">
-          <div class="access-card__meta">
-            <span class="tag">AI Assistant</span>
-            <span class="version">v2.0</span>
-          </div>
-          <h3>💬 Chat Interface</h3>
-          <p>Natural language conversations with your AI team. Research, write, code, and analyze without technical knowledge.</p>
-          <a href="chat.html" class="btn btn--ghost">Start chatting</a>
-        </article>
-
-        <article class="access-card">
-          <div class="access-card__meta">
-            <span class="tag">API</span>
-            <span class="version">REST</span>
-          </div>
-          <h3>🔌 API Access</h3>
-          <p>Integrate ASTRO into your applications via REST API. Full documentation and WebSocket support included.</p>
-          <a href="/docs" class="btn btn--ghost" target="_blank">View API Docs</a>
-        </article>
-
-        <article class="access-card">
-          <div class="access-card__meta">
-            <span class="tag">Desktop</span>
-            <span class="version">GUI</span>
-          </div>
-          <h3>🖥️ Desktop App</h3>
-          <p>Native desktop application with full agent control, real-time monitoring, and offline capabilities.</p>
-          <a href="https://github.com/Senpai-Sama7/Astro/releases" class="btn btn--ghost" target="_blank">Download</a>
-        </article>
-
-        <article class="access-card">
-          <div class="access-card__meta">
-            <span class="tag">Source</span>
-            <span class="version">MIT</span>
-          </div>
-          <h3>📦 GitHub</h3>
-          <p>Open source under MIT license. Star, fork, contribute, or self-host your own ASTRO instance.</p>
-          <a href="https://github.com/Senpai-Sama7/Astro" class="btn btn--ghost" target="_blank">View Source</a>
-        </article>
-      </div>
-    </section>
-
-    <section class="access-grid">
-      <header>
-        <p class="eyebrow">Agent Fleet</p>
-        <h2>7 specialized agents at your command</h2>
-        <p>Each agent is purpose-built for specific tasks, working together seamlessly to accomplish complex goals.</p>
-      </header>
-
-      <div class="agent-grid" id="agent-grid">
-        <!-- Agents will be populated dynamically -->
-      </div>
-    </section>
-
-    <section class="access-grid">
-      <header>
-        <p class="eyebrow">Live Telemetry</p>
-        <h2>System performance</h2>
-      </header>
-
-      <div class="telemetry">
-        <div class="telemetry__item">
-          <div class="telemetry__value" id="tel-agents">--</div>
-          <div class="telemetry__label">Active Agents</div>
-        </div>
-        <div class="telemetry__item">
-          <div class="telemetry__value" id="tel-tasks">--</div>
-          <div class="telemetry__label">Tasks Queued</div>
-        </div>
-        <div class="telemetry__item">
-          <div class="telemetry__value" id="tel-latency">--</div>
-          <div class="telemetry__label">Avg Latency</div>
-        </div>
-        <div class="telemetry__item">
-          <div class="telemetry__value" id="tel-uptime">--</div>
-          <div class="telemetry__label">Uptime</div>
-        </div>
-      </div>
-    </section>
-
-    <style>
-      .status-dot {
-        display: inline-block;
-        width: 8px;
-        height: 8px;
-        border-radius: 50%;
-        margin-right: 6px;
-        background: var(--muted, #6b7280);
+        // Create session
+        const sessionRes = await fetch(`${API}/aria/sessions`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+        });
+        const session = await sessionRes.json();
+        sessionId = session.sessionId;
+      } catch (e) {
+        console.error('Init failed:', e);
+        addMessage('system', '⚠️ Could not connect to server. Make sure it\'s running on port 5000.');
       }
-      .status-dot.online { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
-      .status-dot.offline { background: #6b7280; }
-      .status-dot.error { background: #ef4444; }
-      .agent-card__status { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--muted, #a1a1aa); }
-      .agent-card__status::before {
-        content: "";
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: #22c55e;
+    }
+
+    function addMessage(role, content) {
+      if (welcomeShown) {
+        document.getElementById('chat').innerHTML = '';
+        welcomeShown = false;
       }
-      .agent-card__status.offline::before { background: #6b7280; }
-      @keyframes spin { to { transform: rotate(360deg); } }
-      .loading { display: inline-block; width: 14px; height: 14px; border: 2px solid transparent; border-top-color: currentColor; border-radius: 50%; animation: spin 0.8s linear infinite; }
-    </style>
+      const chat = document.getElementById('chat');
+      const msg = document.createElement('div');
+      msg.className = `message ${role}`;
+      
+      // Simple markdown-like formatting
+      content = content
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>');
+      
+      msg.innerHTML = content;
+      chat.appendChild(msg);
+      chat.scrollTop = chat.scrollHeight;
+    }
 
-    <script>
-      // Agent icons mapping
-      const AGENT_ICONS = {
-        'research-agent': '🔬',
-        'code-agent': '💻',
-        'filesystem-agent': '📁',
-        'git-agent': '🔧',
-        'test-agent': '🧪',
-        'analysis-agent': '📊',
-        'knowledge-agent': '🧠',
-        'general-assistant': '🤖',
-        'math-agent': '🔢',
-        'echo-agent': '📢',
-      };
+    function showTyping() {
+      const chat = document.getElementById('chat');
+      const typing = document.createElement('div');
+      typing.className = 'typing';
+      typing.id = 'typing';
+      typing.textContent = 'ARIA is thinking...';
+      chat.appendChild(typing);
+      chat.scrollTop = chat.scrollHeight;
+    }
 
-      // State
-      let systemOnline = false;
-      let agentStatuses = {};
-      let AGENTS = [];
-      let startTime = Date.now();
-      let authToken = null;
+    function hideTyping() {
+      document.getElementById('typing')?.remove();
+    }
 
-      // Get auth token
-      async function getToken() {
-        if (authToken) return authToken;
-        try {
-          const res = await fetch('http://localhost:5000/api/v1/auth/dev-token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId: 'web-user', role: 'admin' })
-          });
-          const data = await res.json();
-          authToken = data.token;
-          return authToken;
-        } catch (e) {
-          return null;
-        }
+    async function sendMessage() {
+      const input = document.getElementById('input');
+      const message = input.value.trim();
+      if (!message || !sessionId) return;
+
+      input.value = '';
+      addMessage('user', message);
+      showTyping();
+      document.getElementById('sendBtn').disabled = true;
+
+      try {
+        const res = await fetch(`${API}/aria/chat`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ sessionId, message })
+        });
+        const data = await res.json();
+        hideTyping();
+        addMessage('system', data.response || data.error || 'No response');
+      } catch (e) {
+        hideTyping();
+        addMessage('system', '❌ Error: ' + e.message);
       }
+      document.getElementById('sendBtn').disabled = false;
+      input.focus();
+    }
 
-      // Render agents
-      function renderAgents() {
-        const grid = document.getElementById('agent-grid');
-        grid.innerHTML = AGENTS.map(agent => `
-          <div class="agent-card" data-agent="${agent.id}">
-            <div class="agent-card__header">
-              <div class="agent-card__icon">${AGENT_ICONS[agent.id] || '🤖'}</div>
-              <div>
-                <h3>${agent.name}</h3>
-                <div class="agent-card__status ${agentStatuses[agent.id] ? '' : 'offline'}" id="status-${agent.id}">
-                  ${agentStatuses[agent.id] ? 'Online' : 'Offline'}
-                </div>
-              </div>
-            </div>
-            <p>${agent.description}</p>
-            <div style="margin-top: 8px; font-size: 0.75rem; color: var(--muted);">
-              Tools: ${agent.tools?.join(', ') || 'none'}
-            </div>
-          </div>
-        `).join('');
-      }
+    function send(text) {
+      document.getElementById('input').value = text;
+      sendMessage();
+    }
 
-      // Check system status
-      async function checkStatus() {
-        const statusDot = document.getElementById('status-dot');
-        const statusText = document.getElementById('status-text');
-        const statusBadge = document.getElementById('status-badge');
+    document.getElementById('input').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage();
+    });
 
-        try {
-          const res = await fetch('http://localhost:5000/api/v1/health');
-          if (res.ok) {
-            const data = await res.json();
-            systemOnline = true;
-            statusDot.className = 'status-dot online';
-            statusText.textContent = 'Online';
-            statusBadge.textContent = 'Production Ready';
-            statusBadge.style.background = 'rgba(34, 197, 94, 0.2)';
-            statusBadge.style.borderColor = '#22c55e';
-
-            // Fetch real agents from API
-            const token = await getToken();
-            if (token) {
-              const agentsRes = await fetch('http://localhost:5000/api/v1/astro/agents', {
-                headers: { 'Authorization': `Bearer ${token}` }
-              });
-              if (agentsRes.ok) {
-                const agentsData = await agentsRes.json();
-                AGENTS = agentsData.agents || [];
-                AGENTS.forEach(a => agentStatuses[a.id] = true);
-              }
-            }
-
-            // Update telemetry
-            document.getElementById('tel-agents').textContent = AGENTS.length;
-            document.getElementById('tel-tasks').textContent = 0;
-            document.getElementById('tel-latency').textContent = '<50ms';
-            document.getElementById('stat-agents').textContent = AGENTS.length;
-
-            renderAgents();
-            return true;
-          }
-        } catch (e) {
-          // Server not running - show offline state
-        }
-
-        systemOnline = false;
-        statusDot.className = 'status-dot offline';
-        statusText.textContent = 'Offline';
-        statusBadge.textContent = 'Server Offline';
-        statusBadge.style.background = 'rgba(107, 114, 128, 0.2)';
-        statusBadge.style.borderColor = '#6b7280';
-
-        // All agents offline
-        AGENTS.forEach(a => agentStatuses[a.id] = false);
-        document.getElementById('tel-agents').textContent = '0';
-        document.getElementById('tel-tasks').textContent = '--';
-        document.getElementById('tel-latency').textContent = '--';
-        document.getElementById('stat-agents').textContent = '0';
-
-        renderAgents();
-        return false;
-      }
-
-      // Update uptime
-      function updateUptime() {
-        if (!systemOnline) {
-          document.getElementById('tel-uptime').textContent = '--';
-          return;
-        }
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        const hours = Math.floor(elapsed / 3600);
-        const mins = Math.floor((elapsed % 3600) / 60);
-        const secs = elapsed % 60;
-
-        if (hours > 0) {
-          document.getElementById('tel-uptime').textContent = `${hours}h ${mins}m`;
-        } else if (mins > 0) {
-          document.getElementById('tel-uptime').textContent = `${mins}m ${secs}s`;
-        } else {
-          document.getElementById('tel-uptime').textContent = `${secs}s`;
-        }
-      }
-
-      // Deploy button
-      document.getElementById('deploy-btn').addEventListener('click', async () => {
-        const btn = document.getElementById('deploy-btn');
-        const text = document.getElementById('deploy-text');
-
-        btn.disabled = true;
-        text.innerHTML = '<span class="loading"></span> Starting...';
-
-        try {
-          const res = await fetch('/api/system/start', { method: 'POST' });
-          if (res.ok) {
-            text.textContent = '✓ System Started';
-            startTime = Date.now();
-            await checkStatus();
-            setTimeout(() => {
-              text.textContent = 'Deploy Agents';
-              btn.disabled = false;
-            }, 2000);
-          } else {
-            throw new Error('Failed to start');
-          }
-        } catch (e) {
-          text.textContent = '✗ Server Unavailable';
-          setTimeout(() => {
-            text.textContent = 'Deploy Agents';
-            btn.disabled = false;
-          }, 2000);
-        }
-      });
-
-      // Initialize
-      renderAgents();
-      checkStatus();
-      setInterval(checkStatus, 10000); // Check every 10s
-      setInterval(updateUptime, 1000); // Update uptime every second
-    </script>
-  </body>
+    init();
+  </script>
+</body>
 </html>

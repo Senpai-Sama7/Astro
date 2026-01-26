@@ -9,7 +9,7 @@ import path from 'path';
 import { logger } from './services/logger';
 import { AstroOrchestrator } from './astro/orchestrator';
 import { createAstroRouter } from './astro/router';
-import { ARIAConversationEngine } from './aria/conversation-engine';
+import { ARIAConversationEngine, setWorkflowEngine, setLLMManager } from './aria/conversation-engine';
 import { createConversationRouter } from './aria/router';
 import { OTISSecurityGateway } from './otis/security-gateway';
 import { C0Di3CyberIntelligence } from './codi3/threat-intelligence';
@@ -145,6 +145,8 @@ async function bootstrap() {
 
   // Initialize Workflow Engine
   workflowEngine = new WorkflowEngine();
+  setWorkflowEngine(workflowEngine);
+  setLLMManager(llmManager);
   logger.info(`Loaded ${workflowEngine.list().length} workflows`);
 
   // Mount ASTRO Layer A router
