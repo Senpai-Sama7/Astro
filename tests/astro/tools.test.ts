@@ -178,7 +178,7 @@ describe('Built-in Tools', () => {
       );
 
       expect(result.ok).toBe(false);
-      expect(result.error).toContain('invalid characters');
+      expect(result.error).toContain('Math evaluation failed');
     });
 
     it('should reject expressions that result in Infinity', async () => {
@@ -188,7 +188,7 @@ describe('Built-in Tools', () => {
       );
 
       expect(result.ok).toBe(false);
-      expect(result.error).toContain('infinity or NaN');
+      expect(result.error).toContain('finite number');
     });
 
     it('should reject expressions that result in NaN', async () => {
@@ -198,7 +198,7 @@ describe('Built-in Tools', () => {
       );
 
       expect(result.ok).toBe(false);
-      expect(result.error).toContain('infinity or NaN');
+      expect(result.error).toContain('finite number');
     });
 
     it('should handle syntax errors in expressions', async () => {
@@ -265,7 +265,18 @@ describe('Research Agent Tools', () => {
 });
 
 describe('FileSystem Agent Tools', () => {
-  beforeEach(() => jest.clearAllMocks());
+  beforeEach(() => {
+    jest.clearAllMocks();
+    // Mock realpathSync to return the resolved path (simulating real behavior)
+    (fs.realpathSync as jest.Mock).mockImplementation((p: string) => {
+      // For paths that would escape workspace, throw or return the actual path
+      const resolved = path.resolve(p);
+      if (resolved.includes('etc/passwd') || resolved.includes('/tmp/hack') || p.startsWith('../../../')) {
+        return resolved; // Returns path outside workspace
+      }
+      return path.resolve(process.cwd(), 'workspace', p);
+    });
+  });
 
   describe('readFileTool', () => {
     it('should read file content', async () => {
@@ -355,7 +366,7 @@ describe('Git Agent Tools', () => {
 
   describe('gitStatusTool', () => {
     it('should return git status', async () => {
-      (childProcess.execSync as jest.Mock)
+      (childProcess.execFileSync as jest.Mock)
         .mockReturnValueOnce('M file.txt\n')
         .mockReturnValueOnce('main\n');
       const result = await gitStatusTool({}, mockContext);
@@ -365,7 +376,7 @@ describe('Git Agent Tools', () => {
     });
 
     it('should handle git errors', async () => {
-      (childProcess.execSync as jest.Mock).mockImplementation(() => { throw new Error('not a git repo'); });
+      (childProcess.execFileSync as jest.Mock).mockImplementation(() => { throw new Error('not a git repo'); });
       const result = await gitStatusTool({}, mockContext);
       expect(result.ok).toBe(false);
       expect(result.error).toContain('Git status failed');
@@ -374,20 +385,20 @@ describe('Git Agent Tools', () => {
 
   describe('gitDiffTool', () => {
     it('should return git diff', async () => {
-      (childProcess.execSync as jest.Mock).mockReturnValue('diff --git a/file.txt');
+      (childProcess.execFileSync as jest.Mock).mockReturnValue('diff --git a/file.txt');
       const result = await gitDiffTool({}, mockContext);
       expect(result.ok).toBe(true);
       expect((result.data as any).diff).toContain('diff --git');
     });
 
     it('should diff specific file', async () => {
-      (childProcess.execSync as jest.Mock).mockReturnValue('diff for file');
+      (childProcess.execFileSync as jest.Mock).mockReturnValue('diff for file');
       const result = await gitDiffTool({ file: 'test.txt' }, mockContext);
       expect(result.ok).toBe(true);
     });
 
     it('should handle diff errors', async () => {
-      (childProcess.execSync as jest.Mock).mockImplementation(() => { throw new Error('error'); });
+      (childProcess.execFileSync as jest.Mock).mockImplementation(() => { throw new Error('error'); });
       const result = await gitDiffTool({}, mockContext);
       expect(result.ok).toBe(false);
       expect(result.error).toContain('Git diff failed');
@@ -400,7 +411,7 @@ describe('Test Agent Tools', () => {
 
   describe('runTestsTool', () => {
     it('should run tests with provided command', async () => {
-      (childProcess.execSync as jest.Mock).mockReturnValue('All tests passed');
+      (childProcess.execFileSync as jest.Mock).mockReturnValue('All tests passed');
       const result = await runTestsTool({ command: 'npm test' }, mockContext);
       expect(result.ok).toBe(true);
       expect((result.data as any).output).toContain('passed');
@@ -408,14 +419,14 @@ describe('Test Agent Tools', () => {
 
     it('should auto-detect npm test', async () => {
       (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (childProcess.execSync as jest.Mock).mockReturnValue('Tests passed');
+      (childProcess.execFileSync as jest.Mock).mockReturnValue('Tests passed');
       const result = await runTestsTool({}, mockContext);
       expect(result.ok).toBe(true);
     });
 
     it('should auto-detect pytest', async () => {
       (fs.existsSync as jest.Mock).mockImplementation((p: string) => p.includes('pytest.ini'));
-      (childProcess.execSync as jest.Mock).mockReturnValue('pytest passed');
+      (childProcess.execFileSync as jest.Mock).mockReturnValue('pytest passed');
       const result = await runTestsTool({}, mockContext);
       expect(result.ok).toBe(true);
     });
@@ -429,7 +440,7 @@ describe('Test Agent Tools', () => {
 
     it('should handle test failures', async () => {
       (fs.existsSync as jest.Mock).mockReturnValue(true);
-      (childProcess.execSync as jest.Mock).mockImplementation(() => {
+      (childProcess.execFileSync as jest.Mock).mockImplementation(() => {
         const err: any = new Error('Tests failed');
         err.stdout = 'FAIL test.ts';
         throw err;

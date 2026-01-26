@@ -1,5 +1,20 @@
 import { EventEmitter } from 'events';
 import { v4 as uuidv4 } from 'uuid';
+import Joi from 'joi';
+
+// Input validation schemas for tools
+const toolInputSchemas: Record<string, Joi.Schema> = {
+  read_file: Joi.object({ path: Joi.string().max(256).required() }),
+  write_file: Joi.object({ path: Joi.string().max(256).required(), content: Joi.string().max(1024 * 1024).required() }),
+  list_dir: Joi.object({ path: Joi.string().max(256).default('.') }),
+  math_eval: Joi.object({ expression: Joi.string().max(200).required() }),
+  web_search: Joi.object({ query: Joi.string().max(500).required(), maxResults: Joi.number().min(1).max(20).default(5) }),
+  http_request: Joi.object({ url: Joi.string().uri().max(2048).required(), method: Joi.string().valid('GET', 'POST', 'PUT', 'DELETE').default('GET'), headers: Joi.object().default({}), data: Joi.any() }),
+  git_status: Joi.object({ cwd: Joi.string().max(256) }),
+  git_diff: Joi.object({ cwd: Joi.string().max(256), file: Joi.string().max(256) }),
+  run_tests: Joi.object({ cwd: Joi.string().max(256), command: Joi.string().max(50) }),
+  lint_code: Joi.object({ path: Joi.string().max(256).default('.'), linter: Joi.string().valid('eslint', 'pylint') }),
+};
 
 export type ToolContext = {
   requestId: string;
@@ -143,6 +158,21 @@ export class AstroOrchestrator {
     }
 
     const started = Date.now();
+
+    // Validate input against schema if defined
+    const schema = toolInputSchemas[params.toolName];
+    if (schema) {
+      const { error, value } = schema.validate(params.input, { stripUnknown: true });
+      if (error) {
+        const validationError: OrchestrationError = {
+          requestId,
+          error: `Invalid input for '${params.toolName}': ${error.message}`,
+        };
+        this.emitter.emit('error', validationError);
+        throw new Error(validationError.error);
+      }
+      params.input = value;
+    }
 
     try {
       const context: ToolContext = {

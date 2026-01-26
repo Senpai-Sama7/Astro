@@ -1,7 +1,9 @@
 import axios, { AxiosError } from 'axios';
-import { execSync, spawn } from 'child_process';
+import { execSync, execFileSync, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
+import { parse as parseHtml } from 'node-html-parser';
+import { evaluate as mathEvaluate } from 'mathjs';
 import { ToolInput, ToolResult, ToolContext } from './orchestrator';
 
 // Workspace directory for file operations
@@ -52,9 +54,17 @@ const WHITELISTED_DOMAINS = [
 function isWhitelisted(url: string): boolean {
   try {
     const parsed = new URL(url);
-    return WHITELISTED_DOMAINS.some(
-      (domain) => parsed.hostname === domain || parsed.hostname?.endsWith(`.${domain}`)
-    );
+    return WHITELISTED_DOMAINS.some((domain) => {
+      // Exact match
+      if (parsed.hostname === domain) return true;
+      // Subdomain match: hostname must end with ".domain" and have exactly one more segment
+      if (parsed.hostname?.endsWith(`.${domain}`)) {
+        const hostParts = parsed.hostname.split('.');
+        const domainParts = domain.split('.');
+        return hostParts.length === domainParts.length + 1;
+      }
+      return false;
+    });
   } catch {
     return false;
   }
@@ -132,13 +142,8 @@ export async function httpRequestTool(
 /**
  * Math evaluation tool - safely evaluates mathematical expressions
  * Input: { expression: string }
- * Only supports +, -, *, /, parentheses, and numbers
+ * Uses mathjs for safe evaluation without code injection risks
  */
-function isSafeExpression(expr: string): boolean {
-  // Only allow digits, operators, parentheses, and decimal points
-  return /^[0-9+\-*/.()\s]+$/.test(expr);
-}
-
 export async function mathEvalTool(
   input: ToolInput,
   context: ToolContext
@@ -156,40 +161,28 @@ export async function mathEvalTool(
       };
     }
 
-    if (!isSafeExpression(expression)) {
+    if (expression.length > 200) {
       return {
         ok: false,
-        error: 'Expression contains invalid characters. Only numbers, operators (+, -, *, /), parentheses, and decimal points are allowed.',
+        error: 'Expression too long (max 200 characters)',
         elapsedMs: Date.now() - start,
       };
     }
 
-    // Use Function constructor with strict input validation
-    // This is safer than eval() because it doesn't have access to scope
-    const result = new Function('return ' + expression)();
+    // Use mathjs for safe evaluation (no code injection possible)
+    const result = mathEvaluate(expression);
 
-    if (typeof result !== 'number') {
+    if (typeof result !== 'number' || !Number.isFinite(result)) {
       return {
         ok: false,
-        error: 'Expression did not evaluate to a number',
-        elapsedMs: Date.now() - start,
-      };
-    }
-
-    if (!isFinite(result)) {
-      return {
-        ok: false,
-        error: 'Expression resulted in infinity or NaN',
+        error: 'Expression did not evaluate to a finite number',
         elapsedMs: Date.now() - start,
       };
     }
 
     return {
       ok: true,
-      data: {
-        expression,
-        result,
-      },
+      data: { expression, result },
       elapsedMs: Date.now() - start,
     };
   } catch (error) {
@@ -217,7 +210,7 @@ export async function webSearchTool(
   const start = Date.now();
   try {
     const query = input.query as string;
-    const maxResults = (input.maxResults as number) || 5;
+    const maxResults = Math.min((input.maxResults as number) || 5, 20);
 
     if (!query) {
       return { ok: false, error: 'query is required', elapsedMs: Date.now() - start };
@@ -228,15 +221,17 @@ export async function webSearchTool(
       params: { q: query },
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; ASTRO/1.0)' },
       timeout: 10000,
+      maxContentLength: 1024 * 1024, // 1MB limit
     });
 
-    // Parse results from HTML (simplified)
-    const results: { title: string; url: string; snippet: string }[] = [];
-    const regex = /<a[^>]*class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/gi;
-    let match;
-    while ((match = regex.exec(response.data)) !== null && results.length < maxResults) {
-      results.push({ title: match[2], url: match[1], snippet: '' });
-    }
+    // Parse results using proper HTML parser (prevents ReDoS)
+    const root = parseHtml(response.data);
+    const links = root.querySelectorAll('a.result__a');
+    const results = links.slice(0, maxResults).map((link) => ({
+      title: link.innerText.trim(),
+      url: link.getAttribute('href') || '',
+      snippet: '',
+    }));
 
     return {
       ok: true,
@@ -301,8 +296,18 @@ export async function contentExtractTool(
 // ============================================
 
 function isPathSafe(filePath: string): boolean {
-  const resolved = path.resolve(WORKSPACE_DIR, filePath);
-  return resolved.startsWith(path.resolve(WORKSPACE_DIR));
+  try {
+    const fullPath = path.resolve(WORKSPACE_DIR, filePath);
+    // Use realpathSync to resolve symlinks and get actual filesystem location
+    const resolved = fs.realpathSync(fullPath);
+    const workspaceReal = fs.realpathSync(WORKSPACE_DIR);
+    return resolved === workspaceReal || resolved.startsWith(workspaceReal + path.sep);
+  } catch {
+    // Path doesn't exist or isn't readable - check without symlink resolution
+    const resolved = path.resolve(WORKSPACE_DIR, filePath);
+    const workspaceResolved = path.resolve(WORKSPACE_DIR);
+    return resolved === workspaceResolved || resolved.startsWith(workspaceResolved + path.sep);
+  }
 }
 
 /**
@@ -422,8 +427,8 @@ export async function gitStatusTool(
   const start = Date.now();
   try {
     const cwd = (input.cwd as string) || process.cwd();
-    const output = execSync('git status --porcelain', { cwd, encoding: 'utf-8', timeout: 5000 });
-    const branch = execSync('git branch --show-current', { cwd, encoding: 'utf-8', timeout: 5000 }).trim();
+    const output = execFileSync('git', ['status', '--porcelain'], { cwd, encoding: 'utf-8', timeout: 5000 });
+    const branch = execFileSync('git', ['branch', '--show-current'], { cwd, encoding: 'utf-8', timeout: 5000 }).trim();
     return {
       ok: true,
       data: { branch, status: output.trim().split('\n').filter(Boolean) },
@@ -450,8 +455,8 @@ export async function gitDiffTool(
   try {
     const cwd = (input.cwd as string) || process.cwd();
     const file = input.file as string;
-    const cmd = file ? `git diff -- ${file}` : 'git diff';
-    const output = execSync(cmd, { cwd, encoding: 'utf-8', timeout: 10000 });
+    const args = file ? ['diff', '--', file] : ['diff'];
+    const output = execFileSync('git', args, { cwd, encoding: 'utf-8', timeout: 10000 });
     return {
       ok: true,
       data: { diff: output.slice(0, 10000) }, // Limit output
@@ -481,23 +486,39 @@ export async function runTestsTool(
   const start = Date.now();
   try {
     const cwd = (input.cwd as string) || process.cwd();
-    let command = input.command as string;
+    let cmd: string;
+    let args: string[];
 
     // Auto-detect test command if not provided
-    if (!command) {
-      if (fs.existsSync(path.join(cwd, 'package.json'))) {
-        command = 'npm test';
-      } else if (fs.existsSync(path.join(cwd, 'pytest.ini')) || fs.existsSync(path.join(cwd, 'pyproject.toml'))) {
-        command = 'pytest';
-      } else {
-        return { ok: false, error: 'Could not detect test framework', elapsedMs: Date.now() - start };
+    if (input.command) {
+      // Only allow known safe test commands
+      const allowedCommands: Record<string, string[]> = {
+        'npm test': ['npm', ['test']],
+        'npm run test': ['npm', ['run', 'test']],
+        'pytest': ['pytest', []],
+        'jest': ['npx', ['jest']],
+        'mocha': ['npx', ['mocha']],
+      } as any;
+      const normalized = (input.command as string).trim().toLowerCase();
+      const match = Object.entries(allowedCommands).find(([k]) => k === normalized);
+      if (!match) {
+        return { ok: false, error: 'Only npm test, pytest, jest, or mocha allowed', elapsedMs: Date.now() - start };
       }
+      [cmd, args] = match[1] as [string, string[]];
+    } else if (fs.existsSync(path.join(cwd, 'package.json'))) {
+      cmd = 'npm';
+      args = ['test'];
+    } else if (fs.existsSync(path.join(cwd, 'pytest.ini')) || fs.existsSync(path.join(cwd, 'pyproject.toml'))) {
+      cmd = 'pytest';
+      args = [];
+    } else {
+      return { ok: false, error: 'Could not detect test framework', elapsedMs: Date.now() - start };
     }
 
-    const output = execSync(command, { cwd, encoding: 'utf-8', timeout: 120000 });
+    const output = execFileSync(cmd, args, { cwd, encoding: 'utf-8', timeout: 120000 });
     return {
       ok: true,
-      data: { command, output: output.slice(0, 10000) },
+      data: { command: `${cmd} ${args.join(' ')}`.trim(), output: output.slice(0, 10000) },
       elapsedMs: Date.now() - start,
     };
   } catch (error: any) {
@@ -526,17 +547,25 @@ export async function lintCodeTool(
   try {
     const targetPath = (input.path as string) || '.';
     const linter = input.linter as string;
-    let command: string;
+    let cmd: string;
+    let args: string[];
+
+    // Validate path doesn't contain shell metacharacters
+    if (!/^[\w./-]+$/.test(targetPath)) {
+      return { ok: false, error: 'Invalid path characters', elapsedMs: Date.now() - start };
+    }
 
     if (linter === 'eslint' || (!linter && fs.existsSync('package.json'))) {
-      command = `npx eslint ${targetPath} --format json`;
+      cmd = 'npx';
+      args = ['eslint', targetPath, '--format', 'json'];
     } else if (linter === 'pylint' || (!linter && fs.existsSync('pyproject.toml'))) {
-      command = `pylint ${targetPath} --output-format=json`;
+      cmd = 'pylint';
+      args = [targetPath, '--output-format=json'];
     } else {
       return { ok: false, error: 'No linter detected or specified', elapsedMs: Date.now() - start };
     }
 
-    const output = execSync(command, { encoding: 'utf-8', timeout: 60000 });
+    const output = execFileSync(cmd, args, { encoding: 'utf-8', timeout: 60000 });
     return {
       ok: true,
       data: { linter: linter || 'auto', output: output.slice(0, 10000) },

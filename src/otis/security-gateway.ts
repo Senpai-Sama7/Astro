@@ -110,7 +110,14 @@ export class OTISSecurityGateway {
 
   constructor(storage?: SQLiteStorage) {
     this.storage = storage;
-    this.signingKey = randomBytes(32).toString('hex');
+    // Use environment variable for signing key, generate random only for dev
+    if (process.env.AUDIT_SIGNING_KEY) {
+      this.signingKey = process.env.AUDIT_SIGNING_KEY;
+    } else if (process.env.NODE_ENV === 'production') {
+      throw new Error('AUDIT_SIGNING_KEY must be set in production');
+    } else {
+      this.signingKey = randomBytes(32).toString('hex');
+    }
   }
 
   async init(): Promise<void> {
@@ -118,14 +125,7 @@ export class OTISSecurityGateway {
       return;
     }
 
-    const storedKey = await this.storage.getSetting('otis.signingKey');
-    if (storedKey) {
-      this.signingKey = storedKey;
-    } else {
-      this.signingKey = randomBytes(32).toString('hex');
-      await this.storage.setSetting('otis.signingKey', this.signingKey);
-    }
-
+    // Load audit logs from storage (signing key comes from env, not storage)
     const storedLogs = await this.storage.getAuditLogs();
     this.auditLog = storedLogs.map((entry) => ({
       id: entry.id,
