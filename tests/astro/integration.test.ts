@@ -45,7 +45,8 @@ describe('ASTRO API Integration Tests', () => {
     it('should return health status', async () => {
       const response = await request(app).get('/api/v1/health');
       expect(response.status).toBe(200);
-      expect(response.body.agent || response.body).toMatchObject({
+      const body = response.body.agent ?? response.body;
+      expect(body).toMatchObject({
         status: 'ok',
         timestamp: expect.any(String),
       });
