@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Astro-OS: Production-grade Autonomous TUI Agent for Lubuntu/Kali Linux.
+Astro-OS: Production-grade Autonomous TUI Agent.
 
-A 3-panel dashboard with streaming chat, live execution logs, and ghost commands.
+Enhanced 3-panel dashboard with streaming chat, live execution logs, and ghost commands.
 """
 
 import os
@@ -11,21 +11,29 @@ import json
 import asyncio
 import platform
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical
-from textual.widgets import Header, Footer, Static, Input, RichLog, Markdown
+from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
+from textual.widgets import Header, Footer, Static, Input, RichLog, Markdown, Button, Label, ProgressBar
 from textual.binding import Binding
 from textual.message import Message
 from textual import work
+from textual.reactive import reactive
 from rich.syntax import Syntax
-from rich.markdown import Markdown as RichMarkdown
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
 
 # Local imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from astro_os.tools import ShellTool, BrowserTool
-from astro_os.memory import Memory
+try:
+    from astro_os.tools import ShellTool, BrowserTool
+    from astro_os.memory import Memory
+except ImportError:
+    ShellTool = None
+    BrowserTool = None
+    Memory = None
 
 # LLM Client
 try:
@@ -70,395 +78,448 @@ ALWAYS respond with valid JSON:
 5. Use web mode for browsing, shell mode for local operations"""
 
 
-class ChatMessage(Static):
-    """A chat message widget."""
+class StatusBar(Static):
+    """Status bar showing system info."""
     
-    def __init__(self, role: str, content: str, **kwargs):
+    mode = reactive("shell")
+    status = reactive("ready")
+    
+    def render(self) -> Text:
+        mode_color = "green" if self.mode == "shell" else "blue"
+        status_color = "green" if self.status == "ready" else "yellow"
+        
+        text = Text()
+        text.append("⚡ ", style="bold yellow")
+        text.append("ASTRO-OS", style="bold cyan")
+        text.append(" │ ", style="dim")
+        text.append(f"Mode: ", style="dim")
+        text.append(f"{self.mode.upper()}", style=f"bold {mode_color}")
+        text.append(" │ ", style="dim")
+        text.append(f"Status: ", style="dim")
+        text.append(f"{self.status}", style=f"bold {status_color}")
+        text.append(" │ ", style="dim")
+        text.append(f"{platform.system()} {platform.release()}", style="dim")
+        return text
+
+
+class AgentCard(Static):
+    """Card showing agent info."""
+    
+    def __init__(self, name: str, tools: List[str], status: str = "online", **kwargs):
         super().__init__(**kwargs)
-        self.role = role
-        self.content = content
+        self.agent_name = name
+        self.tools = tools
+        self.agent_status = status
     
-    def compose(self) -> ComposeResult:
-        prefix = "🧑 You" if self.role == "user" else "🤖 Astro"
-        color = "green" if self.role == "user" else "cyan"
-        yield Static(f"[bold {color}]{prefix}[/]")
-        yield Markdown(self.content)
+    def render(self) -> Panel:
+        status_icon = "🟢" if self.agent_status == "online" else "🔴"
+        content = f"{status_icon} {self.agent_name}\n"
+        content += f"[dim]Tools: {', '.join(self.tools[:3])}{'...' if len(self.tools) > 3 else ''}[/dim]"
+        return Panel(content, border_style="cyan", padding=(0, 1))
 
 
-class GhostCommand(Message):
-    """Message for ghost command suggestion."""
-    def __init__(self, command: str):
-        super().__init__()
-        self.command = command
+class GhostCommandWidget(Static):
+    """Widget showing suggested command."""
+    
+    command = reactive("")
+    
+    def render(self) -> Panel:
+        if not self.command:
+            return Panel("[dim]No suggestion[/dim]", title="💡 Ghost Command", border_style="dim")
+        return Panel(
+            f"[bold yellow]{self.command}[/bold yellow]\n[dim]Press Enter to execute, Esc to cancel[/dim]",
+            title="💡 Ghost Command",
+            border_style="yellow"
+        )
 
 
 class AstroOS(App):
-    """Astro-OS TUI Application."""
+    """Astro-OS TUI Application - Enhanced UI/UX."""
     
     CSS = """
+    Screen {
+        background: $surface;
+    }
+    
     #main-container {
         layout: horizontal;
+        height: 100%;
     }
-    #chat-panel {
-        width: 65%;
-        border: solid green;
-        padding: 1;
+    
+    #left-panel {
+        width: 70%;
+        height: 100%;
+        border: solid $primary;
+        padding: 0 1;
     }
-    #sidebar {
-        width: 35%;
-        border: solid cyan;
-        padding: 1;
+    
+    #right-panel {
+        width: 30%;
+        height: 100%;
+        border: solid $secondary;
+        padding: 0 1;
     }
+    
+    #status-bar {
+        height: 1;
+        background: $primary-darken-2;
+        padding: 0 1;
+    }
+    
+    #chat-container {
+        height: 1fr;
+    }
+    
     #chat-log {
         height: 1fr;
         scrollbar-gutter: stable;
+        border: round $primary-lighten-1;
+        padding: 1;
     }
-    #exec-log {
-        height: 1fr;
-        scrollbar-gutter: stable;
+    
+    #ghost-command {
+        height: auto;
+        margin: 1 0;
     }
+    
     #input-container {
         height: auto;
-        dock: bottom;
+        padding: 1 0;
     }
+    
     #user-input {
         width: 100%;
+        border: tall $accent;
     }
+    
+    #user-input:focus {
+        border: tall $success;
+    }
+    
+    #exec-log {
+        height: 2fr;
+        scrollbar-gutter: stable;
+        border: round $secondary-lighten-1;
+        padding: 1;
+    }
+    
+    #agents-container {
+        height: 1fr;
+        padding: 1 0;
+    }
+    
+    .agent-card {
+        margin: 0 0 1 0;
+    }
+    
     .message {
         margin: 1 0;
         padding: 1;
-        background: $surface;
     }
+    
     .user-message {
-        border-left: thick green;
+        background: $success-darken-3;
+        border-left: thick $success;
     }
+    
     .assistant-message {
-        border-left: thick cyan;
+        background: $primary-darken-3;
+        border-left: thick $primary;
     }
+    
+    .error-message {
+        background: $error-darken-3;
+        border-left: thick $error;
+    }
+    
+    Header {
+        background: $primary;
+    }
+    
     Footer {
         background: $primary-darken-2;
+    }
+    
+    #title-bar {
+        text-align: center;
+        text-style: bold;
+        color: $text;
+        padding: 1;
     }
     """
     
     BINDINGS = [
         Binding("ctrl+c", "interrupt", "Interrupt", show=True),
         Binding("ctrl+q", "quit", "Quit", show=True),
-        Binding("ctrl+l", "clear_logs", "Clear Logs", show=True),
-        Binding("ctrl+m", "toggle_mode", "Toggle Mode", show=True),
-        Binding("ctrl+p", "index_project", "Index Project", show=True),
-        Binding("escape", "cancel_ghost", "Cancel Ghost", show=False),
+        Binding("ctrl+l", "clear_logs", "Clear", show=True),
+        Binding("ctrl+m", "toggle_mode", "Mode", show=True),
+        Binding("ctrl+p", "index_project", "Index", show=True),
+        Binding("ctrl+r", "refresh", "Refresh", show=True),
+        Binding("escape", "cancel_ghost", "Cancel", show=False),
         Binding("enter", "submit", "Submit", show=False),
+        Binding("tab", "accept_ghost", "Accept Ghost", show=False),
     ]
+    
+    TITLE = "⚡ ASTRO-OS"
+    SUB_TITLE = "Autonomous Terminal Agent"
+    
+    mode = reactive("shell")
+    ghost_command = reactive("")
+    is_processing = reactive(False)
     
     def __init__(self):
         super().__init__()
-        self.memory = Memory()
-        self.shell = ShellTool(cwd=self.memory.state.cwd, log_callback=self.log_exec)
-        self.browser = BrowserTool(log_callback=self.log_exec, vision_callback=self.vision_analyze)
-        self.mode = self.memory.state.mode
-        self.running_task: Optional[asyncio.Task] = None
-        self.ghost_command: Optional[str] = None
-        self.os_info = self._detect_os()
-        
-        # LLM client
+        self.conversation: List[Dict[str, str]] = []
+        self.shell = ShellTool() if ShellTool else None
+        self.browser = BrowserTool() if BrowserTool else None
+        self.memory = Memory() if Memory else None
         self.llm_client = None
-        self.llm_provider = None
-        self._init_llm()
+        self._setup_llm()
     
-    def _detect_os(self) -> str:
-        if platform.system() == "Linux":
-            try:
-                with open("/etc/os-release") as f:
-                    for line in f:
-                        if line.startswith("PRETTY_NAME="):
-                            return line.split("=")[1].strip().strip('"')
-            except:
-                pass
-        return f"{platform.system()} {platform.release()}"
-    
-    def _init_llm(self):
-        if HAS_OPENAI and os.environ.get("OPENAI_API_KEY"):
-            self.llm_client = AsyncOpenAI()
-            self.llm_provider = "openai"
-            self.model = os.environ.get("ASTRO_MODEL", "gpt-4o-mini")
-        elif HAS_ANTHROPIC and os.environ.get("ANTHROPIC_API_KEY"):
+    def _setup_llm(self):
+        """Setup LLM client."""
+        if HAS_ANTHROPIC and os.getenv("ANTHROPIC_API_KEY"):
             self.llm_client = anthropic.AsyncAnthropic()
             self.llm_provider = "anthropic"
-            self.model = os.environ.get("ASTRO_MODEL", "claude-3-haiku-20240307")
+        elif HAS_OPENAI:
+            base_url = os.getenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
+            self.llm_client = AsyncOpenAI(base_url=base_url, api_key="ollama")
+            self.llm_provider = "openai"
     
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
+        yield Header()
+        
         with Container(id="main-container"):
-            with Vertical(id="chat-panel"):
-                yield Static("[bold green]💬 Chat[/]", id="chat-title")
-                yield RichLog(id="chat-log", highlight=True, markup=True, wrap=True)
+            # Left panel - Chat
+            with Vertical(id="left-panel"):
+                yield StatusBar(id="status-bar")
+                yield Static("[bold cyan]💬 Chat[/bold cyan]", id="title-bar")
+                
+                with ScrollableContainer(id="chat-container"):
+                    yield RichLog(id="chat-log", highlight=True, markup=True, wrap=True)
+                
+                yield GhostCommandWidget(id="ghost-command")
+                
                 with Container(id="input-container"):
-                    yield Input(placeholder="Ask Astro anything...", id="user-input")
-            with Vertical(id="sidebar"):
-                yield Static("[bold cyan]⚡ Live Execution[/]", id="exec-title")
-                yield RichLog(id="exec-log", highlight=True, markup=True, auto_scroll=True)
+                    yield Input(placeholder="Ask Astro anything... (Ctrl+M to toggle mode)", id="user-input")
+            
+            # Right panel - Execution & Agents
+            with Vertical(id="right-panel"):
+                yield Static("[bold green]📟 Execution Log[/bold green]")
+                yield RichLog(id="exec-log", highlight=True, markup=True, wrap=True)
+                
+                yield Static("[bold magenta]🤖 Agents[/bold magenta]")
+                with ScrollableContainer(id="agents-container"):
+                    yield AgentCard("Research Agent", ["web_search", "content_extract"], classes="agent-card")
+                    yield AgentCard("Code Agent", ["echo", "math_eval"], classes="agent-card")
+                    yield AgentCard("FileSystem Agent", ["read_file", "write_file"], classes="agent-card")
+                    yield AgentCard("Git Agent", ["git_status", "git_diff"], classes="agent-card")
+                    yield AgentCard("Shell Agent", ["execute", "sudo"], classes="agent-card")
+        
         yield Footer()
     
-    def on_mount(self):
-        self.title = "Astro-OS"
-        self.sub_title = f"Mode: {self.mode.upper()} | Session: {self.memory.state.session_id[:8]} | CWD: {self.shell.cwd}"
-        
-        # Welcome message
-        chat_log = self.query_one("#chat-log", RichLog)
-        chat_log.write(f"[bold cyan]🚀 Astro-OS initialized[/]")
-        chat_log.write(f"[dim]OS: {self.os_info}[/]")
-        chat_log.write(f"[dim]LLM: {self.llm_provider or 'None'}/{self.model if self.llm_client else 'N/A'}[/]")
-        chat_log.write(f"[dim]Type a command or question. Ctrl+C to interrupt, Ctrl+Q to quit.[/]\n")
-        
-        if not self.llm_client:
-            chat_log.write("[bold red]⚠️ No LLM configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY[/]")
+    def on_mount(self) -> None:
+        """Called when app is mounted."""
+        self.log_chat("system", "🚀 Welcome to Astro-OS!")
+        self.log_chat("system", f"Mode: [bold]{self.mode.upper()}[/bold] | LLM: {getattr(self, 'llm_provider', 'none')}")
+        self.log_chat("system", "Type your request or use Ctrl+M to toggle mode.")
+        self.log_exec("[dim]Execution log ready...[/dim]")
         
         # Focus input
         self.query_one("#user-input", Input).focus()
     
-    async def log_exec(self, msg: str):
+    def log_chat(self, role: str, content: str) -> None:
+        """Log a message to chat."""
+        chat_log = self.query_one("#chat-log", RichLog)
+        
+        if role == "user":
+            chat_log.write(Panel(content, title="🧑 You", border_style="green", padding=(0, 1)))
+        elif role == "assistant":
+            chat_log.write(Panel(content, title="🤖 Astro", border_style="cyan", padding=(0, 1)))
+        elif role == "system":
+            chat_log.write(f"[dim]{content}[/dim]")
+        elif role == "error":
+            chat_log.write(Panel(content, title="❌ Error", border_style="red", padding=(0, 1)))
+    
+    def log_exec(self, content: str) -> None:
         """Log to execution panel."""
         exec_log = self.query_one("#exec-log", RichLog)
         timestamp = datetime.now().strftime("%H:%M:%S")
-        exec_log.write(f"[dim]{timestamp}[/] {msg}")
+        exec_log.write(f"[dim]{timestamp}[/dim] {content}")
     
-    async def log_chat(self, role: str, content: str):
-        """Log to chat panel."""
-        chat_log = self.query_one("#chat-log", RichLog)
-        if role == "user":
-            chat_log.write(f"\n[bold green]🧑 You:[/] {content}")
-        else:
-            chat_log.write(f"\n[bold cyan]🤖 Astro:[/]")
-            # Try to render as markdown
-            try:
-                chat_log.write(RichMarkdown(content))
-            except:
-                chat_log.write(content)
-    
-    def update_status(self):
-        """Update footer status."""
-        self.sub_title = f"Mode: {self.mode.upper()} | Session: {self.memory.state.session_id[:8]} | CWD: {self.shell.cwd}"
-    
-    async def vision_analyze(self, screenshot_b64: str, prompt: str) -> str:
-        """Analyze screenshot with vision model."""
-        if not self.llm_client or self.llm_provider != "openai":
-            return '{"found": false, "reason": "Vision not available"}'
-        
-        try:
-            response = await self.llm_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[{
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{screenshot_b64}"}}
-                    ]
-                }],
-                max_tokens=500
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            return f'{{"found": false, "reason": "{str(e)}"}}'
-    
-    async def call_llm(self, messages: list) -> Optional[str]:
-        """Call LLM API."""
-        if not self.llm_client:
-            return None
-        
-        try:
-            if self.llm_provider == "openai":
-                response = await self.llm_client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    response_format={"type": "json_object"}
-                )
-                return response.choices[0].message.content
-            elif self.llm_provider == "anthropic":
-                system = messages[0]["content"] if messages[0]["role"] == "system" else ""
-                msgs = [m for m in messages if m["role"] != "system"]
-                response = await self.llm_client.messages.create(
-                    model=self.model,
-                    max_tokens=2048,
-                    system=system,
-                    messages=msgs
-                )
-                return response.content[0].text
-        except Exception as e:
-            await self.log_exec(f"[red]LLM Error: {e}[/]")
-            return None
-    
-    def set_ghost_command(self, command: str):
-        """Set ghost command in input."""
-        self.ghost_command = command
-        input_widget = self.query_one("#user-input", Input)
-        input_widget.value = command
-        input_widget.cursor_position = len(command)
-        self.query_one("#chat-log", RichLog).write(f"[dim]👻 Ghost command ready. Press Enter to execute or Escape to cancel.[/]")
-    
-    async def process_response(self, response: str):
-        """Process LLM response and execute actions."""
-        try:
-            data = json.loads(response)
-        except json.JSONDecodeError:
-            await self.log_chat("assistant", response)
-            return
-        
-        thought = data.get("thought", "")
-        mode = data.get("mode", "chat")
-        
-        # Show thought
-        if thought:
-            await self.log_chat("assistant", f"💭 {thought}")
-        
-        # Handle different modes
-        if mode == "chat" or data.get("command") is None:
-            return
-        
-        elif mode == "shell":
-            command = data.get("command")
-            dangerous = data.get("dangerous", False)
-            
-            if dangerous:
-                await self.log_chat("assistant", f"⚠️ **Dangerous command**: `{command}`")
-                self.set_ghost_command(command)
-            else:
-                # Set as ghost command for confirmation
-                self.set_ghost_command(command)
-        
-        elif mode == "web":
-            action = data.get("action")
-            target = data.get("target")
-            value = data.get("value", "")
-            
-            if not self.browser.page:
-                await self.browser.start(headless=True)
-            
-            if action == "navigate":
-                result = await self.browser.navigate(target)
-            elif action == "click":
-                result = await self.browser.click(target)
-            elif action == "type":
-                result = await self.browser.type_text(target, value)
-            
-            # Feed result back
-            self.memory.add_message("system", f"Browser {action} result: {result.success}")
-        
-        elif mode == "plan":
-            steps = data.get("steps", [])
-            await self.log_chat("assistant", f"📋 **Plan with {len(steps)} steps:**")
-            for i, step in enumerate(steps, 1):
-                await self.log_chat("assistant", f"  {i}. {step.get('description', step.get('command', ''))}")
-            
-            # Set first step as ghost command
-            if steps:
-                first = steps[0]
-                self.set_ghost_command(first.get("command", ""))
-    
-    @work(exclusive=True)
-    async def run_agent(self, user_input: str):
-        """Run agent task."""
-        await self.log_chat("user", user_input)
-        self.memory.add_message("user", user_input)
-        
-        # Build context
-        context = self.memory.build_context_prompt()
-        system_prompt = SYSTEM_PROMPT.format(os_info=self.os_info, context=context)
-        
-        # Build messages
-        messages = [{"role": "system", "content": system_prompt}]
-        for msg in self.memory.get_conversation(limit=10):
-            messages.append({"role": msg["role"], "content": msg["content"]})
-        
-        await self.log_exec("[cyan]Thinking...[/]")
-        response = await self.call_llm(messages)
-        
-        if response:
-            self.memory.add_message("assistant", response)
-            await self.process_response(response)
-        else:
-            await self.log_chat("assistant", "Sorry, I couldn't process that request.")
-    
-    @work(exclusive=True)
-    async def execute_command(self, command: str):
-        """Execute a shell command."""
-        self.memory.add_command(command)
-        result = await self.shell.execute(command)
-        
-        # Update CWD
-        self.memory.set_cwd(self.shell.cwd)
-        self.update_status()
-        
-        # Show result in chat
-        if result.stdout:
-            await self.log_chat("assistant", f"```\n{result.stdout[:2000]}\n```")
-        if result.stderr:
-            await self.log_chat("assistant", f"[red]{result.stderr[:500]}[/]")
-        
-        # If failed with suggestion, offer fix
-        if result.exit_code != 0 and result.suggested_fix:
-            await self.log_chat("assistant", f"💡 Suggested fix: `{result.suggested_fix}`")
-            self.set_ghost_command(result.suggested_fix)
-        
-        # Feed result back to LLM for continuation
-        self.memory.add_message("system", 
-            f"Command `{command}` exited with code {result.exit_code}.\n"
-            f"stdout: {result.stdout[:1000]}\nstderr: {result.stderr[:500]}")
-    
-    async def on_input_submitted(self, event: Input.Submitted):
-        """Handle input submission."""
-        value = event.value.strip()
-        if not value:
-            return
-        
-        event.input.value = ""
-        self.ghost_command = None
-        
-        # Check if it's a direct command (starts with !)
-        if value.startswith("!"):
-            await self.execute_command(value[1:])
-        # Check if it's the ghost command being confirmed
-        elif self.ghost_command and value == self.ghost_command:
-            await self.execute_command(value)
-        else:
-            # Send to agent
-            self.run_agent(value)
-    
-    def action_interrupt(self):
-        """Interrupt running task."""
-        if self.running_task and not self.running_task.done():
-            self.running_task.cancel()
-            self.query_one("#exec-log", RichLog).write("[yellow]⚠️ Task interrupted[/]")
-    
-    def action_clear_logs(self):
-        """Clear execution logs."""
-        self.query_one("#exec-log", RichLog).clear()
-    
-    def action_toggle_mode(self):
+    def action_toggle_mode(self) -> None:
         """Toggle between shell and web mode."""
         self.mode = "web" if self.mode == "shell" else "shell"
-        self.memory.set_mode(self.mode)
-        self.update_status()
-        self.query_one("#exec-log", RichLog).write(f"[cyan]Mode: {self.mode.upper()}[/]")
+        status_bar = self.query_one("#status-bar", StatusBar)
+        status_bar.mode = self.mode
+        self.log_exec(f"Mode switched to [bold]{self.mode.upper()}[/bold]")
     
-    def action_cancel_ghost(self):
+    def action_clear_logs(self) -> None:
+        """Clear all logs."""
+        self.query_one("#chat-log", RichLog).clear()
+        self.query_one("#exec-log", RichLog).clear()
+        self.log_chat("system", "Logs cleared.")
+    
+    def action_interrupt(self) -> None:
+        """Interrupt current operation."""
+        self.is_processing = False
+        self.log_exec("[yellow]Operation interrupted[/yellow]")
+    
+    def action_cancel_ghost(self) -> None:
         """Cancel ghost command."""
-        if self.ghost_command:
-            self.ghost_command = None
-            self.query_one("#user-input", Input).value = ""
-            self.query_one("#chat-log", RichLog).write("[dim]Ghost command cancelled[/]")
+        self.ghost_command = ""
+        ghost_widget = self.query_one("#ghost-command", GhostCommandWidget)
+        ghost_widget.command = ""
     
-    @work
-    async def action_index_project(self):
-        """Index current project."""
-        await self.log_exec("[cyan]Indexing project...[/]")
-        ctx = self.memory.index_project(self.shell.cwd)
-        await self.log_exec(f"[green]Indexed: {ctx.name}[/]")
-        await self.log_exec(f"[dim]Languages: {', '.join(ctx.languages)}[/]")
-        await self.log_exec(f"[dim]Files: {len(ctx.structure)}[/]")
+    def action_accept_ghost(self) -> None:
+        """Accept and execute ghost command."""
+        if self.ghost_command:
+            self._execute_command(self.ghost_command)
+            self.ghost_command = ""
+            ghost_widget = self.query_one("#ghost-command", GhostCommandWidget)
+            ghost_widget.command = ""
+    
+    async def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle input submission."""
+        user_input = event.value.strip()
+        if not user_input:
+            return
+        
+        # Clear input
+        event.input.value = ""
+        
+        # If ghost command is active, execute it
+        if self.ghost_command:
+            self._execute_command(self.ghost_command)
+            self.ghost_command = ""
+            self.query_one("#ghost-command", GhostCommandWidget).command = ""
+            return
+        
+        # Process user input
+        self.log_chat("user", user_input)
+        self.conversation.append({"role": "user", "content": user_input})
+        
+        # Update status
+        status_bar = self.query_one("#status-bar", StatusBar)
+        status_bar.status = "thinking..."
+        self.is_processing = True
+        
+        # Process with LLM
+        self._process_input(user_input)
+    
+    @work(exclusive=True)
+    async def _process_input(self, user_input: str) -> None:
+        """Process user input with LLM."""
+        try:
+            if not self.llm_client:
+                self.log_chat("assistant", "No LLM configured. Set ANTHROPIC_API_KEY or use local Ollama.")
+                return
+            
+            # Build context
+            context = f"Mode: {self.mode}\nCWD: {os.getcwd()}"
+            if self.memory:
+                context += f"\nMemory: {self.memory.get_summary()}"
+            
+            system = SYSTEM_PROMPT.format(
+                os_info=f"{platform.system()} {platform.release()}",
+                context=context
+            )
+            
+            # Call LLM
+            self.log_exec("Calling LLM...")
+            
+            if self.llm_provider == "anthropic":
+                response = await self.llm_client.messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=2048,
+                    system=system,
+                    messages=self.conversation[-10:]  # Last 10 messages
+                )
+                content = response.content[0].text
+            else:
+                response = await self.llm_client.chat.completions.create(
+                    model=os.getenv("OPENAI_MODEL", "llama3.2"),
+                    messages=[{"role": "system", "content": system}] + self.conversation[-10:],
+                    max_tokens=2048
+                )
+                content = response.choices[0].message.content
+            
+            # Parse response
+            await self._handle_response(content)
+            
+        except Exception as e:
+            self.log_chat("error", f"Error: {str(e)}")
+            self.log_exec(f"[red]Error: {str(e)}[/red]")
+        finally:
+            status_bar = self.query_one("#status-bar", StatusBar)
+            status_bar.status = "ready"
+            self.is_processing = False
+    
+    async def _handle_response(self, content: str) -> None:
+        """Handle LLM response."""
+        try:
+            # Try to parse JSON
+            data = json.loads(content)
+            mode = data.get("mode", "chat")
+            thought = data.get("thought", "")
+            command = data.get("command")
+            
+            self.log_chat("assistant", thought)
+            self.conversation.append({"role": "assistant", "content": thought})
+            
+            if mode == "shell" and command:
+                dangerous = data.get("dangerous", False)
+                if dangerous:
+                    # Show as ghost command for confirmation
+                    self.ghost_command = command
+                    self.query_one("#ghost-command", GhostCommandWidget).command = command
+                    self.log_exec(f"[yellow]⚠️ Dangerous command suggested: {command}[/yellow]")
+                else:
+                    # Execute directly
+                    await self._execute_command(command)
+            
+            elif mode == "plan":
+                steps = data.get("steps", [])
+                self.log_exec(f"[cyan]Plan with {len(steps)} steps:[/cyan]")
+                for i, step in enumerate(steps, 1):
+                    self.log_exec(f"  {i}. {step.get('description', step.get('command', ''))}")
+            
+        except json.JSONDecodeError:
+            # Not JSON, treat as plain text
+            self.log_chat("assistant", content)
+            self.conversation.append({"role": "assistant", "content": content})
+    
+    async def _execute_command(self, command: str) -> None:
+        """Execute a shell command."""
+        self.log_exec(f"[green]$ {command}[/green]")
+        
+        if self.shell:
+            result = await self.shell.execute(command)
+            if result.get("success"):
+                output = result.get("output", "")
+                if output:
+                    self.log_exec(output[:500] + ("..." if len(output) > 500 else ""))
+                self.log_exec("[green]✓ Command completed[/green]")
+            else:
+                self.log_exec(f"[red]✗ {result.get('error', 'Unknown error')}[/red]")
+        else:
+            # Fallback to subprocess
+            import subprocess
+            try:
+                result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=30)
+                if result.stdout:
+                    self.log_exec(result.stdout[:500])
+                if result.stderr:
+                    self.log_exec(f"[yellow]{result.stderr[:200]}[/yellow]")
+                self.log_exec(f"[{'green' if result.returncode == 0 else 'red'}]Exit: {result.returncode}[/]")
+            except subprocess.TimeoutExpired:
+                self.log_exec("[red]Command timed out[/red]")
+            except Exception as e:
+                self.log_exec(f"[red]Error: {e}[/red]")
 
 
 def main():
-    """Entry point."""
+    """Run the Astro-OS TUI."""
     app = AstroOS()
     app.run()
 

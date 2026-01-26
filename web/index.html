@@ -174,21 +174,43 @@
     </style>
 
     <script>
-      // Agent definitions - these match the actual backend agents
-      const AGENTS = [
-        { id: 'research_agent_001', name: 'Research Agent', icon: '🔬', desc: 'Web search, content extraction, and summarization. Finds and synthesizes information from across the internet.' },
-        { id: 'code_agent_001', name: 'Code Agent', icon: '💻', desc: 'Generates, executes, and debugs code in a secure Docker sandbox. Full AST validation for safety.' },
-        { id: 'filesystem_agent_001', name: 'FileSystem Agent', icon: '📁', desc: 'Creates, reads, and organizes files. Path-validated operations restricted to the workspace directory.' },
-        { id: 'git_agent_001', name: 'Git Agent', icon: '🔧', desc: 'Version control operations: status, diff, commit, branch, checkout. Manages your repository seamlessly.' },
-        { id: 'test_agent_001', name: 'Test Agent', icon: '🧪', desc: 'Runs test suites across frameworks: pytest, npm test, cargo test, go test. Enables TDD workflows.' },
-        { id: 'analysis_agent_001', name: 'Analysis Agent', icon: '📊', desc: 'Static code analysis and linting. Runs pylint, eslint, and other quality tools on your codebase.' },
-        { id: 'knowledge_agent_001', name: 'Knowledge Agent', icon: '🧠', desc: 'Semantic memory persistence. Saves and retrieves architectural decisions, context, and learnings.' }
-      ];
+      // Agent icons mapping
+      const AGENT_ICONS = {
+        'research-agent': '🔬',
+        'code-agent': '💻',
+        'filesystem-agent': '📁',
+        'git-agent': '🔧',
+        'test-agent': '🧪',
+        'analysis-agent': '📊',
+        'knowledge-agent': '🧠',
+        'general-assistant': '🤖',
+        'math-agent': '🔢',
+        'echo-agent': '📢',
+      };
 
       // State
       let systemOnline = false;
       let agentStatuses = {};
+      let AGENTS = [];
       let startTime = Date.now();
+      let authToken = null;
+
+      // Get auth token
+      async function getToken() {
+        if (authToken) return authToken;
+        try {
+          const res = await fetch('http://localhost:5000/api/v1/auth/dev-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userId: 'web-user', role: 'admin' })
+          });
+          const data = await res.json();
+          authToken = data.token;
+          return authToken;
+        } catch (e) {
+          return null;
+        }
+      }
 
       // Render agents
       function renderAgents() {
@@ -196,7 +218,7 @@
         grid.innerHTML = AGENTS.map(agent => `
           <div class="agent-card" data-agent="${agent.id}">
             <div class="agent-card__header">
-              <div class="agent-card__icon">${agent.icon}</div>
+              <div class="agent-card__icon">${AGENT_ICONS[agent.id] || '🤖'}</div>
               <div>
                 <h3>${agent.name}</h3>
                 <div class="agent-card__status ${agentStatuses[agent.id] ? '' : 'offline'}" id="status-${agent.id}">
@@ -204,7 +226,10 @@
                 </div>
               </div>
             </div>
-            <p>${agent.desc}</p>
+            <p>${agent.description}</p>
+            <div style="margin-top: 8px; font-size: 0.75rem; color: var(--muted);">
+              Tools: ${agent.tools?.join(', ') || 'none'}
+            </div>
           </div>
         `).join('');
       }
@@ -226,18 +251,24 @@
             statusBadge.style.background = 'rgba(34, 197, 94, 0.2)';
             statusBadge.style.borderColor = '#22c55e';
 
-            // Update agent statuses from API
-            if (data.agents) {
-              data.agents.forEach(a => agentStatuses[a.id] = a.status === 'active');
-            } else {
-              // If no agent data, assume all online when system is online
-              AGENTS.forEach(a => agentStatuses[a.id] = true);
+            // Fetch real agents from API
+            const token = await getToken();
+            if (token) {
+              const agentsRes = await fetch('http://localhost:5000/api/v1/astro/agents', {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              if (agentsRes.ok) {
+                const agentsData = await agentsRes.json();
+                AGENTS = agentsData.agents || [];
+                AGENTS.forEach(a => agentStatuses[a.id] = true);
+              }
             }
 
             // Update telemetry
-            document.getElementById('tel-agents').textContent = data.agents_count || AGENTS.length;
-            document.getElementById('tel-tasks').textContent = data.pending_tasks || 0;
-            document.getElementById('tel-latency').textContent = data.avg_latency ? `${data.avg_latency}ms` : '<50ms';
+            document.getElementById('tel-agents').textContent = AGENTS.length;
+            document.getElementById('tel-tasks').textContent = 0;
+            document.getElementById('tel-latency').textContent = '<50ms';
+            document.getElementById('stat-agents').textContent = AGENTS.length;
 
             renderAgents();
             return true;
@@ -258,6 +289,7 @@
         document.getElementById('tel-agents').textContent = '0';
         document.getElementById('tel-tasks').textContent = '--';
         document.getElementById('tel-latency').textContent = '--';
+        document.getElementById('stat-agents').textContent = '0';
 
         renderAgents();
         return false;

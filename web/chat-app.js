@@ -104,12 +104,27 @@ const store = new Store();
 
 class APIClient {
   constructor(baseUrl) {
-    this.baseUrl = baseUrl;
+    this.baseUrl = baseUrl.replace(/\/$/, ''); // Remove trailing slash
+    this.token = null;
+  }
+
+  async getToken() {
+    if (this.token) return this.token;
+    // Get dev token for now
+    const response = await fetch(`${this.baseUrl}/api/v1/auth/dev-token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: 'web-user', role: 'admin' }),
+    });
+    const data = await response.json();
+    this.token = data.token;
+    return this.token;
   }
 
   async request(endpoint, options = {}) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const token = await this.getToken();
 
     try {
       const response = await fetch(`${this.baseUrl}${endpoint}`, {
@@ -117,6 +132,7 @@ class APIClient {
         signal: controller.signal,
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
           ...options.headers,
         },
       });
@@ -125,7 +141,7 @@ class APIClient {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
-        throw new Error(error.detail || `HTTP ${response.status}`);
+        throw new Error(error.detail || error.error || `HTTP ${response.status}`);
       }
 
       return response.json();
@@ -139,34 +155,49 @@ class APIClient {
   }
 
   async sendMessage(sessionId, message, files = []) {
-    return this.request('/api/chat/message', {
+    return this.request('/api/v1/aria/chat', {
       method: 'POST',
       body: JSON.stringify({
-        session_id: sessionId,
+        sessionId,
         message,
-        files: files.map(f => ({ name: f.name, type: f.type, size: f.size })),
       }),
     });
   }
 
   async getHistory(sessionId) {
-    return this.request(`/api/chat/history/${sessionId}`);
+    return this.request(`/api/v1/aria/sessions/${sessionId}`);
   }
 
   async getSessions() {
-    return this.request('/api/chat/sessions');
+    // Not implemented in backend yet, return empty
+    return { sessions: [] };
+  }
+
+  async getAgents() {
+    return this.request('/api/v1/astro/agents');
+  }
+
+  async getTools() {
+    return this.request('/api/v1/astro/tools');
   }
 
   async getSystemStatus() {
-    return this.request('/api/system/status');
-  }
-
-  async startSystem() {
-    return this.request('/api/system/start', { method: 'POST' });
+    try {
+      const health = await this.request('/api/v1/health');
+      const agents = await this.getAgents();
+      return {
+        online: health.status === 'ok',
+        uptime: health.uptime,
+        agents: agents.agents || [],
+        agentCount: agents.agents?.length || 0,
+      };
+    } catch (e) {
+      return { online: false, agents: [], agentCount: 0 };
+    }
   }
 }
 
-const api = new APIClient(CONFIG.API_BASE);
+const api = new APIClient('http://localhost:5000');
 
 // ============================================================================
 // WEBSOCKET CLIENT
@@ -663,22 +694,28 @@ class ChatApp {
       // Send to API
       const response = await api.sendMessage(sessionId, content, attachedFiles);
 
-      // Create assistant message
+      // Create assistant message from backend response
       const assistantMessage = {
         id: UI.generateId(),
         role: 'assistant',
-        content: response.message,
+        content: response.response || response.message || 'No response',
         timestamp: new Date().toISOString(),
+        toolExecuted: response.toolExecuted,
+        result: response.result,
       };
 
+      // Update session ID if backend created one
+      const newSessionId = response.sessionId || sessionId;
+
       store.setState({
+        currentSessionId: newSessionId,
         messages: [...store.getState().messages, assistantMessage],
         isLoading: false,
         isTyping: false,
       });
 
       // Update session title if first message
-      this.updateSessionTitle(sessionId, content);
+      this.updateSessionTitle(newSessionId, content);
 
       // Render messages
       this.renderMessages();
