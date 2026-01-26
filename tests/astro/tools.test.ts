@@ -39,7 +39,7 @@ describe('Built-in Tools', () => {
     });
 
     it('should make a successful HTTP request', async () => {
-      (axios as jest.Mock).mockResolvedValue({
+      (axios as unknown as jest.Mock).mockResolvedValue({
         status: 200,
         statusText: 'OK',
         headers: {},
@@ -55,8 +55,8 @@ describe('Built-in Tools', () => {
       );
 
       expect(result.ok).toBe(true);
-      expect(result.data?.status).toBe(200);
-      expect(result.data?.data).toEqual({ result: 'success' });
+      expect((result.data as any)?.status).toBe(200);
+      expect((result.data as any)?.data).toEqual({ result: 'success' });
     });
 
     it('should reject non-whitelisted domains', async () => {
@@ -93,7 +93,7 @@ describe('Built-in Tools', () => {
     });
 
     it('should handle HTTP errors', async () => {
-      (axios as jest.Mock).mockRejectedValue(new Error('Network error'));
+      (axios as unknown as jest.Mock).mockRejectedValue(new Error('Network error'));
 
       const result = await httpRequestTool(
         {
@@ -113,7 +113,7 @@ describe('Built-in Tools', () => {
       const result = await mathEvalTool({ expression: '2 + 2' }, mockContext);
 
       expect(result.ok).toBe(true);
-      expect(result.data?.result).toBe(4);
+      expect((result.data as any)?.result).toBe(4);
     });
 
     it('should evaluate complex expressions', async () => {
@@ -123,14 +123,14 @@ describe('Built-in Tools', () => {
       );
 
       expect(result.ok).toBe(true);
-      expect(result.data?.result).toBe(27);
+      expect((result.data as any)?.result).toBe(27);
     });
 
     it('should handle division', async () => {
       const result = await mathEvalTool({ expression: '10 / 2' }, mockContext);
 
       expect(result.ok).toBe(true);
-      expect(result.data?.result).toBe(5);
+      expect((result.data as any)?.result).toBe(5);
     });
 
     it('should require expression parameter', async () => {
