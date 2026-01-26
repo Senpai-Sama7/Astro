@@ -78,3 +78,6 @@ debian/usr/share/astro/
 
 # Scripts output
 scripts/__pycache__/
+
+# Node
+node_modules/

@@ -1,0 +1,24 @@
+{
+  "mcpServers": {
+    "kali-tools": {
+      "command": "python",
+      "args": ["-m", "mcp_kali_server"],
+      "env": {
+        "KALI_TOOLS_PATH": "/usr/bin"
+      },
+      "description": "Kali Linux security tools integration"
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mcp-server-filesystem", "/home"],
+      "description": "Filesystem operations"
+    },
+    "git": {
+      "command": "npx", 
+      "args": ["-y", "@anthropic/mcp-server-git"],
+      "description": "Git operations"
+    }
+  },
+  "defaultTimeout": 30000,
+  "maxRetries": 3
+}
