@@ -694,7 +694,7 @@ class DatabaseManager:
                     self.db_path, timeout=self.connection_timeout
                 ) as db:
                     # Table name is from whitelist, safe to use
-                    async with db.execute(f"SELECT COUNT(*) FROM {table}") as cursor:
+                    async with db.execute(f"SELECT COUNT(*) FROM {table}") as cursor:  # nosec B608
                         row = await cursor.fetchone()
                         stats[f"{table}_count"] = row[0] if row else 0
             else:
