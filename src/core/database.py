@@ -686,14 +686,15 @@ class DatabaseManager:
         await self._ensure_async_init()
         stats = {}
 
-        tables = ["agents", "workflows", "tasks", "metrics"]
-        for table in tables:
-            sql = f"SELECT COUNT(*) FROM {table}"
+        # Whitelist of allowed table names to prevent SQL injection
+        allowed_tables = {"agents", "workflows", "tasks", "metrics"}
+        for table in allowed_tables:
             if HAS_AIOSQLITE:
                 async with aiosqlite.connect(
                     self.db_path, timeout=self.connection_timeout
                 ) as db:
-                    async with db.execute(sql) as cursor:
+                    # Table name is from whitelist, safe to use
+                    async with db.execute(f"SELECT COUNT(*) FROM {table}") as cursor:
                         row = await cursor.fetchone()
                         stats[f"{table}_count"] = row[0] if row else 0
             else:
@@ -702,7 +703,8 @@ class DatabaseManager:
                     with sqlite3.connect(
                         self.db_path, timeout=self.connection_timeout
                     ) as conn:
-                        cursor = conn.execute(f"SELECT COUNT(*) FROM {t}")
+                        # Table name is from whitelist, safe to use
+                        cursor = conn.execute(f"SELECT COUNT(*) FROM {t}")  # nosec B608
                         row = cursor.fetchone()
                         return row[0] if row else 0
 

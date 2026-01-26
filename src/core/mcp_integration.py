@@ -306,8 +306,9 @@ class MCPToolExecutor:
                       timeout: float = 30.0) -> Dict[str, Any]:
         """Execute a tool with retry logic"""
         execution_id = hashlib.md5(
-            f"{tool_name}{json.dumps(arguments)}{datetime.now().isoformat()}".encode()
-        ).hexdigest()[:12]
+            f"{tool_name}{json.dumps(arguments)}{datetime.now().isoformat()}".encode(),
+                usedforsecurity=False
+            ).hexdigest()[:12]
 
         result = {
             "execution_id": execution_id,

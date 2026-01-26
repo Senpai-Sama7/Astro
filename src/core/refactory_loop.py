@@ -312,7 +312,7 @@ class RefactorEngine:
                 func_len = getattr(node, 'end_lineno', 0) - getattr(node, 'lineno', 0)
                 if func_len > 30:
                     suggestions.append(RefactorSuggestion(
-                        suggestion_id=hashlib.md5(f"{node.name}_{node.lineno}".encode()).hexdigest()[:8],
+                        suggestion_id=hashlib.md5(f"{node.name}_{node.lineno}".encode(), usedforsecurity=False).hexdigest()[:8],
                         refactor_type=RefactorType.EXTRACT_METHOD,
                         target=node.name,
                         location=(node.lineno, node.col_offset),
@@ -327,7 +327,7 @@ class RefactorEngine:
                 condition_complexity = self._count_boolean_ops(node.test)
                 if condition_complexity > 3:
                     suggestions.append(RefactorSuggestion(
-                        suggestion_id=hashlib.md5(f"if_{node.lineno}".encode()).hexdigest()[:8],
+                        suggestion_id=hashlib.md5(f"if_{node.lineno}".encode(), usedforsecurity=False).hexdigest()[:8],
                         refactor_type=RefactorType.DECOMPOSE_CONDITIONAL,
                         target="conditional",
                         location=(node.lineno, node.col_offset),
@@ -339,7 +339,7 @@ class RefactorEngine:
         # Check for missing type hints
         if metrics.type_hint_coverage < 0.7:
             suggestions.append(RefactorSuggestion(
-                suggestion_id=hashlib.md5(f"types_{datetime.now()}".encode()).hexdigest()[:8],
+                suggestion_id=hashlib.md5(f"types_{datetime.now()}".encode(), usedforsecurity=False).hexdigest()[:8],
                 refactor_type=RefactorType.ADD_TYPE_HINTS,
                 target="module",
                 location=(1, 0),
@@ -351,7 +351,7 @@ class RefactorEngine:
         # Check for missing documentation
         if metrics.documentation_ratio < 0.5:
             suggestions.append(RefactorSuggestion(
-                suggestion_id=hashlib.md5(f"docs_{datetime.now()}".encode()).hexdigest()[:8],
+                suggestion_id=hashlib.md5(f"docs_{datetime.now()}".encode(), usedforsecurity=False).hexdigest()[:8],
                 refactor_type=RefactorType.IMPROVE_NAMING,
                 target="module",
                 location=(1, 0),
@@ -526,7 +526,7 @@ class RefactoryFeedbackLoop:
 
         if metrics.cyclomatic_complexity > 20:
             feedback.append(FeedbackItem(
-                feedback_id=hashlib.md5(f"cc_{datetime.now()}".encode()).hexdigest()[:8],
+                feedback_id=hashlib.md5(f"cc_{datetime.now()}".encode(), usedforsecurity=False).hexdigest()[:8],
                 source="static_analysis",
                 dimension=QualityDimension.COMPLEXITY,
                 message=f"High cyclomatic complexity: {metrics.cyclomatic_complexity}",
@@ -535,7 +535,7 @@ class RefactoryFeedbackLoop:
 
         if metrics.documentation_ratio < 0.5:
             feedback.append(FeedbackItem(
-                feedback_id=hashlib.md5(f"doc_{datetime.now()}".encode()).hexdigest()[:8],
+                feedback_id=hashlib.md5(f"doc_{datetime.now()}".encode(), usedforsecurity=False).hexdigest()[:8],
                 source="static_analysis",
                 dimension=QualityDimension.READABILITY,
                 message=f"Low documentation: {metrics.documentation_ratio:.0%}",

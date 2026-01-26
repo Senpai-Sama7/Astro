@@ -982,8 +982,14 @@ Be helpful, accurate, and concise. When tasks require agent capabilities, explai
 # SERVER RUNNER
 # ============================================================================
 
-def run_server(host: str = "0.0.0.0", port: int = 8000, reload: bool = False):
-    """Run the API server."""
+def run_server(host: str = "127.0.0.1", port: int = 8000, reload: bool = False):
+    """Run the API server.
+    
+    Args:
+        host: Bind address. Use "0.0.0.0" only in containerized environments.
+        port: Port number.
+        reload: Enable auto-reload for development.
+    """
     import uvicorn
 
     logging.basicConfig(
