@@ -1,4 +1,6 @@
-"""CLI Router - API endpoint for the Plan-and-Execute CLI agent."""
+/**
+ * CLI Router - API endpoint for the Plan-and-Execute CLI agent.
+ */
 
 import express, { Router, Request, Response } from 'express';
 import { logger } from '../services/logger';

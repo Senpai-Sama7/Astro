@@ -216,7 +216,7 @@
         const statusBadge = document.getElementById('status-badge');
 
         try {
-          const res = await fetch('/api/status');
+          const res = await fetch('http://localhost:5000/api/v1/health');
           if (res.ok) {
             const data = await res.json();
             systemOnline = true;
