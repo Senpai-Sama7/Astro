@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""ASTRO-CLI Standalone - Works directly with OpenAI/Anthropic."""
+
+import os, sys, json, subprocess, platform, getpass
+from typing import Optional, Dict, List
+
+try:
+    from colorama import init, Fore, Style
+    init()
+except ImportError:
+    class Fore:
+        RED = YELLOW = GREEN = CYAN = BLUE = MAGENTA = WHITE = RESET = ""
+    class Style:
+        BRIGHT = DIM = RESET_ALL = ""
+
+SYSTEM_PROMPT = """You are ASTRO-CLI, a Linux Terminal Expert and Plan-and-Execute assistant.
+
+## Context
+- OS: {os_info}
+- CWD: {cwd}
+- Contents: {dir_contents}
+- User: {user}
+
+## Response Format - ALWAYS valid JSON only
+
+For commands: {{"thought": "why", "command": "bash cmd", "dangerous": false, "description": "what"}}
+For plans: {{"thought": "why", "plan": [{{"step": 1, "command": "cmd", "description": "what"}}], "dangerous": false}}
+For info: {{"thought": "answer", "command": null, "info": "details"}}
+
+## Rules
+1. Output ONLY valid JSON
+2. dangerous=true for: rm -rf, sudo, system changes
+3. Chain with && for dependent commands
+4. Analyze results and respond naturally"""
+
+
+class AstroCLI:
+    def __init__(self):
+        self.cwd = os.getcwd()
+        self.history: List[Dict] = []
+        self.os_info = self._detect_os()
+        self.user = getpass.getuser()
+        self.client = None
+        self._init_client()
+    
+    def _init_client(self):
+        try:
+            from openai import OpenAI
+            self.client = OpenAI()
+            self.provider = "openai"
+            self.model = os.environ.get("ASTRO_MODEL", "gpt-4o-mini")
+            return
+        except ImportError:
+            pass
+        try:
+            import anthropic
+            self.client = anthropic.Anthropic()
+            self.provider = "anthropic"
+            self.model = os.environ.get("ASTRO_MODEL", "claude-3-haiku-20240307")
+            return
+        except ImportError:
+            pass
+        print(f"{Fore.RED}No LLM client. Install: pip install openai{Style.RESET_ALL}")
+        sys.exit(1)
+    
+    def _detect_os(self) -> str:
+        if platform.system() == "Linux":
+            try:
+                with open("/etc/os-release") as f:
+                    for line in f:
+                        if line.startswith("PRETTY_NAME="):
+                            return line.split("=")[1].strip().strip('"')
+            except: pass
+        return f"{platform.system()} {platform.release()}"
+    
+    def _get_dir_contents(self) -> str:
+        try:
+            items = sorted(os.listdir(self.cwd))[:30]
+            dirs = [d+"/" for d in items if os.path.isdir(os.path.join(self.cwd, d))]
+            files = [f for f in items if os.path.isfile(os.path.join(self.cwd, f))]
+            return f"Dirs: {', '.join(dirs[:10])} | Files: {', '.join(files[:20])}"
+        except: return "(error)"
+    
+    def _build_prompt(self) -> str:
+        return SYSTEM_PROMPT.format(os_info=self.os_info, cwd=self.cwd,
+            dir_contents=self._get_dir_contents(), user=self.user)
+    
+    def _call_llm(self, messages: List[Dict]) -> Optional[str]:
+        try:
+            if self.provider == "openai":
+                r = self.client.chat.completions.create(model=self.model, messages=messages,
+                    response_format={"type": "json_object"})
+                return r.choices[0].message.content
+            elif self.provider == "anthropic":
+                system = messages[0]["content"] if messages[0]["role"] == "system" else ""
+                msgs = [m for m in messages if m["role"] != "system"]
+                r = self.client.messages.create(model=self.model, max_tokens=2048, system=system, messages=msgs)
+                return r.content[0].text
+        except Exception as e:
+            print(f"{Fore.RED}LLM Error: {e}{Style.RESET_ALL}")
+        return None
+    
+    def _confirm(self, cmd: str, dangerous: bool) -> bool:
+        color = Fore.RED if dangerous else Fore.YELLOW
+        label = "⚠️ DANGEROUS" if dangerous else "Command"
+        print(f"\n{color}{label}:{Style.RESET_ALL} {Fore.CYAN}{cmd}{Style.RESET_ALL}")
+        try:
+            r = input(f"{Fore.GREEN}Execute? [y/N/e]: {Style.RESET_ALL}").lower()
+            if r == 'e':
+                return self._confirm(input("Edit: ") or cmd, dangerous)
+            return r in ('y', 'yes')
+        except: return False
+    
+    def _execute(self, cmd: str) -> Dict:
+        try:
+            if cmd.strip().startswith("cd "):
+                new_dir = os.path.expanduser(cmd.strip()[3:].strip())
+                if not new_dir.startswith("/"): new_dir = os.path.join(self.cwd, new_dir)
+                new_dir = os.path.normpath(new_dir)
+                if os.path.isdir(new_dir):
+                    self.cwd = new_dir
+                    os.chdir(new_dir)
+                    return {"ok": True, "code": 0, "out": f"→ {new_dir}", "err": ""}
+                return {"ok": False, "code": 1, "out": "", "err": f"No such dir: {new_dir}"}
+            r = subprocess.run(cmd, shell=True, cwd=self.cwd, capture_output=True, text=True, timeout=300)
+            return {"ok": r.returncode == 0, "code": r.returncode, "out": r.stdout, "err": r.stderr}
+        except subprocess.TimeoutExpired:
+            return {"ok": False, "code": -1, "out": "", "err": "Timeout"}
+        except Exception as e:
+            return {"ok": False, "code": -1, "out": "", "err": str(e)}
+    
+    def _show(self, r: Dict):
+        if r["out"]: print(f"{Fore.WHITE}{r['out']}{Style.RESET_ALL}", end="")
+        if r["err"]: print(f"{Fore.RED}{r['err']}{Style.RESET_ALL}", end="")
+        status = "✓" if r["ok"] else f"✗ (exit {r['code']})"
+        print(f"\n{Fore.GREEN if r['ok'] else Fore.RED}{status}{Style.RESET_ALL}")
+    
+    def _inject(self, cmd: str, r: Dict):
+        self.history.append({"role": "user", "content": 
+            f"[Result: `{cmd}`] Exit={r['code']}\nstdout:\n{r['out'][:1500]}\nstderr:\n{r['err'][:500]}"})
+    
+    def chat(self, inp: str):
+        self.history.append({"role": "user", "content": inp})
+        messages = [{"role": "system", "content": self._build_prompt()}] + self.history[-20:]
+        resp = self._call_llm(messages)
+        if not resp: return
+        
+        self.history.append({"role": "assistant", "content": resp})
+        try: p = json.loads(resp.strip())
+        except:
+            print(f"{Fore.CYAN}{resp}{Style.RESET_ALL}")
+            return
+        
+        if "thought" in p: print(f"\n{Fore.BLUE}💭 {p['thought']}{Style.RESET_ALL}")
+        
+        if p.get("command") is None and "info" in p:
+            print(f"\n{Fore.WHITE}{p['info']}{Style.RESET_ALL}")
+            return
+        
+        if "plan" in p:
+            print(f"\n{Fore.MAGENTA}📋 Plan:{Style.RESET_ALL}")
+            for s in p["plan"]: print(f"  {s['step']}. {s['description']}: {Fore.DIM}{s['command']}{Style.RESET_ALL}")
+            if input(f"\n{Fore.GREEN}Execute plan? [y/N]: {Style.RESET_ALL}").lower() in ('y', 'yes'):
+                for s in p["plan"]:
+                    if self._confirm(s["command"], p.get("dangerous", False)):
+                        r = self._execute(s["command"])
+                        self._show(r)
+                        self._inject(s["command"], r)
+                        if not r["ok"] and input(f"{Fore.YELLOW}Continue? [y/N]: {Style.RESET_ALL}").lower() not in ('y','yes'):
+                            break
+            return
+        
+        if p.get("command"):
+            if "description" in p: print(f"{Fore.DIM}→ {p['description']}{Style.RESET_ALL}")
+            if self._confirm(p["command"], p.get("dangerous", False)):
+                r = self._execute(p["command"])
+                self._show(r)
+                self._inject(p["command"], r)
+    
+    def run(self):
+        print(f"{Fore.CYAN}ASTRO-CLI{Style.RESET_ALL} | {self.provider}/{self.model} | 'exit' to quit")
+        print(f"{Fore.DIM}{self.os_info} | {self.cwd}{Style.RESET_ALL}\n")
+        while True:
+            try:
+                cwd = self.cwd.replace(os.path.expanduser("~"), "~")
+                inp = input(f"{Fore.GREEN}astro{Style.RESET_ALL}:{Fore.BLUE}{cwd}{Style.RESET_ALL}$ ").strip()
+                if not inp: continue
+                if inp.lower() in ('exit', 'quit', 'q'): break
+                if inp.lower() == 'clear': self.history.clear(); print("Cleared."); continue
+                self.chat(inp)
+            except KeyboardInterrupt:
+                print(f"\n{Fore.YELLOW}Ctrl+C again to quit{Style.RESET_ALL}")
+                try: input()
+                except: break
+            except EOFError: break
+        print(f"{Fore.CYAN}Goodbye!{Style.RESET_ALL}")
+
+if __name__ == "__main__":
+    AstroCLI().run()
