@@ -11,6 +11,25 @@ interface AuthenticatedSocket extends Socket {
   sessionId?: string;
 }
 
+// Rate limiter for WebSocket messages
+const messageRateLimiter = new Map<string, number[]>();
+const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
+const RATE_LIMIT_MAX_MESSAGES = 60; // 60 messages per minute
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now();
+  const timestamps = messageRateLimiter.get(userId) || [];
+  const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
+  
+  if (recent.length >= RATE_LIMIT_MAX_MESSAGES) {
+    return false;
+  }
+  
+  recent.push(now);
+  messageRateLimiter.set(userId, recent);
+  return true;
+}
+
 export class WebSocketServer {
   private io: SocketIOServer;
   private conversationEngine: ARIAConversationEngine;
@@ -35,8 +54,16 @@ export class WebSocketServer {
       }
 
       try {
-        const secret = process.env.JWT_SECRET || 'astro-dev-secret';
-        const payload = jwt.verify(token as string, secret) as { userId?: string; sub?: string; role?: RoleType };
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+          if (process.env.NODE_ENV === 'production') {
+            logger.error('JWT_SECRET not set in production');
+            return next(new Error('Server configuration error'));
+          }
+          logger.warn('JWT_SECRET not set; using insecure default (dev only)');
+        }
+        const jwtSecret = secret || 'astro-dev-secret';
+        const payload = jwt.verify(token as string, jwtSecret) as { userId?: string; sub?: string; role?: RoleType };
         socket.userId = payload.userId || payload.sub;
         socket.role = payload.role;
         if (!socket.userId || !socket.role) {
@@ -60,7 +87,12 @@ export class WebSocketServer {
 
       // Chat message
       socket.on('chat', async (data: { message: string }) => {
-        if (!socket.sessionId) return;
+        if (!socket.sessionId || !socket.userId) return;
+
+        if (!checkRateLimit(socket.userId)) {
+          socket.emit('error', { message: 'Rate limit exceeded. Please wait.' });
+          return;
+        }
 
         try {
           socket.emit('typing', { status: 'thinking' });
@@ -80,7 +112,12 @@ export class WebSocketServer {
 
       // Stream chat (for streaming responses)
       socket.on('chat:stream', async (data: { message: string }) => {
-        if (!socket.sessionId) return;
+        if (!socket.sessionId || !socket.userId) return;
+
+        if (!checkRateLimit(socket.userId)) {
+          socket.emit('stream:error', { message: 'Rate limit exceeded. Please wait.' });
+          return;
+        }
 
         try {
           socket.emit('stream:start', {});

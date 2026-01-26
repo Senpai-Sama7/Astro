@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 import { RoleType } from '../otis/security-gateway';
 import { logger } from '../services/logger';
 
@@ -10,15 +11,29 @@ export type AuthenticatedUser = {
 
 const DEFAULT_DEV_SECRET = 'astro-dev-secret';
 
+function getJwtSecret(): string {
+  if (process.env.JWT_SECRET) {
+    return process.env.JWT_SECRET;
+  }
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET must be set in production');
+  }
+  logger.warn('JWT_SECRET not set; using insecure default (dev only)');
+  return DEFAULT_DEV_SECRET;
+}
+
 export function authenticateRequest(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ')
     ? authHeader.substring('Bearer '.length)
     : undefined;
 
-  const secret = process.env.JWT_SECRET || DEFAULT_DEV_SECRET;
-  if (!process.env.JWT_SECRET) {
-    logger.warn('JWT_SECRET is not set; using default development secret');
+  let secret: string;
+  try {
+    secret = getJwtSecret();
+  } catch (error) {
+    res.status(500).json({ error: 'Server configuration error' });
+    return;
   }
 
   if (!token) {
@@ -60,7 +75,13 @@ export function issueDevToken(req: Request, res: Response): void {
     return;
   }
 
-  const secret = process.env.JWT_SECRET || DEFAULT_DEV_SECRET;
+  let secret: string;
+  try {
+    secret = getJwtSecret();
+  } catch (error) {
+    res.status(500).json({ error: 'Server configuration error' });
+    return;
+  }
   const token = jwt.sign({ userId, role }, secret, { expiresIn: '8h' });
 
   res.json({ token, userId, role, expiresIn: '8h' });
