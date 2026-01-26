@@ -11,3 +11,6 @@ playwright-stealth>=1.0.0
 pillow>=10.2.0
 aiofiles>=23.2.0
 pydantic>=2.6.0
+
+# Pin protobuf to avoid CVE-2026-0994 in 6.33.4
+protobuf>=5.29.0,<6.0.0
