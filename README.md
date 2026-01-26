@@ -4,374 +4,181 @@
 [![Node.js 18+](https://img.shields.io/badge/node-18+-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.3+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Tests: 120+](https://img.shields.io/badge/tests-120%2B-brightgreen.svg)](./tests)
-[![Coverage](https://img.shields.io/badge/coverage-%3E80%25-brightgreen.svg)](./coverage)
+[![Tests: 79](https://img.shields.io/badge/tests-79%20passing-brightgreen.svg)](./tests)
 
 ---
 
 ## 🎯 Four Layers of AI Orchestration
 
-### Layer A: ASTRO (Orchestration)
-Tool registry, agent management, execution engine with granular permission control.
-- ✅ Tool registration (dynamic or predefined)
-- ✅ Agent registry (4 predefined agents)
-- ✅ Orchestration engine (single-step execution)
-- ✅ HTTP API for tool execution
+| Layer | Name | Description | Status |
+|-------|------|-------------|--------|
+| A | **ASTRO** | Tool orchestration, agent management, execution engine | ✅ Active |
+| B | **OTIS** | RBAC security, CVaR risk scoring, audit logging | ✅ Active |
+| C | **C0Di3** | Threat management, MITRE ATT&CK, incident tracking | ✅ Active |
+| D | **ARIA** | Natural language conversation interface | ✅ Active |
 
-### Layer B: OTIS (Security)
-Role-based access control, CVaR risk scoring, immutable audit logging with cryptographic signatures.
-- ✅ 6-role RBAC (admin, analyst, red-team, blue-team, read-only, guest)
-- ✅ CVaR-based risk scoring algorithm
-- ✅ Append-only audit logging with HMAC-SHA256 signatures
-- ✅ Tamper detection and integrity verification
+---
 
-### Layer C: C0Di3 (Cyber Intelligence)
-Threat management, incident tracking, MITRE ATT&CK knowledge base, threat analytics.
-- ✅ Threat registration and tracking by severity
-- ✅ Incident management with timeline events
-- ✅ MITRE ATT&CK framework integration
-- ✅ Threat intelligence analytics and summaries
+## 🖥️ Screenshots
 
-### Layer D: ARIA (Conversation)
-Natural language interface for turn-by-turn control of entire system.
-- ✅ Intent parsing (execute, query, help, status, approve/deny)
-- ✅ Multi-turn conversation management
-- ✅ Session-based context persistence
-- ✅ Security-aware execution with approval workflows
-- ✅ Natural language response generation
+### Homepage (Online)
+![Homepage](screenshots/homepage-online.png)
+
+### Chat Interface
+![Chat](screenshots/chat-page.png)
 
 ---
 
 ## 🚀 Quick Start
 
-### Installation
-
 ```bash
-# Clone repository
+# Clone & install
 git clone https://github.com/Senpai-Sama7/Astro.git
-cd Astro
+cd Astro && npm install
 
-# Install dependencies
-npm install
-```
+# Create .env from example
+cp .env.example .env
 
-### Development
+# Build & start
+npm run build && npm start
 
-```bash
-# Start dev server
-npm run dev
-
-# Server running at http://localhost:5000
-```
-
-### Testing
-
-```bash
-# Run all tests
-npm test
-
-# Watch mode
-npm test -- --watch
-
-# Coverage report
-npm run coverage
-```
-
-### Production
-
-```bash
-# Build
-npm run build
-
-# Start
-npm start
+# Server: http://localhost:5000
+# Web UI: serve ./web on port 8080
 ```
 
 ---
 
-## 🎤 Natural Language Control
-
-### Main Endpoint: `POST /api/v1/aria/chat`
-
-```bash
-# (Development) Issue a dev token
-curl -X POST http://localhost:5000/api/v1/auth/dev-token \
-  -H "Content-Type: application/json" \
-  -d '{
-    "userId": "you",
-    "role": "analyst"
-  }'
-
-# Example: Simple calculation
-curl -X POST http://localhost:5000/api/v1/aria/chat \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer <YOUR_TOKEN>" \
-  -d '{
-    "message": "calculate 5 + 3"
-  }'
-
-# Response:
-# {
-#   "sessionId": "session_..._...",
-#   "response": "✅ Calculation result: **8**",
-#   "toolExecuted": true,
-#   "result": {"ok": true, "data": {"result": 8}}
-# }
-```
-
-### Commands
-
-**Execute Tools:**
-- `"calculate 5 + 3 * 2"`
-- `"echo hello world"`
-- `"fetch https://httpbin.org/get"`
-
-**Query Information:**
-- `"show agents"`
-- `"show tools"`
-- `"show threats"`
-- `"show incidents"`
-
-**System:**
-- `"help"`
-- `"status"`
-
-**Approval:**
-- `"yes"` / `"approve"`
-- `"no"` / `"deny"`
-
----
-
-## 📊 Raw API (Layer A)
-
-### Execute Tool
-
-```bash
-POST /api/v1/astro/execute
-{
-  "agentId": "string",
-  "toolName": "string",
-  "input": {},
-  "userId": "string"
-}
-```
-
-### List Agents
-
-```bash
-GET /api/v1/astro/agents
-```
-
-### List Tools
-
-```bash
-GET /api/v1/astro/tools
-```
-
----
-
-## 🛡️ Security Model
+## 🎤 API Endpoints
 
 ### Authentication
+```bash
+# Get dev token
+curl -X POST http://localhost:5000/api/v1/auth/dev-token \
+  -H "Content-Type: application/json" \
+  -d '{"userId": "test", "role": "admin"}'
+```
 
-All `/api/v1/aria` and `/api/v1/astro` endpoints require a JWT bearer token. In development, use `POST /api/v1/auth/dev-token` to obtain a token. In production, set `JWT_SECRET` and issue tokens from your identity provider.
+### Chat (Layer D - ARIA)
+```bash
+curl -X POST http://localhost:5000/api/v1/aria/chat \
+  -H "Authorization: Bearer <TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "help"}'
+```
+
+### Available Endpoints
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/v1/health` | GET | Health check |
+| `/api/v1/version` | GET | Version & layer status |
+| `/api/v1/auth/dev-token` | POST | Issue dev JWT |
+| `/api/v1/aria/chat` | POST | Chat interface |
+| `/api/v1/aria/examples` | GET | Command examples |
+| `/api/v1/astro/agents` | GET | List agents |
+| `/api/v1/astro/tools` | GET | List tools |
+| `/api/v1/astro/execute` | POST | Execute tool |
+
+---
+
+## 🤖 Agents & Tools
+
+### Current Agents (Backend)
+| Agent | Tools | Purpose |
+|-------|-------|---------|
+| General Assistant | echo, http_request, math_eval | General tasks |
+| Analyst Agent | http_request, math_eval | Data analysis |
+| Echo Agent | echo | Testing |
+| Math Agent | math_eval | Calculations |
+
+### Available Tools
+- **echo** - Returns input as-is (testing)
+- **http_request** - HTTP requests to whitelisted domains
+- **math_eval** - Mathematical expression evaluation
+
+---
+
+## 🛡️ Security (Layer B - OTIS)
 
 ### RBAC Roles
-
 | Role | Permissions |
 |------|-------------|
-| **admin** | All operations |
-| **blue-team** | Register tools, execute, view audit, modify risk |
-| **red-team** | Register tools, execute (higher risk) |
-| **analyst** | Execute tools, view audit |
-| **read-only** | View audit logs only |
-| **guest** | No permissions |
+| admin | All operations |
+| blue-team | Register tools, execute, view audit |
+| red-team | Register tools, execute (higher risk) |
+| analyst | Execute tools, view audit |
+| read-only | View audit logs only |
+| guest | No permissions |
 
-### Risk Scoring
-
-- **Base**: 0.1 (all actions)
-- **Red-team multiplier**: +0.3
-- **Tool registration**: +0.2
-- **Sensitive tools (HTTP, math)**: +0.15
-- **Default threshold**: 0.5 (50%)
-
-### Approval Workflow
-
-When risk score >= threshold:
-1. System asks for approval
-2. User responds "yes" or "no"
-3. Action approved/denied
-4. Logged to audit trail with signature
-
-### Audit Trail
-
-- **Append-only**: Never modify or delete entries
-- **HMAC-SHA256 signed**: Tamper-proof
-- **Cryptographic verification**: Detect tampering
-- **Role-based access**: Users see only authorized logs
+### Risk Scoring (CVaR)
+- Actions with risk score ≥ 0.5 require approval
+- Audit trail with HMAC-SHA256 signatures
+- Tamper detection and integrity verification
 
 ---
 
-## 📈 Test Coverage
+## 📊 Test Status
 
-**Total: 120+ tests passing**
-
-- ASTRO Layer: 35 tests
-- OTIS Layer: 20 tests
-- C0Di3 Layer: 20 tests
-- ARIA Layer: 20+ tests
-- Integration: 25+ tests
-
-**Coverage Target: >80%**
-
-Run tests:
 ```bash
-npm test
+npm test          # Run all tests
+npm run coverage  # Coverage report
 ```
 
-View coverage:
-```bash
-npm run coverage
-```
+**Current:** 79 tests passing | ~52% coverage (target: 80%)
 
 ---
 
-## 📖 Documentation
-
-- **[QUICKSTART.md](./QUICKSTART.md)** - Get started in 5 minutes
-- **[ARIA_CONVERSATION_GUIDE.md](./ARIA_CONVERSATION_GUIDE.md)** - Natural language interface guide
-- **[IMPLEMENTATION_COMPLETE.md](./IMPLEMENTATION_COMPLETE.md)** - System architecture and details
-
----
-
-## 🐳 Docker Deployment
-
-### Core Profile
+## 🐳 Docker
 
 ```bash
-# Build
 npm run docker:build:core
-
-# Run
 docker run -p 5000:5000 ultimate-system:latest
 ```
 
-### Test in Docker
-
-```bash
-npm run docker:test
-```
-
 ---
 
-## 📋 Project Structure
+## 📁 Project Structure
 
 ```
 Astro/
 ├── src/
-│   ├── astro/              # Layer A: Orchestration
-│   │   ├── orchestrator.ts # Core orchestrator
-│   │   ├── tools.ts        # Built-in tools
-│   │   ├── agents.ts       # Agent definitions
-│   │   └── router.ts       # HTTP API
-│   ├── otis/               # Layer B: Security
-│   │   └── security-gateway.ts
-│   ├── codi3/              # Layer C: Intelligence
-│   │   └── threat-intelligence.ts
-│   ├── aria/               # Layer D: Conversation
-│   │   ├── conversation-engine.ts
-│   │   └── router.ts
-│   ├── services/           # Shared services
-│   │   └── logger.ts
-│   └── index.ts            # Main entry point
-├── tests/
-│   ├── astro/
-│   ├── otis/
-│   ├── codi3/
-│   ├── aria/
-│   └── setup.ts
-├── jest.config.js          # Jest configuration
-├── tsconfig.json           # TypeScript configuration
-├── package.json            # Dependencies
-└── README.md               # This file
+│   ├── astro/          # Layer A: Orchestration
+│   ├── otis/           # Layer B: Security
+│   ├── codi3/          # Layer C: Intelligence
+│   ├── aria/           # Layer D: Conversation
+│   └── index.ts        # Entry point
+├── web/                # Frontend UI
+├── tests/              # Test suites
+├── screenshots/        # UI screenshots
+└── astro_os/           # Python TUI (experimental)
 ```
 
 ---
 
 ## 🔧 Development
 
-### Lint Code
-
 ```bash
-npm run lint
-npm run lint:fix
-```
-
-### Format Code
-
-```bash
-npm run format
-npm run format:check
-```
-
-### Type Check
-
-```bash
-npm run type-check
-```
-
-### Performance Testing
-
-```bash
-npm run perf:load
-```
-
-### Security Audit
-
-```bash
-npm run security:audit
-npm run security:snyk
+npm run dev           # Dev server with hot reload
+npm run lint          # Lint code
+npm run format        # Format code
+npm run type-check    # TypeScript check
 ```
 
 ---
 
-## 🚨 Current Status
+## 📋 Roadmap
 
-✅ **Layer A (ASTRO)** - Production Ready
-✅ **Layer B (OTIS)** - Production Ready
-✅ **Layer C (C0Di3)** - Production Ready
-✅ **Layer D (ARIA)** - Production Ready
-
-**Overall: 🟢 PRODUCTION READY**
+- [ ] Implement specialized agents (Research, Code, FileSystem, Git, Test, Analysis, Knowledge)
+- [ ] Connect chat UI to backend API
+- [ ] Increase test coverage to 80%
+- [ ] Add WebSocket support for real-time updates
+- [ ] Implement agent status API for frontend
 
 ---
 
 ## 📝 License
 
-MIT License - see [LICENSE](./LICENSE) for details
+MIT License - see [LICENSE](./LICENSE)
 
 ---
 
-## 👤 Author
-
-Douglas Mitchell <senpai-sama7@proton.me>
-
----
-
-## 🙏 Contributing
-
-Contributions welcome! Please ensure:
-- All tests pass (`npm test`)
-- Code is linted (`npm run lint`)
-- TypeScript strict mode passes (`npm run type-check`)
-- Coverage remains >80%
-
----
-
-## 📞 Support
-
-For issues, questions, or contributions, please open a GitHub issue.
-
----
-
-**Built with ❤️ using TypeScript, Express, and DevOps best practices.**
+**Built with TypeScript, Express, and ❤️**
