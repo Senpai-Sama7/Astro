@@ -23,8 +23,9 @@ Examples:
     astro --web        Open web interface in browser
         """
     )
-    parser.add_argument("--cli", action="store_true", help="Use classic CLI mode")
-    parser.add_argument("--web", action="store_true", help="Open web interface")
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument("--cli", action="store_true", help="Use classic CLI mode")
+    group.add_argument("--web", action="store_true", help="Open web interface")
     parser.add_argument("--api-url", default="http://localhost:5000", help="API server URL")
     
     args = parser.parse_args()
@@ -41,8 +42,9 @@ Examples:
         cli.run()
     else:
         try:
-            from src.tui.app import main as tui_main
-            tui_main()
+            from src.tui.app import AstroTUI
+            app = AstroTUI(api_url=args.api_url)
+            app.run()
         except ImportError as e:
             print(f"TUI dependencies not installed: {e}")
             print("Install with: pip install textual rich")
