@@ -268,13 +268,13 @@ describe('FileSystem Agent Tools', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Mock realpathSync to return the resolved path (simulating real behavior)
-    jest.spyOn(fs, 'realpathSync').mockImplementation((p: string) => {
-      // For paths that would escape workspace, throw or return the actual path
-      const resolved = path.resolve(p);
-      if (resolved.includes('etc/passwd') || resolved.includes('/tmp/hack') || p.startsWith('../../../')) {
-        return resolved; // Returns path outside workspace
+    jest.spyOn(fs, 'realpathSync').mockImplementation((p) => {
+      const pathStr = p.toString();
+      const resolved = path.resolve(pathStr);
+      if (resolved.includes('etc/passwd') || resolved.includes('/tmp/hack') || pathStr.startsWith('../../../')) {
+        return resolved;
       }
-      return path.resolve(process.cwd(), 'workspace', p);
+      return path.resolve(process.cwd(), 'workspace', pathStr);
     });
   });
 
