@@ -104,13 +104,12 @@ describe('OTIS Security Gateway', () => {
 
   describe('Audit Logging', () => {
     it('should log actions to the audit log', () => {
-      const entry = gateway.logAction({
+      const entry = gateway.logAction({ timestamp: new Date(),
         userId: 'user123',
         role: 'analyst',
         action: 'execute_tool',
         resource: 'echo',
         decision: 'APPROVED',
-        timestamp: new Date(),
       });
 
       expect(entry.id).toBeDefined();
@@ -119,7 +118,7 @@ describe('OTIS Security Gateway', () => {
     });
 
     it('should maintain append-only property', () => {
-      gateway.logAction({
+      gateway.logAction({ timestamp: new Date(),
         userId: 'user1',
         role: 'analyst',
         action: 'action1',
@@ -127,7 +126,7 @@ describe('OTIS Security Gateway', () => {
         decision: 'APPROVED',
       });
 
-      gateway.logAction({
+      gateway.logAction({ timestamp: new Date(),
         userId: 'user2',
         role: 'admin',
         action: 'action2',
@@ -142,7 +141,7 @@ describe('OTIS Security Gateway', () => {
     });
 
     it('should filter audit log by userId', () => {
-      gateway.logAction({
+      gateway.logAction({ timestamp: new Date(),
         userId: 'user1',
         role: 'analyst',
         action: 'action1',
@@ -150,7 +149,7 @@ describe('OTIS Security Gateway', () => {
         decision: 'APPROVED',
       });
 
-      gateway.logAction({
+      gateway.logAction({ timestamp: new Date(),
         userId: 'user2',
         role: 'admin',
         action: 'action2',
@@ -164,7 +163,7 @@ describe('OTIS Security Gateway', () => {
     });
 
     it('should restrict audit log access by role', () => {
-      gateway.logAction({
+      gateway.logAction({ timestamp: new Date(),
         userId: 'user1',
         role: 'analyst',
         action: 'action1',
@@ -184,7 +183,7 @@ describe('OTIS Security Gateway', () => {
 
   describe('Integrity Verification', () => {
     it('should verify audit log integrity', () => {
-      gateway.logAction({
+      gateway.logAction({ timestamp: new Date(),
         userId: 'user1',
         role: 'analyst',
         action: 'action1',
@@ -198,7 +197,7 @@ describe('OTIS Security Gateway', () => {
     });
 
     it('should detect tampered entries', () => {
-      const entry = gateway.logAction({
+      const entry = gateway.logAction({ timestamp: new Date(),
         userId: 'user1',
         role: 'analyst',
         action: 'action1',

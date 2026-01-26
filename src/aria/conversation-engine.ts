@@ -190,6 +190,7 @@ export class ARIAConversationEngine extends EventEmitter {
 
       // Log to security gateway
       this.securityGateway.logAction({
+        timestamp: new Date(),
         userId: context.userId,
         role: context.userRole,
         action: parsedIntent.intent,
@@ -626,7 +627,8 @@ Pending Approvals: ${this.pendingApprovals.size}
     const matchingApproval = Array.from(this.pendingApprovals.entries()).find(
       ([, turn]) => turn.sessionId === context.sessionId
     );
-    const [approvalId, turn] = matchingApproval ?? this.pendingApprovals.entries().next().value;
+    const entry = matchingApproval ?? this.pendingApprovals.entries().next().value;
+    const [approvalId, turn] = entry || [undefined, undefined];
     if (!approvalId || !turn) {
       return {
         response: `No pending approvals to ${approved ? 'approve' : 'deny'}.`,

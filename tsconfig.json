@@ -15,8 +15,9 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
-    "types": ["node", "jest"]
+    "types": ["node", "jest"],
+    "typeRoots": ["./node_modules/@types", "./src/types"]
   },
-  "include": ["src/**/*", "tests/**/*"],
-  "exclude": ["node_modules", "dist", "coverage"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "coverage", "tests"]
 }

@@ -217,7 +217,7 @@ describe('AstroOrchestrator', () => {
       expect(errorHandler).toHaveBeenCalledWith(
         expect.objectContaining({
           requestId: expect.any(String),
-          error: expect.stringContaining('not registered'),
+          error: expect.stringContaining('not allowed'),
         })
       );
     });

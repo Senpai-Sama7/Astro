@@ -171,7 +171,7 @@ describe('ASTRO API Integration Tests', () => {
       expect(response.status).toBe(200);
       expect(response.body).toMatchObject({
         version: expect.stringContaining('1.0.0'),
-        name: 'Ultimate System',
+        name: 'ASTRO Ultimate System',
         profile: expect.any(String),
         layers: expect.objectContaining({
           a: expect.stringContaining('IMPLEMENTED'),
