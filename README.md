@@ -4,6 +4,46 @@
 
 ASTRO is an AI-powered assistant that helps you automate tasks through natural conversation. Instead of learning complex commands or interfaces, you simply tell ASTRO what you want to do in plain English, and it figures out how to accomplish it.
 
+---
+
+## 🚀 Quick Start (No Coding Required!)
+
+### Step 1: Download ASTRO
+Click the green **"Code"** button above, then click **"Download ZIP"**
+
+### Step 2: Start ASTRO
+- **Windows**: Double-click `start-astro.bat`
+- **Mac/Linux**: Double-click `start-astro.sh`
+
+### Step 3: Open Your Browser
+Go to **http://localhost:5000**
+
+### Step 4: Start Chatting!
+Just type what you want to do in plain English:
+- *"What files are in my project?"*
+- *"Run my tests"*
+- *"Search the web for how to make a website"*
+- *"What's 20% of 85?"*
+
+That's it! No coding, no commands, just conversation.
+
+---
+
+## What Can ASTRO Do?
+
+| Just Ask... | ASTRO Will... |
+|-------------|---------------|
+| *"Show me my files"* | List everything in your folder |
+| *"What did I change?"* | Show your recent code changes |
+| *"Run my tests"* | Run your project's tests and show results |
+| *"Search for React tutorials"* | Find information online |
+| *"Calculate 15% tip on $45"* | Do the math for you |
+| *"Remember the API key is in .env"* | Save that for later |
+
+---
+
+## How It Works
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                         YOU (Human)                             │

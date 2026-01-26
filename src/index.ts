@@ -41,10 +41,13 @@ let pluginLoader: PluginLoader;
 let workflowEngine: WorkflowEngine;
 
 // Middleware
-app.use(helmet());
+app.use(helmet({ contentSecurityPolicy: false })); // Allow inline scripts for simple UI
 app.use(cors({ origin: process.env.SECURITY_CORS_ORIGIN }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Serve the simple web interface
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Rate limiting
 const apiLimiter = rateLimit({
