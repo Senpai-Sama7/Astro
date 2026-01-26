@@ -166,44 +166,44 @@ async function bootstrap() {
 ╚════════════════════════════════════════════════════════════╝
   `);
   });
-}
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    error: 'Not Found',
-    path: req.path,
-    availableEndpoints: [
-      'POST /api/v1/aria/chat - Main conversational interface',
-      'GET /api/v1/aria/sessions/:sessionId - Get conversation history',
-      'POST /api/v1/aria/sessions - Create new session',
-      'DELETE /api/v1/aria/sessions/:sessionId - End session',
-      'GET /api/v1/aria/examples - Get example commands',
-      'POST /api/v1/astro/execute - Execute tool (raw API)',
-      'GET /api/v1/astro/agents - List agents',
-      'GET /api/v1/astro/tools - List tools',
-      'POST /api/v1/auth/dev-token - Issue dev JWT (non-production)',
-      'GET /api/v1/health - Health check',
-      'GET /api/v1/version - Version info',
-    ],
-  });
-});
-
-// Error handler
-app.use(
-  (
-    err: Error,
-    _req: express.Request,
-    res: express.Response,
-    _next: express.NextFunction
-  ) => {
-    logger.error('Unhandled error', { error: err.message, stack: err.stack });
-    res.status(500).json({
-      error: 'Internal Server Error',
-      message: NODE_ENV === 'development' ? err.message : undefined,
+  // 404 handler - must be after all routers are mounted
+  app.use((req, res) => {
+    res.status(404).json({
+      error: 'Not Found',
+      path: req.path,
+      availableEndpoints: [
+        'POST /api/v1/aria/chat - Main conversational interface',
+        'GET /api/v1/aria/sessions/:sessionId - Get conversation history',
+        'POST /api/v1/aria/sessions - Create new session',
+        'DELETE /api/v1/aria/sessions/:sessionId - End session',
+        'GET /api/v1/aria/examples - Get example commands',
+        'POST /api/v1/astro/execute - Execute tool (raw API)',
+        'GET /api/v1/astro/agents - List agents',
+        'GET /api/v1/astro/tools - List tools',
+        'POST /api/v1/auth/dev-token - Issue dev JWT (non-production)',
+        'GET /api/v1/health - Health check',
+        'GET /api/v1/version - Version info',
+      ],
     });
-  }
-);
+  });
+
+  // Error handler
+  app.use(
+    (
+      err: Error,
+      _req: express.Request,
+      res: express.Response,
+      _next: express.NextFunction
+    ) => {
+      logger.error('Unhandled error', { error: err.message, stack: err.stack });
+      res.status(500).json({
+        error: 'Internal Server Error',
+        message: NODE_ENV === 'development' ? err.message : undefined,
+      });
+    }
+  );
+}
 
 bootstrap().catch((error) => {
   logger.error('Failed to start server', { error: error instanceof Error ? error.message : error });
