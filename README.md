@@ -12,28 +12,28 @@ ASTRO is an AI-powered assistant that helps you automate tasks through natural c
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      ARIA (Layer D)                             │
+│                   Layer 1: ARIA (Translator)                    │
 │              Understands what you're asking for                 │
 │         Translates your request into specific actions           │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                      OTIS (Layer B)                             │
+│                   Layer 2: OTIS (Guardian)                      │
 │              Checks if you're allowed to do this                │
 │           Assesses risk • Logs everything for audit             │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     ASTRO (Layer A)                             │
+│                   Layer 3: CORE (Orchestrator)                  │
 │              Picks the right tool for the job                   │
 │                   Actually runs the tests                       │
 └─────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                     C0Di3 (Layer C)                             │
+│                   Layer 4: C0Di3 (Watchdog)                     │
 │              Watches for security threats                       │
 │         Tracks vulnerabilities • Manages incidents              │
 └─────────────────────────────────────────────────────────────────┘
@@ -69,29 +69,29 @@ ASTRO comes with built-in capabilities organized into specialized agents:
 
 ## The Four Layers Explained
 
-### Layer A: ASTRO (The Doer)
-The orchestration engine that actually executes tasks. It maintains a registry of available tools and agents, routes your requests to the right place, and returns results.
+### Layer 1: ARIA (The Translator)
+The conversational interface that understands natural language:
+- Parses what you're asking for
+- Maintains conversation context
+- Handles multi-turn dialogues
+- Asks for clarification when needed
 
-### Layer B: OTIS (The Guardian)
+### Layer 2: OTIS (The Guardian)
 The security layer that protects you and your system:
 - **Role-Based Access Control** — Different users get different permissions
 - **Risk Assessment** — Evaluates how risky each action is before allowing it
 - **Audit Logging** — Keeps tamper-proof records of everything that happens
 - **Approval Workflows** — High-risk actions require explicit confirmation
 
-### Layer C: C0Di3 (The Watchdog)
+### Layer 3: CORE (The Orchestrator)
+The orchestration engine that actually executes tasks. It maintains a registry of available tools and agents, routes your requests to the right place, and returns results.
+
+### Layer 4: C0Di3 (The Watchdog)
 Cyber threat intelligence that monitors for security issues:
 - Tracks known vulnerabilities (CVEs)
 - Manages security incidents
 - Integrates with MITRE ATT&CK framework
 - Provides threat indicators and patterns
-
-### Layer D: ARIA (The Translator)
-The conversational interface that understands natural language:
-- Parses what you're asking for
-- Maintains conversation context
-- Handles multi-turn dialogues
-- Asks for clarification when needed
 
 ---
 
@@ -151,12 +151,14 @@ WORKSPACE_DIR=/path/to/workspace
 
 ### Using Docker
 
+First, ensure your `.env` file is created as described above.
+
 ```bash
 # Build the image
 npm run docker:build:core
 
-# Run the container
-docker run -p 5000:5000 -p 8080:8080 ultimate-system:latest-core
+# Run the container with environment variables
+docker run --env-file .env -p 5000:5000 -p 8080:8080 astro:latest-core
 ```
 
 ---
