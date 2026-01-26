@@ -131,8 +131,8 @@ describe('ASTRO API Integration Tests', () => {
         .get('/api/v1/astro/agents')
         .set('Authorization', `Bearer ${authToken}`);
       expect(response.status).toBe(200);
-      expect(Array.isArray(response.body.agents || response.body.tools || response.body)).toBe(true);
-      expect((response.body.agents || response.body).length).toBeGreaterThan(0);
+      expect(Array.isArray(response.body.agents)).toBe(true);
+      expect(response.body.agents.length).toBeGreaterThan(0);
     });
   });
 
