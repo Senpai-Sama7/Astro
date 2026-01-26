@@ -40,12 +40,123 @@ cd Astro && npm install
 # Create .env from example
 cp .env.example .env
 
+# Optional: Add LLM API keys for multi-model support
+# OPENAI_API_KEY=sk-...
+# ANTHROPIC_API_KEY=sk-ant-...
+
 # Build & start
 npm run build && npm start
 
 # Server: http://localhost:5000
 # WebSocket: ws://localhost:5000/ws
+# Dashboard: http://localhost:5000/dashboard
 # Web UI: serve ./web on port 8080
+```
+
+---
+
+## 🔌 Plugin System
+
+Create custom tools by adding plugins to the `plugins/` directory:
+
+```
+plugins/
+└── my-plugin/
+    ├── manifest.json
+    └── index.js
+```
+
+**manifest.json:**
+```json
+{
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "description": "My custom tools",
+  "tools": [
+    { "name": "my_tool", "description": "Does something", "handler": "myTool" }
+  ]
+}
+```
+
+**index.js:**
+```javascript
+module.exports = {
+  myTool: async (input) => {
+    return { result: input.value * 2 };
+  }
+};
+```
+
+Tools are auto-loaded on startup and available as `my-plugin:my_tool`.
+
+---
+
+## 🤖 Multi-model LLM Support
+
+Use different LLM providers via the unified API:
+
+```bash
+# List available providers
+curl http://localhost:5000/api/v1/llm/providers
+
+# Chat with default provider
+curl -X POST http://localhost:5000/api/v1/llm/chat \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "provider": "openai",
+    "model": "gpt-4o-mini"
+  }'
+```
+
+Supported providers:
+- **OpenAI**: GPT-4, GPT-4o, GPT-3.5 (requires `OPENAI_API_KEY`)
+- **Anthropic**: Claude 3.5, Claude 3 (requires `ANTHROPIC_API_KEY`)
+- **Ollama**: Local models (llama3.2, mistral, etc.)
+
+---
+
+## 🔄 Workflow Automation
+
+Create and execute multi-step workflows:
+
+```bash
+# Create workflow
+curl -X POST http://localhost:5000/api/v1/workflows \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Math Pipeline",
+    "description": "Chain calculations",
+    "steps": [
+      { "id": "step1", "tool": "math_eval", "input": { "expression": "2+2" } },
+      { "id": "step2", "tool": "echo", "input": { "message": "Result: {{step1.result}}" }, "dependsOn": ["step1"] }
+    ]
+  }'
+
+# Execute workflow
+curl -X POST http://localhost:5000/api/v1/workflows/wf_123/execute
+
+# Visual builder: http://localhost:8080/workflows.html
+```
+
+---
+
+## 📊 Metrics Dashboard
+
+Real-time system metrics at `/dashboard`:
+
+- Request counts by endpoint
+- Tool execution stats
+- Latency percentiles (avg, p95, p99)
+- Memory usage
+- Live latency chart
+
+```bash
+# Get metrics JSON
+curl http://localhost:5000/api/v1/metrics
+
+# Get summary
+curl http://localhost:5000/api/v1/metrics/summary
 ```
 
 ---
@@ -234,10 +345,16 @@ Astro/
 │   ├── otis/           # Layer B: Security
 │   ├── codi3/          # Layer C: Intelligence
 │   ├── aria/           # Layer D: Conversation
-│   ├── services/       # WebSocket, Storage, Logging
+│   ├── plugins/        # Plugin system
+│   ├── workflows/      # Workflow automation
+│   ├── services/       # WebSocket, Storage, LLM, Metrics
 │   ├── middleware/     # Auth middleware
 │   └── index.ts        # Entry point
+├── plugins/            # Custom tool plugins
+│   └── example-plugin/ # Example plugin
 ├── web/                # Frontend UI
+│   ├── workflows.html  # Workflow builder
+│   └── ...
 ├── tests/              # Test suites (186 tests)
 ├── docs/               # Documentation
 │   └── DEPLOYMENT.md   # Production deployment guide
@@ -270,13 +387,20 @@ npm run type-check    # TypeScript check
 - [x] Production deployment guide
 - [x] Python ReAct shells (basic + LLM-powered)
 - [x] Enhanced Python TUI with status bar and agent cards
+- [x] Plugin system for custom tools
+- [x] Multi-model LLM support (OpenAI, Anthropic, Ollama)
+- [x] Workflow automation with visual builder
+- [x] Metrics dashboard with real-time charts
 
 ## 📋 Roadmap
 
-- [ ] Plugin system for custom tools
-- [ ] Multi-model LLM support
-- [ ] Workflow automation UI
-- [ ] Metrics dashboard
+- [x] Plugin system for custom tools
+- [x] Multi-model LLM support (OpenAI, Anthropic, Ollama)
+- [x] Workflow automation UI
+- [x] Metrics dashboard
+- [ ] Plugin marketplace
+- [ ] Visual workflow designer
+- [ ] Advanced analytics
 
 ---
 

@@ -16,6 +16,10 @@ import { C0Di3CyberIntelligence } from './codi3/threat-intelligence';
 import { SQLiteStorage } from './services/storage';
 import { createAuthRouter } from './auth/router';
 import { WebSocketServer } from './services/websocket';
+import { PluginLoader } from './plugins/plugin-loader';
+import { WorkflowEngine, createWorkflowRouter } from './workflows/workflow-engine';
+import { createMetricsRouter, metricsCollector, dashboardHtml } from './services/metrics';
+import { llmManager } from './services/llm';
 
 // Load environment variables
 dotenv.config();
@@ -33,6 +37,8 @@ let threatIntelligence: C0Di3CyberIntelligence;
 let conversationEngine: ARIAConversationEngine;
 let server: ReturnType<typeof createServer>;
 let wsServer: WebSocketServer;
+let pluginLoader: PluginLoader;
+let workflowEngine: WorkflowEngine;
 
 // Middleware
 app.use(helmet());
@@ -50,9 +56,10 @@ const apiLimiter = rateLimit({
 app.use('/api/v1/aria', apiLimiter);
 app.use('/api/v1/astro', apiLimiter);
 
-// Logging middleware
+// Logging middleware with metrics
 app.use((req, res, next) => {
   const start = Date.now();
+  metricsCollector.recordRequest(req.path);
   res.on('finish', () => {
     const duration = Date.now() - start;
     logger.info('HTTP Request', {
@@ -90,14 +97,20 @@ app.get('/api/v1/version', (req, res) => {
     },
     features: [
       'Tool Orchestration with Agent Registry',
+      'Plugin System for Custom Tools',
+      'Multi-model LLM Support (OpenAI, Anthropic, Ollama)',
+      'Workflow Automation',
+      'Metrics Dashboard',
       'Role-Based Access Control (6 roles)',
       'CVaR Risk Scoring',
       'Immutable Audit Logging with HMAC',
       'Threat Management & Incident Tracking',
       'MITRE ATT&CK Knowledge Base',
       'Multi-turn Natural Language Interface',
+      'WebSocket Real-time Communication',
     ],
-    testsPassing: '100+',
+    llmProviders: llmManager.list(),
+    plugins: pluginLoader?.listPlugins().map(p => p.manifest.name) || [],
   });
 });
 
@@ -122,6 +135,18 @@ async function bootstrap() {
     storage
   );
 
+  // Initialize Plugin System
+  pluginLoader = new PluginLoader();
+  const plugins = await pluginLoader.loadAllPlugins();
+  plugins.flatMap(p => p.tools).forEach(tool => {
+    try { orchestrator.registerTool(tool); } catch { /* already registered */ }
+  });
+  logger.info(`Loaded ${plugins.length} plugins with ${plugins.flatMap(p => p.tools).length} tools`);
+
+  // Initialize Workflow Engine
+  workflowEngine = new WorkflowEngine();
+  logger.info(`Loaded ${workflowEngine.list().length} workflows`);
+
   // Mount ASTRO Layer A router
   const astroRouter = createAstroRouter(orchestrator);
   app.use('/api/v1/astro', astroRouter);
@@ -129,6 +154,33 @@ async function bootstrap() {
   // Mount ARIA Layer D router (conversational interface)
   const ariaRouter = createConversationRouter(conversationEngine);
   app.use('/api/v1/aria', ariaRouter);
+
+  // Mount Workflow router
+  const workflowRouter = createWorkflowRouter(workflowEngine, orchestrator);
+  app.use('/api/v1/workflows', workflowRouter);
+
+  // Mount Metrics router
+  const metricsRouter = createMetricsRouter();
+  app.use('/api/v1/metrics', metricsRouter);
+
+  // Metrics Dashboard HTML
+  app.get('/dashboard', (_, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send(dashboardHtml);
+  });
+
+  // LLM endpoint
+  app.post('/api/v1/llm/chat', async (req, res) => {
+    try {
+      const { messages, provider, model, temperature, maxTokens } = req.body;
+      const response = await llmManager.chat(messages, { provider, model, temperature, maxTokens });
+      res.json(response);
+    } catch (e) {
+      res.status(400).json({ error: String(e) });
+    }
+  });
+
+  app.get('/api/v1/llm/providers', (_, res) => res.json(llmManager.list()));
 
   // Start server
   server = createServer(app);
@@ -148,6 +200,12 @@ async function bootstrap() {
         '✓ Layer C: C0Di3 (Cyber Intelligence)',
         '✓ Layer D: ARIA (Conversational Interface)',
       ],
+      newFeatures: [
+        '✓ Plugin System',
+        '✓ Multi-model LLM',
+        '✓ Workflow Automation',
+        '✓ Metrics Dashboard',
+      ],
       mainEndpoint: `POST /api/v1/aria/chat`,
       examplesEndpoint: `GET /api/v1/aria/examples`,
       timestamp: new Date().toISOString(),
@@ -162,13 +220,15 @@ async function bootstrap() {
 ║ Layer C: C0Di3 Intelligence          [✓ ACTIVE]            ║
 ║ Layer D: ARIA Conversation           [✓ ACTIVE]            ║
 ╠════════════════════════════════════════════════════════════╣
-║ 🎯 Main Endpoint:  POST /api/v1/aria/chat                 ║
-║ 📖 Examples:       GET /api/v1/aria/examples              ║
-║ 🌐 Server:         http://localhost:${PORT}                  ║
+║ 🔌 Plugins:        ${String(plugins.length).padEnd(3)} loaded                             ║
+║ 🤖 LLM Providers:  ${llmManager.list().join(', ').padEnd(30)}   ║
+║ 🔄 Workflows:      ${String(workflowEngine.list().length).padEnd(3)} saved                              ║
 ╠════════════════════════════════════════════════════════════╣
-║ 💬 Try this: "calculate 2 + 2"                            ║
-║             "show agents"                                  ║
-║             "help"                                         ║
+║ 🎯 Chat:           POST /api/v1/aria/chat                 ║
+║ 📊 Dashboard:      GET /dashboard                         ║
+║ 🔄 Workflows:      /api/v1/workflows                      ║
+║ 📈 Metrics:        /api/v1/metrics                        ║
+║ 🌐 Server:         http://localhost:${PORT}                  ║
 ╚════════════════════════════════════════════════════════════╝
   `);
   });
@@ -187,6 +247,13 @@ async function bootstrap() {
         'POST /api/v1/astro/execute - Execute tool (raw API)',
         'GET /api/v1/astro/agents - List agents',
         'GET /api/v1/astro/tools - List tools',
+        'GET /api/v1/workflows - List workflows',
+        'POST /api/v1/workflows - Create workflow',
+        'POST /api/v1/workflows/:id/execute - Execute workflow',
+        'GET /api/v1/metrics - Get metrics',
+        'GET /dashboard - Metrics dashboard',
+        'POST /api/v1/llm/chat - LLM chat',
+        'GET /api/v1/llm/providers - List LLM providers',
         'POST /api/v1/auth/dev-token - Issue dev JWT (non-production)',
         'GET /api/v1/health - Health check',
         'GET /api/v1/version - Version info',
@@ -233,4 +300,4 @@ process.on('SIGINT', () => {
   });
 });
 
-export { app, server, wsServer, orchestrator, conversationEngine, securityGateway, threatIntelligence };
+export { app, server, wsServer, orchestrator, conversationEngine, securityGateway, threatIntelligence, pluginLoader, workflowEngine, llmManager };
