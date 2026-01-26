@@ -134,6 +134,9 @@ export class ARIAConversationEngine extends EventEmitter {
         case 'status':
           response = this.handleStatus(context);
           break;
+        case 'config':
+          response = `⚙️ Configuration management coming soon. Current settings:\n• Profile: ${context.metadata.profile}\n• Role: ${context.userRole}`;
+          break;
         case 'approve':
           ({ response, result, toolExecuted } = await this.handleApproval(context, true));
           break;
@@ -186,6 +189,11 @@ export class ARIAConversationEngine extends EventEmitter {
     // Help
     if (/\b(help|what can|how do i|commands?)\b/i.test(lower)) {
       return { intent: 'help', confidence: 0.95, ...base };
+    }
+
+    // Config
+    if (/\b(config|configure|settings?)\b/i.test(lower)) {
+      return { intent: 'config', confidence: 0.9, ...base };
     }
 
     // Status
@@ -372,19 +380,19 @@ Top tools: ${Object.entries(m.tools.byTool).sort((a, b) => b[1] - a[1]).slice(0,
 
     if (target === 'agents' || !target) {
       const agents = this.orchestrator.listAgents();
-      return `🤖 Agents:\n${agents.map(a => `• ${a.name}: ${a.description}\n  Tools: ${a.tools.join(', ')}`).join('\n\n')}`;
+      return `🤖 Available agents:\n${agents.map(a => `• ${a.name}: ${a.description}\n  Tools: ${a.tools.join(', ')}`).join('\n\n')}`;
     }
     if (target === 'tools') {
       const tools = this.orchestrator.listTools();
-      return `🔧 Tools:\n${tools.map(t => `• ${t.name}: ${t.description}`).join('\n')}`;
+      return `🔧 Available tools:\n${tools.map(t => `• ${t.name}: ${t.description}`).join('\n')}`;
     }
     if (target === 'threats') {
       const threats = this.threatIntelligence.getCriticalThreats();
-      return threats.length ? `🚨 Threats:\n${threats.map(t => `• [${t.level}] ${t.title}`).join('\n')}` : `✅ No critical threats.`;
+      return threats.length ? `🚨 Critical threats:\n${threats.map(t => `• [${t.level}] ${t.title}`).join('\n')}` : `✅ No critical threats detected.`;
     }
     if (target === 'incidents') {
       const incidents = this.threatIntelligence.getOpenIncidents();
-      return incidents.length ? `📍 Incidents:\n${incidents.map(i => `• [${i.status}] Severity: ${i.severity}`).join('\n')}` : `✅ No open incidents.`;
+      return incidents.length ? `📍 Open incidents:\n${incidents.map(i => `• [${i.status}] Severity: ${i.severity}`).join('\n')}` : `✅ No open incidents.`;
     }
     if (target === 'plugins') {
       const tools = this.orchestrator.listTools().filter(t => t.name.includes(':'));
@@ -429,15 +437,28 @@ Just type what you need - no special commands required!`;
   private async handleApproval(context: ConversationContext, approved: boolean): Promise<{
     response: string; result?: unknown; toolExecuted: boolean;
   }> {
+    // Load from storage if empty
+    if (this.pendingApprovals.size === 0 && this.storage) {
+      const approvals = await this.storage.getApprovals();
+      for (const a of approvals) {
+        this.pendingApprovals.set(a.approvalId, {
+          timestamp: new Date(a.createdAt), role: 'user', content: 'Pending',
+          toolName: a.toolName, agentId: a.agentId, parameters: a.parameters,
+          sessionId: a.sessionId, riskScore: a.riskScore, requiresApproval: true,
+        });
+      }
+    }
+
     const entry = Array.from(this.pendingApprovals.entries())
       .find(([, t]) => t.sessionId === context.sessionId) || this.pendingApprovals.entries().next().value;
     
-    if (!entry) return { response: `Nothing pending to ${approved ? 'approve' : 'deny'}.`, toolExecuted: false };
+    if (!entry) return { response: `Nothing pending to ${approved ? 'approve' : 'deny'}. No pending approvals.`, toolExecuted: false };
 
     const [approvalId, turn] = entry;
     this.pendingApprovals.delete(approvalId);
+    if (this.storage) await this.storage.deleteApproval(approvalId);
 
-    if (!approved) return { response: `❌ Cancelled.`, toolExecuted: false };
+    if (!approved) return { response: `❌ Action denied. Cancelled.`, toolExecuted: false };
 
     if (!turn.toolName || !turn.agentId) return { response: `Invalid approval state.`, toolExecuted: false };
 
