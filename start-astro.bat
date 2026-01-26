@@ -1,7 +1,7 @@
 @echo off
 echo.
 echo  ========================================
-echo       Starting ASTRO - Please wait...
+echo       ASTRO - AI Assistant
 echo  ========================================
 echo.
 
@@ -41,18 +41,49 @@ if not exist "dist" (
     )
 )
 
-echo.
-echo  ========================================
-echo       ASTRO is starting up!
-echo  ========================================
-echo.
-echo  Open your web browser and go to:
-echo.
-echo       http://localhost:5000
-echo.
-echo  Press Ctrl+C to stop ASTRO
-echo  ========================================
-echo.
+:: Install Python dependencies
+pip install -q textual rich httpx 2>nul
 
-:: Start the server
-call npm start
+echo.
+echo  How would you like to use ASTRO?
+echo.
+echo  1) Web Interface (opens in browser)
+echo  2) Terminal UI (beautiful TUI)
+echo  3) Classic CLI
+echo.
+set /p choice="  Choose [1/2/3]: "
+
+if "%choice%"=="1" goto web
+if "%choice%"=="2" goto tui
+if "%choice%"=="3" goto cli
+goto web
+
+:web
+echo.
+echo  Starting server and opening browser...
+start /b npm start
+timeout /t 3 >nul
+start http://localhost:5000
+echo.
+echo  Press any key to stop ASTRO...
+pause >nul
+goto end
+
+:tui
+echo.
+echo  Starting Terminal UI...
+start /b npm start
+timeout /t 2 >nul
+python astro.py
+goto end
+
+:cli
+echo.
+echo  Starting Classic CLI...
+start /b npm start
+timeout /t 2 >nul
+python astro.py --cli
+goto end
+
+:end
+
