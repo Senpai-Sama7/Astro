@@ -15,6 +15,7 @@ import { OTISSecurityGateway } from './otis/security-gateway';
 import { C0Di3CyberIntelligence } from './codi3/threat-intelligence';
 import { SQLiteStorage } from './services/storage';
 import { createAuthRouter } from './auth/router';
+import { authenticateRequest } from './middleware/auth';
 import { WebSocketServer } from './services/websocket';
 import { PluginLoader } from './plugins/plugin-loader';
 import { WorkflowEngine, createWorkflowRouter } from './workflows/workflow-engine';
@@ -175,9 +176,17 @@ async function bootstrap() {
   });
 
   // LLM endpoint
-  app.post('/api/v1/llm/chat', async (req, res) => {
+  app.post('/api/v1/llm/chat', authenticateRequest, async (req, res) => {
     try {
       const { messages, provider, model, temperature, maxTokens } = req.body;
+      if (!Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ error: 'messages must be a non-empty array' });
+      }
+      for (const message of messages) {
+        if (!message || typeof message.content !== 'string' || typeof message.role !== 'string') {
+          return res.status(400).json({ error: 'Each message must include role and content strings' });
+        }
+      }
       const response = await llmManager.chat(messages, { provider, model, temperature, maxTokens });
       res.json(response);
     } catch (e) {
@@ -185,7 +194,7 @@ async function bootstrap() {
     }
   });
 
-  app.get('/api/v1/llm/providers', (_, res) => res.json(llmManager.list()));
+  app.get('/api/v1/llm/providers', authenticateRequest, (_, res) => res.json(llmManager.list()));
 
   // Start server
   server = createServer(app);
