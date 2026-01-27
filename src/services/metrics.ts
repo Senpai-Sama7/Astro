@@ -117,8 +117,30 @@ export const dashboardHtml = `<!DOCTYPE html>
 <div class="card" style="margin-top:20px"><h3>Latency History</h3><canvas id="chart"></canvas></div>
 <script>
 let chart;
+function getToken(): string | null {
+  let token = localStorage.getItem('astro_jwt');
+  if (!token) {
+    token = window.prompt('Enter JWT token to view metrics') || null;
+    if (token) {
+      localStorage.setItem('astro_jwt', token);
+    }
+  }
+  return token;
+}
+
 async function update() {
-  const res = await fetch('/api/v1/metrics');
+  const token = getToken();
+  if (!token) {
+    return;
+  }
+  const res = await fetch('/api/v1/metrics', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (res.status === 401 || res.status === 403) {
+    localStorage.removeItem('astro_jwt');
+    document.getElementById('requests').textContent = 'Auth required';
+    return;
+  }
   const m = await res.json();
   document.getElementById('requests').textContent = m.requests.total;
   document.getElementById('tools').textContent = m.tools.executions;

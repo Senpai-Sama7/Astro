@@ -21,6 +21,18 @@ export interface LLMOptions {
   maxTokens?: number;
 }
 
+const DEFAULT_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS || 15000);
+
+async function fetchWithTimeout(url: string, options: RequestInit, timeoutMs = DEFAULT_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 interface OpenAIResponse {
   choices: { message: { content: string }; delta?: { content?: string } }[];
   usage?: { prompt_tokens: number; completion_tokens: number; total_tokens: number };
@@ -51,7 +63,7 @@ export class OpenAIProvider implements LLMProvider {
 
   async chat(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
     const model = options?.model || 'gpt-4o-mini';
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
+    const res = await fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
       body: JSON.stringify({
@@ -72,7 +84,7 @@ export class OpenAIProvider implements LLMProvider {
 
   async *stream(messages: LLMMessage[], options?: LLMOptions): AsyncIterable<string> {
     const model = options?.model || 'gpt-4o-mini';
-    const res = await fetch(`${this.baseUrl}/chat/completions`, {
+    const res = await fetchWithTimeout(`${this.baseUrl}/chat/completions`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${this.apiKey}` },
       body: JSON.stringify({ model, messages, temperature: options?.temperature ?? 0.7, max_tokens: options?.maxTokens, stream: true }),
@@ -113,7 +125,7 @@ export class AnthropicProvider implements LLMProvider {
     const model = options?.model || 'claude-3-5-sonnet-20241022';
     const systemMsg = messages.find((m) => m.role === 'system')?.content;
     const chatMsgs = messages.filter((m) => m.role !== 'system').map((m) => ({ role: m.role, content: m.content }));
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': this.apiKey, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model, max_tokens: options?.maxTokens || 4096, system: systemMsg, messages: chatMsgs }),
@@ -139,7 +151,7 @@ export class OllamaProvider implements LLMProvider {
 
   async chat(messages: LLMMessage[], options?: LLMOptions): Promise<LLMResponse> {
     const model = options?.model || 'llama3.2';
-    const res = await fetch(`${this.baseUrl}/api/chat`, {
+    const res = await fetchWithTimeout(`${this.baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model, messages, stream: false }),
