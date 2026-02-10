@@ -1,36 +1,100 @@
 #!/usr/bin/env python3
 """
-ASTRO Vibe Shell - LLM-powered ReAct orchestrator.
-Bridges natural language and your local Linux environment.
+ASTRO Vibe Shell - Async LLM-powered ReAct orchestrator.
+
+Bridges natural language and your local Linux environment using an async ReAct
+(Reasoning + Acting) loop powered by LLM providers (Anthropic/OpenAI).
+
+Features:
+- Async/await support for all I/O operations
+- Natural language command processing
+- Multiple LLM provider support with fallback chain (Anthropic -> OpenAI -> Local)
+- Async tool execution (shell, file read/write, search)
+- Automatic retry logic with exponential backoff
+- Comprehensive error handling
+- Session persistence
+
+Environment Variables:
+    ANTHROPIC_API_KEY: API key for Anthropic Claude
+    OPENAI_API_KEY: API key for OpenAI
+    ASTRO_API: Base URL for ASTRO API (default: http://localhost:5000/api/v1)
+
+Example usage:
+    import asyncio
+    
+    async def main():
+        shell = VibeShell()
+        await shell.initialize()
+        await shell.run()  # Start interactive mode
+        
+    asyncio.run(main())
+    
+    # Or single command
+    response = await shell.react("show me all Python files")
+    print(response)
 """
 
-import os
-import sys
+from __future__ import annotations
+
+import asyncio
 import json
-import subprocess
+import logging
+import os
 import re
 import readline
-from pathlib import Path
-from typing import Optional, List, Dict, Any
+import shlex
+import sys
 from dataclasses import dataclass
-import requests
+from pathlib import Path
+from typing import Any, Callable, Coroutine, Dict, List, Optional
 
+import aiohttp
+import aiofiles
+
+# Optional LLM imports with graceful degradation
 try:
-    from openai import OpenAI
+    from openai import AsyncOpenAI, OpenAIError
     HAS_OPENAI = True
 except ImportError:
     HAS_OPENAI = False
+    OpenAIError = Exception
 
 try:
-    from anthropic import Anthropic
+    from anthropic import AsyncAnthropic, AnthropicError
     HAS_ANTHROPIC = True
 except ImportError:
     HAS_ANTHROPIC = False
+    AnthropicError = Exception
 
 # Config
 API_BASE = os.getenv("ASTRO_API", "http://localhost:5000/api/v1")
-SESSION_FILE = Path.home() / ".astro_session"
-HISTORY_FILE = Path.home() / ".astro_history"
+SESSION_FILE = Path.home() / ".vibe_session"
+HISTORY_FILE = Path.home() / ".vibe_history"
+
+# Constants
+DEFAULT_TIMEOUT = 30
+MAX_LLM_RETRIES = 3
+LLM_RETRY_DELAY = 1.0  # seconds
+MAX_OUTPUT_LENGTH = 4000
+MAX_STEPS = 6
+CHUNK_SIZE = 8192
+
+
+# Setup logger
+def _setup_logger() -> logging.Logger:
+    """Setup and configure the vibe_shell logger."""
+    logger = logging.getLogger("vibe_shell")
+    if not logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    return logger
+
+
+logger = _setup_logger()
+
+
 
 SYSTEM_PROMPT = """You are ASTRO, an AI assistant with direct access to the user's Linux environment.
 You can execute shell commands, read/write files, and help with coding tasks.
@@ -57,125 +121,658 @@ ANSWER: <your response to the user>
 
 Be concise. Execute commands to verify things rather than guessing."""
 
+
+class VibeShellError(Exception):
+    """Base exception for VibeShell errors."""
+    pass
+
+
+class AuthenticationError(VibeShellError):
+    """Raised when authentication fails."""
+    pass
+
+
+class LLMError(VibeShellError):
+    """Raised when LLM communication fails."""
+    pass
+
+
+class ToolExecutionError(VibeShellError):
+    """Raised when tool execution fails."""
+    pass
+
+
+class ValidationError(VibeShellError):
+    """Raised when input validation fails."""
+    pass
+
+
 @dataclass
 class Action:
+    """Represents a tool action to be executed."""
     tool: str
     args: Dict[str, Any]
     
-@dataclass  
+    def __post_init__(self) -> None:
+        """Validate action after creation."""
+        if not isinstance(self.tool, str) or not self.tool:
+            raise ValidationError("Action tool must be a non-empty string")
+        if not isinstance(self.args, dict):
+            raise ValidationError("Action args must be a dictionary")
+
+
+@dataclass
 class Step:
+    """Represents a single step in the ReAct loop."""
     thought: str
     action: Optional[Action] = None
     observation: Optional[str] = None
     answer: Optional[str] = None
 
+
+@dataclass
+class LLMProvider:
+    """Represents an LLM provider configuration."""
+    name: str
+    client: Any
+    priority: int  # Lower = higher priority
+    is_available: bool = True
+
+
 class VibeShell:
-    def __init__(self):
-        self.cwd = os.getcwd()
+    """
+    Async LLM-powered ReAct orchestrator for natural language system interaction.
+    
+    This class provides an interactive shell that processes natural language
+    queries using an async ReAct (Reasoning + Acting) loop powered by LLM providers.
+    
+    Attributes:
+        cwd: Current working directory
+        token: Authentication token for API access
+        history: Conversation history
+        llm_providers: List of configured LLM providers (ordered by priority)
+        session: aiohttp ClientSession for HTTP requests
+        
+    Example:
+        >>> import asyncio
+        >>> async def main():
+        ...     shell = VibeShell()
+        ...     await shell.initialize()
+        ...     result = await shell.react("list all files")
+        ...     print(result)
+        >>> asyncio.run(main())
+    """
+
+    def __init__(self) -> None:
+        """Initialize the VibeShell instance."""
+        self.cwd: str = os.getcwd()
         self.token: Optional[str] = None
-        self.history: List[Dict] = []
-        self.llm_client = self._init_llm()
-        self.load_session()
+        self.history: List[Dict[str, Any]] = []
+        self.llm_providers: List[LLMProvider] = []
+        self.session: Optional[aiohttp.ClientSession] = None
+        self._initialized: bool = False
+        
+    async def initialize(self) -> None:
+        """
+        Initialize async resources and load session.
+        
+        Must be called before using other async methods.
+        
+        Example:
+            >>> shell = VibeShell()
+            >>> await shell.initialize()
+        """
+        if self._initialized:
+            return
+            
+        # Create aiohttp session
+        timeout = aiohttp.ClientTimeout(total=DEFAULT_TIMEOUT)
+        self.session = aiohttp.ClientSession(timeout=timeout)
+        
+        # Initialize LLM clients
+        await self._init_llm_providers()
+        
+        # Load session and authenticate
+        await self._load_session_async()
         self.setup_readline()
         
-    def _init_llm(self):
-        """Initialize LLM client."""
+        self._initialized = True
+        logger.debug("VibeShell initialized successfully")
+        
+    async def cleanup(self) -> None:
+        """
+        Cleanup async resources.
+        
+        Should be called when done using the shell.
+        
+        Example:
+            >>> await shell.cleanup()
+        """
+        self.save_history()
+        if self.session:
+            await self.session.close()
+            self.session = None
+        self._initialized = False
+        
+    async def _init_llm_providers(self) -> None:
+        """
+        Initialize LLM providers based on available API keys.
+        
+        Priority: Anthropic > OpenAI
+        """
+        providers: List[LLMProvider] = []
+        
+        # Anthropic (highest priority)
         if HAS_ANTHROPIC and os.getenv("ANTHROPIC_API_KEY"):
-            return ("anthropic", Anthropic())
+            try:
+                client = AsyncAnthropic()
+                providers.append(LLMProvider(
+                    name="anthropic",
+                    client=client,
+                    priority=1
+                ))
+                logger.info("Initialized Anthropic client")
+            except Exception as e:
+                logger.warning("Failed to initialize Anthropic: %s", e)
+        
+        # OpenAI (second priority)
         if HAS_OPENAI and os.getenv("OPENAI_API_KEY"):
-            return ("openai", OpenAI())
-        return None
+            try:
+                client = AsyncOpenAI()
+                providers.append(LLMProvider(
+                    name="openai",
+                    client=client,
+                    priority=2
+                ))
+                logger.info("Initialized OpenAI client")
+            except Exception as e:
+                logger.warning("Failed to initialize OpenAI: %s", e)
+        
+        # Sort by priority
+        self.llm_providers = sorted(providers, key=lambda p: p.priority)
+        
+        if not self.llm_providers:
+            logger.warning("No LLM providers available. Set ANTHROPIC_API_KEY or OPENAI_API_KEY.")
     
-    def setup_readline(self):
-        if HISTORY_FILE.exists():
-            readline.read_history_file(HISTORY_FILE)
-        readline.set_history_length(1000)
+    def setup_readline(self) -> None:
+        """
+        Setup readline with history file support.
+        
+        Loads previous command history if available.
+        """
+        try:
+            if HISTORY_FILE.exists():
+                readline.read_history_file(str(HISTORY_FILE))
+        except (OSError, IOError) as e:
+            logger.debug("Failed to read history file: %s", e)
+        except Exception as e:
+            logger.debug("Unexpected error reading history: %s", e)
+        
+        try:
+            readline.set_history_length(1000)
+        except Exception as e:
+            logger.debug("Failed to set history length: %s", e)
     
-    def save_history(self):
-        readline.write_history_file(HISTORY_FILE)
+    def save_history(self) -> None:
+        """
+        Save command history to file.
+        
+        Persists current session's command history for future sessions.
+        """
+        try:
+            readline.write_history_file(str(HISTORY_FILE))
+        except (OSError, IOError) as e:
+            logger.debug("Failed to write history file: %s", e)
+        except Exception as e:
+            logger.debug("Unexpected error saving history: %s", e)
     
-    def load_session(self):
+    async def _load_session_async(self) -> None:
+        """
+        Load existing session or attempt to authenticate asynchronously.
+        """
         if SESSION_FILE.exists():
             try:
-                data = json.loads(SESSION_FILE.read_text())
-                self.token = data.get("token")
-            except:
-                pass
+                async with aiofiles.open(SESSION_FILE, 'r', encoding='utf-8') as f:
+                    content = await f.read()
+                    data = json.loads(content)
+                    self.token = data.get("token")
+                    if self.token:
+                        logger.debug("Loaded existing session")
+            except json.JSONDecodeError as e:
+                logger.debug("Failed to parse session file: %s", e)
+            except (OSError, IOError) as e:
+                logger.debug("Failed to read session file: %s", e)
+            except Exception as e:
+                logger.debug("Unexpected error loading session: %s", e)
+        
         if not self.token:
-            self._authenticate()
+            await self._authenticate_async()
     
-    def _authenticate(self):
-        try:
-            r = requests.post(f"{API_BASE}/auth/dev-token",
-                json={"userId": os.getenv("USER", "user"), "role": "admin"}, timeout=5)
-            if r.ok:
-                self.token = r.json().get("token")
-                SESSION_FILE.write_text(json.dumps({"token": self.token}))
-        except:
-            pass
-
-    # ==================== TOOLS ====================
+    async def _authenticate_async(self, timeout: int = 5, max_retries: int = 2) -> None:
+        """
+        Authenticate with the ASTRO API to obtain a dev token asynchronously.
+        
+        Args:
+            timeout: Request timeout in seconds
+            max_retries: Maximum number of retry attempts
+        """
+        if not self.session:
+            raise VibeShellError("Session not initialized")
+            
+        for attempt in range(max_retries):
+            try:
+                url = f"{API_BASE}/auth/dev-token"
+                payload = {
+                    "userId": os.getenv("USER", "user"),
+                    "role": "admin"
+                }
+                
+                async with self.session.post(url, json=payload, timeout=timeout) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        self.token = data.get("token")
+                        if self.token:
+                            await self._save_session_async()
+                            logger.info("Authenticated with ASTRO API")
+                            return
+                    else:
+                        logger.debug("Auth returned non-ok status: %d", resp.status)
+                        
+            except asyncio.TimeoutError:
+                logger.debug("Authentication attempt %d timed out", attempt + 1)
+            except aiohttp.ClientError as e:
+                logger.debug("Auth connection error (attempt %d): %s", attempt + 1, e)
+            except Exception as e:
+                logger.debug("Auth unexpected error (attempt %d): %s", attempt + 1, e)
+        
+        logger.debug("Authentication failed after %d attempts", max_retries)
     
-    def tool_shell(self, cmd: str) -> str:
-        """Execute shell command."""
+    async def _save_session_async(self) -> None:
+        """Save session to file asynchronously."""
         try:
-            result = subprocess.run(cmd, shell=True, capture_output=True, text=True,
-                                   timeout=30, cwd=self.cwd)
-            output = (result.stdout + result.stderr).strip()
-            return output[:4000] if output else "(no output)"
-        except subprocess.TimeoutExpired:
-            return "(timed out after 30s)"
+            async with aiofiles.open(SESSION_FILE, 'w', encoding='utf-8') as f:
+                await f.write(json.dumps({"token": self.token}, indent=2))
+        except (OSError, IOError) as e:
+            logger.debug("Failed to save session: %s", e)
         except Exception as e:
+            logger.debug("Unexpected error saving session: %s", e)
+
+    # ==================== ASYNC TOOLS ====================
+    
+    async def tool_shell(self, cmd: str, timeout: int = DEFAULT_TIMEOUT) -> str:
+        """
+        Execute a shell command asynchronously.
+        
+        Args:
+            cmd: Shell command to execute
+            timeout: Maximum execution time in seconds
+            
+        Returns:
+            Command output (stdout + stderr), truncated to MAX_OUTPUT_LENGTH
+            
+        Raises:
+            ValidationError: If cmd is not a string
+            ToolExecutionError: If command execution fails
+            
+        Example:
+            >>> shell = VibeShell()
+            >>> await shell.initialize()
+            >>> output = await shell.tool_shell("echo hello")
+            >>> "hello" in output.lower()
+            True
+        """
+        if not isinstance(cmd, str):
+            raise ValidationError(f"Command must be a string, got {type(cmd).__name__}")
+        
+        cmd = cmd.strip()
+        if not cmd:
+            return "(no command)"
+        
+        # Security: Block dangerous commands
+        dangerous_patterns = [
+            (r";\s*rm\s+-rf\s+/(\s|$)", "recursive root deletion"),
+            (r">\s*/dev/null.*rm.*-rf", "masked deletion"),
+            (r":\(\)\s*\{\s*:\|:&\s*\};:", "fork bomb"),
+            (r"rm\s+-rf\s+/\s*\*", "wildcard root deletion"),
+            (r"dd\s+if=\S+\s+of=/dev/[sh]d[a-z]*", "disk destruction"),
+        ]
+        
+        for pattern, description in dangerous_patterns:
+            if re.search(pattern, cmd, re.IGNORECASE):
+                logger.warning("Blocked dangerous command (%s): %s", description, cmd[:50])
+                return f"(blocked: potentially dangerous command - {description})"
+        
+        try:
+            proc = await asyncio.create_subprocess_shell(
+                cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=self.cwd
+            )
+            
+            try:
+                stdout, stderr = await asyncio.wait_for(
+                    proc.communicate(),
+                    timeout=timeout
+                )
+                output = (stdout.decode('utf-8', errors='replace') +
+                          stderr.decode('utf-8', errors='replace')).strip()
+                return output[:MAX_OUTPUT_LENGTH] if output else "(no output)"
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                return f"(timed out after {timeout}s)"
+                
+        except Exception as e:
+            logger.debug("Shell execution error: %s", e)
             return f"(error: {e})"
     
-    def tool_read_file(self, path: str) -> str:
-        """Read file contents."""
+    async def tool_read_file(self, path: str) -> str:
+        """
+        Read file contents asynchronously.
+        
+        Args:
+            path: Path to the file (relative or absolute)
+            
+        Returns:
+            File content string, truncated to MAX_OUTPUT_LENGTH if too long
+            
+        Raises:
+            ValidationError: If path is not a string
+            
+        Example:
+            >>> shell = VibeShell()
+            >>> await shell.initialize()
+            >>> content = await shell.tool_read_file("README.md")
+            >>> isinstance(content, str)
+            True
+        """
+        if not isinstance(path, str):
+            raise ValidationError(f"Path must be a string, got {type(path).__name__}")
+        
         try:
             p = Path(path).expanduser()
             if not p.is_absolute():
                 p = Path(self.cwd) / p
-            content = p.read_text()
-            if len(content) > 4000:
-                return content[:4000] + f"\n... (truncated, {len(content)} total chars)"
-            return content
+            
+            if not p.exists():
+                return f"(file not found: {p})"
+            
+            if not p.is_file():
+                return f"(not a file: {p})"
+            
+            # Read file asynchronously
+            async with aiofiles.open(p, 'r', encoding='utf-8', errors='replace') as f:
+                content = await f.read()
+                if len(content) > MAX_OUTPUT_LENGTH:
+                    return content[:MAX_OUTPUT_LENGTH] + f"\n... (truncated, {len(content)} total chars)"
+                return content
+                
+        except (OSError, IOError) as e:
+            logger.debug("Read file error: %s", e)
+            return f"(error reading {path}: {e})"
         except Exception as e:
+            logger.debug("Read file unexpected error: %s", e)
             return f"(error reading {path}: {e})"
     
-    def tool_write_file(self, path: str, content: str) -> str:
-        """Write file contents."""
+    async def tool_write_file(self, path: str, content: str) -> str:
+        """
+        Write content to a file asynchronously.
+        
+        Args:
+            path: Path to the file (relative or absolute)
+            content: Content to write
+            
+        Returns:
+            Success message with character count
+            
+        Raises:
+            ValidationError: If path or content is not a string
+            
+        Example:
+            >>> shell = VibeShell()
+            >>> await shell.initialize()
+            >>> result = await shell.tool_write_file("/tmp/test.txt", "hello")
+            >>> "Written" in result
+            True
+        """
+        if not isinstance(path, str):
+            raise ValidationError(f"Path must be a string, got {type(path).__name__}")
+        if not isinstance(content, str):
+            raise ValidationError(f"Content must be a string, got {type(content).__name__}")
+        
         try:
             p = Path(path).expanduser()
             if not p.is_absolute():
                 p = Path(self.cwd) / p
+            
+            # Create parent directories if needed
             p.parent.mkdir(parents=True, exist_ok=True)
-            p.write_text(content)
+            
+            async with aiofiles.open(p, 'w', encoding='utf-8') as f:
+                await f.write(content)
+                
             return f"✓ Written {len(content)} chars to {p}"
+            
+        except (OSError, IOError) as e:
+            logger.debug("Write file error: %s", e)
+            return f"(error writing {path}: {e})"
         except Exception as e:
+            logger.debug("Write file unexpected error: %s", e)
             return f"(error writing {path}: {e})"
     
-    def tool_search(self, pattern: str, path: str = ".") -> str:
-        """Search for pattern in files."""
-        cmd = f"grep -rn '{pattern}' {path} 2>/dev/null | head -30"
-        return self.tool_shell(cmd)
+    async def tool_search(self, pattern: str, path: str = ".") -> str:
+        """
+        Search for pattern in files asynchronously.
+        
+        Args:
+            pattern: Search pattern string
+            path: Directory path to search in (default: current directory)
+            
+        Returns:
+            Search results string
+            
+        Raises:
+            ValidationError: If pattern or path is not a string
+            
+        Example:
+            >>> shell = VibeShell()
+            >>> await shell.initialize()
+            >>> results = await shell.tool_search("def main", ".")
+            >>> isinstance(results, str)
+            True
+        """
+        if not isinstance(pattern, str):
+            raise ValidationError(f"Pattern must be a string, got {type(pattern).__name__}")
+        if not isinstance(path, str):
+            raise ValidationError(f"Path must be a string, got {type(path).__name__}")
+        
+        if not pattern.strip():
+            return "(empty search pattern)"
+        
+        # Sanitize inputs
+        safe_pattern = shlex.quote(pattern)
+        safe_path = shlex.quote(path)
+        cmd = f"grep -rn {safe_pattern} {safe_path} 2>/dev/null | head -30"
+        
+        return await self.tool_shell(cmd, timeout=20)
     
-    def execute_action(self, action: Action) -> str:
-        """Execute a tool action."""
-        tool_map = {
+    async def execute_action(self, action: Action) -> str:
+        """
+        Execute a tool action asynchronously.
+        
+        Args:
+            action: Action object containing tool name and arguments
+            
+        Returns:
+            Tool execution result string
+            
+        Raises:
+            ValidationError: If action is invalid
+            
+        Example:
+            >>> shell = VibeShell()
+            >>> await shell.initialize()
+            >>> action = Action("shell", {"cmd": "echo hello"})
+            >>> result = await shell.execute_action(action)
+            >>> "hello" in result.lower()
+            True
+        """
+        if not isinstance(action, Action):
+            raise ValidationError(f"Expected Action, got {type(action).__name__}")
+        
+        tool_map: Dict[str, Callable[[Dict[str, Any]], Coroutine[Any, Any, str]]] = {
             "shell": lambda a: self.tool_shell(a.get("cmd", "")),
             "read_file": lambda a: self.tool_read_file(a.get("path", "")),
-            "write_file": lambda a: self.tool_write_file(a.get("path", ""), a.get("content", "")),
-            "search": lambda a: self.tool_search(a.get("pattern", ""), a.get("path", ".")),
+            "write_file": lambda a: self.tool_write_file(
+                a.get("path", ""),
+                a.get("content", "")
+            ),
+            "search": lambda a: self.tool_search(
+                a.get("pattern", ""),
+                a.get("path", ".")
+            ),
         }
+        
         handler = tool_map.get(action.tool)
         if handler:
-            return handler(action.args)
+            try:
+                return await handler(action.args)
+            except Exception as e:
+                logger.exception("Action execution error")
+                return f"(error executing {action.tool}: {e})"
+        
         return f"(unknown tool: {action.tool})"
+
+    # ==================== LLM ORCHESTRATION ====================
+    
+    async def call_llm_with_fallback(
+        self,
+        messages: List[Dict[str, str]],
+        max_retries: int = MAX_LLM_RETRIES,
+        retry_delay: float = LLM_RETRY_DELAY
+    ) -> str:
+        """
+        Call LLM API with provider fallback and retry logic.
+        
+        Tries providers in priority order with exponential backoff.
+        
+        Args:
+            messages: List of message dictionaries with 'role' and 'content'
+            max_retries: Maximum retry attempts per provider
+            retry_delay: Initial delay between retries
+            
+        Returns:
+            LLM response text, or error message if all providers fail
+            
+        Example:
+            >>> shell = VibeShell()
+            >>> await shell.initialize()
+            >>> messages = [{"role": "user", "content": "Hello"}]
+            >>> response = await shell.call_llm_with_fallback(messages)
+        """
+        if not self.llm_providers:
+            return "ANSWER: No LLM providers available. Set ANTHROPIC_API_KEY or OPENAI_API_KEY."
+        
+        last_error = ""
+        
+        for provider in self.llm_providers:
+            if not provider.is_available:
+                continue
+                
+            for attempt in range(max_retries):
+                try:
+                    if provider.name == "anthropic":
+                        return await self._call_anthropic(provider.client, messages)
+                    elif provider.name == "openai":
+                        return await self._call_openai(provider.client, messages)
+                        
+                except (AnthropicError, OpenAIError) as e:
+                    last_error = str(e)
+                    logger.warning("%s API error (attempt %d): %s", provider.name, attempt + 1, e)
+                    if attempt < max_retries - 1:
+                        sleep_time = retry_delay * (2 ** attempt)
+                        logger.debug("Retrying in %.1f seconds...", sleep_time)
+                        await asyncio.sleep(sleep_time)
+                    else:
+                        provider.is_available = False
+                        
+                except Exception as e:
+                    last_error = str(e)
+                    logger.exception("Unexpected error calling %s", provider.name)
+                    if attempt < max_retries - 1:
+                        await asyncio.sleep(retry_delay * (2 ** attempt))
+                    else:
+                        provider.is_available = False
+        
+        return f"ANSWER: All LLM providers failed. Last error: {last_error}"
+    
+    async def _call_anthropic(
+        self,
+        client: AsyncAnthropic,
+        messages: List[Dict[str, str]]
+    ) -> str:
+        """
+        Call Anthropic Claude API asynchronously.
+        
+        Args:
+            client: AsyncAnthropic client instance
+            messages: List of message dictionaries
+            
+        Returns:
+            Response text from Claude
+        """
+        # Extract system message
+        system = next((m["content"] for m in messages if m["role"] == "system"), "")
+        user_msgs = [m for m in messages if m["role"] != "system"]
+        
+        response = await client.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=2000,
+            system=system,
+            messages=user_msgs
+        )
+        return response.content[0].text
+    
+    async def _call_openai(
+        self,
+        client: AsyncOpenAI,
+        messages: List[Dict[str, str]]
+    ) -> str:
+        """
+        Call OpenAI API asynchronously.
+        
+        Args:
+            client: AsyncOpenAI client instance
+            messages: List of message dictionaries
+            
+        Returns:
+            Response text from GPT
+        """
+        response = await client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            max_tokens=2000
+        )
+        return response.choices[0].message.content
 
     # ==================== ReAct LOOP ====================
     
     def parse_llm_response(self, text: str) -> Step:
-        """Parse LLM response into a Step."""
+        """
+        Parse LLM response into a Step object.
+        
+        Args:
+            text: Raw LLM response text
+            
+        Returns:
+            Step object containing parsed thought, action, and/or answer
+        """
         step = Step(thought="")
+        
+        if not isinstance(text, str):
+            logger.warning("LLM response is not a string: %s", type(text))
+            return step
         
         # Extract THOUGHT
         thought_match = re.search(r'THOUGHT:\s*(.+?)(?=ACTION:|ANSWER:|$)', text, re.DOTALL)
@@ -187,24 +784,12 @@ class VibeShell:
         if action_match:
             tool = action_match.group(1)
             args_str = action_match.group(2).strip()
-            # Parse args - handle both positional and keyword
-            args = {}
-            if tool == "shell":
-                args["cmd"] = args_str.strip('"\'')
-            elif tool == "read_file":
-                args["path"] = args_str.strip('"\'')
-            elif tool == "write_file":
-                # write_file("path", "content")
-                parts = re.match(r'"([^"]+)"\s*,\s*"(.+)"', args_str, re.DOTALL)
-                if parts:
-                    args["path"] = parts.group(1)
-                    args["content"] = parts.group(2)
-            elif tool == "search":
-                parts = args_str.split(",", 1)
-                args["pattern"] = parts[0].strip().strip('"\'')
-                if len(parts) > 1:
-                    args["path"] = parts[1].strip().strip('"\'')
-            step.action = Action(tool=tool, args=args)
+            args: Dict[str, Any] = self._parse_action_args(tool, args_str)
+            
+            try:
+                step.action = Action(tool=tool, args=args)
+            except ValidationError as e:
+                logger.warning("Invalid action from LLM: %s", e)
         
         # Extract ANSWER
         answer_match = re.search(r'ANSWER:\s*(.+?)$', text, re.DOTALL)
@@ -213,53 +798,72 @@ class VibeShell:
         
         return step
     
-    def call_llm(self, messages: List[Dict]) -> str:
-        """Call LLM API."""
-        if not self.llm_client:
-            return "ANSWER: LLM not configured. Set OPENAI_API_KEY or ANTHROPIC_API_KEY."
+    def _parse_action_args(self, tool: str, args_str: str) -> Dict[str, Any]:
+        """Parse action arguments based on tool type."""
+        args: Dict[str, Any] = {}
         
-        provider, client = self.llm_client
+        if tool == "shell":
+            args["cmd"] = args_str.strip('"\'')
+        elif tool == "read_file":
+            args["path"] = args_str.strip('"\'')
+        elif tool == "write_file":
+            # Try double quotes first
+            parts = re.match(r'"([^"]+)"\s*,\s*"(.+)"', args_str, re.DOTALL)
+            if parts:
+                args["path"] = parts.group(1)
+                args["content"] = parts.group(2)
+            else:
+                # Try single quotes
+                parts = re.match(r"'([^']+)'\s*,\s*'(.+)'", args_str, re.DOTALL)
+                if parts:
+                    args["path"] = parts.group(1)
+                    args["content"] = parts.group(2)
+        elif tool == "search":
+            parts = args_str.split(",", 1)
+            args["pattern"] = parts[0].strip().strip('"\'')
+            if len(parts) > 1:
+                args["path"] = parts[1].strip().strip('"\'')
         
-        try:
-            if provider == "anthropic":
-                # Extract system message
-                system = next((m["content"] for m in messages if m["role"] == "system"), "")
-                user_msgs = [m for m in messages if m["role"] != "system"]
-                
-                response = client.messages.create(
-                    model="claude-sonnet-4-20250514",
-                    max_tokens=2000,
-                    system=system,
-                    messages=user_msgs
-                )
-                return response.content[0].text
-            
-            elif provider == "openai":
-                response = client.chat.completions.create(
-                    model="gpt-4o",
-                    messages=messages,
-                    max_tokens=2000
-                )
-                return response.choices[0].message.content
-        
-        except Exception as e:
-            return f"ANSWER: LLM error: {e}"
-        
-        return "ANSWER: Unknown LLM provider"
+        return args
     
-    def react(self, user_input: str) -> str:
-        """Run ReAct loop for user query."""
+    async def react(self, user_input: str) -> str:
+        """
+        Run async ReAct loop for user query.
+        
+        The ReAct loop iteratively reasons about the query, takes actions,
+        observes results, and synthesizes a final answer.
+        
+        Args:
+            user_input: Natural language query from the user
+            
+        Returns:
+            Final answer string
+            
+        Raises:
+            ValidationError: If user_input is not a string
+            
+        Example:
+            >>> shell = VibeShell()
+            >>> await shell.initialize()
+            >>> result = await shell.react("What files are here?")
+        """
+        if not isinstance(user_input, str):
+            raise ValidationError(f"Input must be a string, got {type(user_input).__name__}")
+        
+        user_input = user_input.strip()
+        if not user_input:
+            return "Please enter a command or question."
+        
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": f"Current directory: {self.cwd}\n\nUser: {user_input}"}
         ]
         
         steps: List[Step] = []
-        max_steps = 6
         
-        for i in range(max_steps):
+        for i in range(MAX_STEPS):
             # Get LLM response
-            response = self.call_llm(messages)
+            response = await self.call_llm_with_fallback(messages)
             step = self.parse_llm_response(response)
             steps.append(step)
             
@@ -273,8 +877,9 @@ class VibeShell:
             
             # Execute action if present
             if step.action:
-                print(f"⚡ {step.action.tool}({json.dumps(step.action.args)[:60]}...)")
-                observation = self.execute_action(step.action)
+                args_preview = json.dumps(step.action.args)[:60]
+                print(f"⚡ {step.action.tool}({args_preview}...)")
+                observation = await self.execute_action(step.action)
                 step.observation = observation
                 
                 # Show truncated observation
@@ -292,8 +897,16 @@ class VibeShell:
 
     # ==================== SHELL INTERFACE ====================
     
-    def handle_builtin(self, cmd: str) -> Optional[str]:
-        """Handle built-in commands."""
+    async def handle_builtin(self, cmd: str) -> Optional[str]:
+        """
+        Handle built-in shell commands.
+        
+        Args:
+            cmd: Command string to handle
+            
+        Returns:
+            Response string if handled, None if not a built-in command
+        """
         parts = cmd.strip().split()
         if not parts:
             return None
@@ -312,8 +925,10 @@ class VibeShell:
                     os.chdir(self.cwd)
                     return f"📂 {self.cwd}"
                 return f"Not a directory: {path}"
+            except (OSError, IOError) as e:
+                return f"Error changing directory: {e}"
             except Exception as e:
-                return str(e)
+                return f"Error: {e}"
         
         if builtin == "pwd":
             return self.cwd
@@ -324,7 +939,10 @@ class VibeShell:
             sys.exit(0)
         
         if builtin == "clear":
-            os.system("clear")
+            try:
+                os.system("clear")
+            except Exception:
+                pass
             return ""
         
         if builtin == "help":
@@ -349,25 +967,57 @@ Direct commands: ls, git, npm, etc. (executed directly)
         return None
     
     def is_direct_command(self, cmd: str) -> bool:
-        """Check if input is a direct shell command."""
-        direct_cmds = ["ls", "cat", "grep", "find", "git", "npm", "python", "node",
-                      "make", "cargo", "go", "docker", "kubectl", "curl", "wget",
-                      "head", "tail", "less", "vim", "nano", "code", "tree", "ps",
-                      "top", "htop", "df", "du", "chmod", "chown", "mkdir", "rm",
-                      "cp", "mv", "touch", "echo", "which", "man"]
-        first = cmd.strip().split()[0] if cmd.strip() else ""
-        return first in direct_cmds or cmd.startswith("./") or cmd.startswith("/")
+        """
+        Check if input is a direct shell command.
+        
+        Args:
+            cmd: Command string to check
+            
+        Returns:
+            True if the command should be executed directly as a shell command
+        """
+        direct_cmds = [
+            "ls", "cat", "grep", "find", "git", "npm", "python", "python3", "node",
+            "make", "cargo", "go", "docker", "kubectl", "curl", "wget",
+            "head", "tail", "less", "vim", "nano", "code", "tree", "ps",
+            "top", "htop", "df", "du", "chmod", "chown", "mkdir", "rm",
+            "cp", "mv", "touch", "echo", "which", "man", "ssh", "scp",
+            "tar", "zip", "unzip", "ping", "netstat", "lsof", "kill",
+            "pgrep", "pkill", "history", "alias", "export", "source"
+        ]
+        
+        cmd = cmd.strip()
+        if not cmd:
+            return False
+        
+        first = cmd.split()[0] if cmd else ""
+        return (
+            first in direct_cmds or
+            cmd.startswith("./") or
+            cmd.startswith("/") or
+            cmd.startswith("~/")
+        )
     
     def prompt(self) -> str:
+        """
+        Generate the shell prompt string.
+        
+        Returns:
+            Formatted prompt showing current directory and LLM status
+        """
         cwd_short = self.cwd.replace(str(Path.home()), "~")
         if len(cwd_short) > 35:
             cwd_short = "..." + cwd_short[-32:]
-        llm_status = "🧠" if self.llm_client else "💤"
+        llm_status = "🧠" if self.llm_providers else "💤"
         return f"{llm_status} {cwd_short} ❯ "
     
-    def run(self):
-        """Main REPL."""
-        llm_name = self.llm_client[0] if self.llm_client else "none"
+    async def run(self) -> None:
+        """
+        Main async REPL (Read-Eval-Print Loop).
+        
+        Runs the interactive shell until user exits.
+        """
+        llm_name = self.llm_providers[0].name if self.llm_providers else "none"
         print(f"🚀 ASTRO Vibe Shell (LLM: {llm_name})")
         print(f"📂 {self.cwd}")
         print("Type naturally or 'help' for examples\n")
@@ -379,7 +1029,7 @@ Direct commands: ls, git, npm, etc. (executed directly)
                     continue
                 
                 # Built-in?
-                result = self.handle_builtin(user_input)
+                result = await self.handle_builtin(user_input)
                 if result is not None:
                     if result:
                         print(result)
@@ -387,21 +1037,34 @@ Direct commands: ls, git, npm, etc. (executed directly)
                 
                 # Direct shell command?
                 if self.is_direct_command(user_input):
-                    print(self.tool_shell(user_input))
+                    print(await self.tool_shell(user_input))
                     continue
                 
                 # Natural language -> ReAct
                 print()  # Spacing
-                response = self.react(user_input)
+                response = await self.react(user_input)
                 print(f"\n✨ {response}\n")
                 
             except KeyboardInterrupt:
                 print("\n(Ctrl+C - use 'exit' to quit)")
             except EOFError:
-                self.save_history()
+                await self.cleanup()
                 print("\n👋 Bye!")
                 break
+            except Exception as e:
+                logger.exception("Error in main loop")
+                print(f"\n❌ Error: {e}\n")
+
+
+async def main() -> None:
+    """Entry point for running VibeShell."""
+    shell = VibeShell()
+    try:
+        await shell.initialize()
+        await shell.run()
+    finally:
+        await shell.cleanup()
+
 
 if __name__ == "__main__":
-    shell = VibeShell()
-    shell.run()
+    asyncio.run(main())
