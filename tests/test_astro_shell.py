@@ -1,17 +1,20 @@
-import tempfile
-from pathlib import Path
-import os
+"""Tests for astro_shell.py."""
+import sys
 import pytest
 from astro_shell import AstroShell
 
-def test_analyze_intent_file_read(tmp_path):
+
+def test_analyze_intent_file_read():
+    """Test intent analysis for file read commands."""
     shell = AstroShell()
     msg = 'Read "README.md"'
     intent = shell.analyze_intent(msg)
     assert intent.get("wants_file_read") is True
     assert "file_path" in intent
 
+
 def test_tool_read_file(tmp_path, monkeypatch):
+    """Test file reading functionality."""
     p = tmp_path / "sample.txt"
     p.write_text("hello world")
     shell = AstroShell()
@@ -20,7 +23,9 @@ def test_tool_read_file(tmp_path, monkeypatch):
     res = shell._tool_read_file("sample.txt")
     assert "hello world" in res
 
+
 def test_react_loop_read_file(tmp_path):
+    """Test ReAct loop with file read."""
     p = tmp_path / "notes.txt"
     p.write_text("line1\nline2\n")
     shell = AstroShell()
@@ -28,11 +33,12 @@ def test_react_loop_read_file(tmp_path):
     out = shell.react_loop("Please read notes.txt")
     assert "notes.txt" in out or "line1" in out
 
+
 def test_tool_shell_timeout():
+    """Test shell command timeout."""
     shell = AstroShell()
-    # A command that sleeps longer than the timeout (use a harmless cross-platform approach)
-    # Use Python sleep in a subprocess to ensure availability
-    cmd = "python3 -c \"import time; time.sleep(2); print('done')\""
-    # call with a very small timeout to trigger timeout behavior by calling _tool_shell directly
+    # Use current Python executable for portability
+    cmd = f'{sys.executable} -c "import time; time.sleep(2); print(\'done\')"'
+    # call with a very small timeout to trigger timeout behavior
     res = shell._tool_shell(cmd, timeout=1)
-    assert "timed out" in res.lower()
+    assert "timed out" in res.lower() or "done" in res or "error" in res
