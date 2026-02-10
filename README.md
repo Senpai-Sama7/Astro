@@ -268,11 +268,85 @@ ASTRO was built with security as a priority:
 
 ---
 
+## CLI Shells
+
+ASTRO includes two powerful command-line shells for direct system interaction:
+
+### astro_shell.py — Local ReAct Shell
+
+A synchronous, rule-based shell that implements the ReAct (Reasoning + Acting) loop locally without requiring LLM APIs.
+
+```bash
+# Interactive mode
+python astro_shell.py
+
+# Single command
+python astro_shell.py "show me the README file"
+```
+
+**Features:**
+- **Local execution** — No API keys required, works offline
+- **ReAct loop** — Analyzes intent, reasons, acts, and synthesizes responses
+- **Security hardened** — Blocks dangerous commands (fork bombs, rm -rf, etc.)
+- **Path traversal protection** — Restricts file access to working directory
+- **Tool support** — Shell execution, file read, and search capabilities
+
+### vibe_shell.py — Async LLM-Powered Shell
+
+An asynchronous shell powered by LLM providers (Anthropic/OpenAI) with advanced orchestration capabilities.
+
+```bash
+# Set API key (required)
+export ANTHROPIC_API_KEY=your_key_here
+# or
+export OPENAI_API_KEY=your_key_here
+
+# Run interactive shell
+python vibe_shell.py
+```
+
+**Features:**
+- **Multi-provider LLM support** — Automatic fallback between Anthropic and OpenAI
+- **Async architecture** — Built with asyncio, aiohttp, and aiofiles for performance
+- **ReAct loop with LLM** — Natural language reasoning and action execution
+- **Structured audit logging** — JSON-formatted logs with user/action/outcome context
+- **Security features**:
+  - Path traversal blocking
+  - Comprehensive dangerous command blacklist
+  - Audit trails for all sensitive operations
+- **Auto-retry with backoff** — Resilient API communication
+
+### Environment Variables for Shells
+
+```env
+# API Keys (for vibe_shell.py)
+ANTHROPIC_API_KEY=your_anthropic_key
+OPENAI_API_KEY=your_openai_key
+
+# Optional: Custom API endpoint
+ASTRO_API=http://localhost:5000/api/v1
+```
+
+### Shell Security Features
+
+Both shells implement defense-in-depth security:
+
+| Security Feature | astro_shell.py | vibe_shell.py |
+|------------------|----------------|---------------|
+| Path traversal protection | ✅ | ✅ |
+| Dangerous command blocking | ✅ | ✅ |
+| Input validation | ✅ | ✅ |
+| Structured audit logging | ❌ | ✅ |
+| Sandboxed file access | ✅ | ✅ |
+
 ## Testing
 
 ```bash
 # Run all tests
 npm test
+
+# Run Python shell tests
+python -m pytest tests/test_astro_shell.py tests/test_vibe_shell.py -v
 
 # Run with coverage
 npm run coverage
@@ -282,7 +356,7 @@ npm run test:security
 npm run test:integration
 ```
 
-Current test coverage: **186 tests** across all components.
+Current test coverage: **238 tests** across all components (186 TypeScript + 52 Python).
 
 ---
 

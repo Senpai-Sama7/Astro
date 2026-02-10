@@ -134,10 +134,11 @@ class AstroShell:
 
     def load_session(self) -> None:
         """
-        Load existing session or attempt to authenticate.
+        Load existing session from file.
         
         Attempts to load token and session_id from the session file.
-        If no valid token exists, triggers authentication.
+        Authentication is deferred until needed (lazy) to avoid network I/O
+        during construction.
         """
         try:
             if SESSION_FILE.exists():
@@ -152,6 +153,13 @@ class AstroShell:
         except Exception as e:
             logger.debug("Unexpected error loading session: %s", e)
 
+    def ensure_authenticated(self) -> None:
+        """
+        Ensure we have a valid authentication token.
+        
+        Lazily triggers authentication only when needed,
+        avoiding network I/O during object construction.
+        """
         if not self.token:
             self.authenticate()
 
@@ -238,6 +246,9 @@ class AstroShell:
         message = message.strip()
         if not message:
             raise ValidationError("Message cannot be empty")
+        
+        # Lazy authentication - only try to authenticate when needed
+        self.ensure_authenticated()
         
         if not self.token:
             logger.info("No token available; running local ReAct loop as fallback")
@@ -362,7 +373,12 @@ class AstroShell:
             flags["shell_cmd"] = m.group(1).strip()
 
         # Look for file path hints: path in quotes or after 'read'
-        m2 = re.search(r"(?:read|show|cat)\s+['\"]?([^'\"]+)['\"]?", query, re.IGNORECASE)
+        # Match patterns like: read "file.txt", show README.md, cat 'file.txt'
+        # Avoid capturing words like "me" in "show me file.txt"
+        m2 = re.search(
+            r"(?:read|show|cat)\s+(?:me\s+)?['\"]?([a-zA-Z0-9_./~+-]+\.?[a-zA-Z0-9_]*)['\"]?",
+            query, re.IGNORECASE
+        )
         if m2:
             flags["file_path"] = m2.group(1).strip()
 
@@ -637,9 +653,10 @@ class AstroShell:
         
         try:
             # Sanitize pattern to avoid shell injection: use shlex.quote for pattern
+            # Use -- to prevent patterns starting with - from being interpreted as options
             safe_pattern = shlex.quote(pattern)
             safe_path = shlex.quote(path)
-            cmd = f"grep -rn {safe_pattern} {safe_path} 2>/dev/null | head -n 50"
+            cmd = f"grep -rn -- {safe_pattern} {safe_path} 2>/dev/null | head -n 50"
             completed = subprocess.run(
                 cmd, 
                 shell=True, 
@@ -819,9 +836,9 @@ if __name__ == "__main__":
                     print(shell.chat(inp))
                 except ValidationError as e:
                     print(f"Error: {e}")
-                except Exception as e:
+                except Exception:
                     logger.exception("Error processing input")
-                    print(f"Error: {e}")
+                    print("An unexpected error occurred. Please try again.")
         except (KeyboardInterrupt, EOFError):
             print("\nBye.")
         finally:

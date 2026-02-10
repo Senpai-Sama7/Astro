@@ -4,20 +4,16 @@ Unit tests for vibe_shell.py - Async LLM-powered ReAct orchestrator.
 Run with: python3 -m pytest tests/test_vibe_shell.py -v
 """
 
-import asyncio
-import json
 import os
 import pytest
-import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch, mock_open
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # We need to import the module - handle import errors gracefully
 try:
     from vibe_shell import (
         VibeShell, Action, Step, LLMProvider,
-        ValidationError, VibeShellError,
-        SYSTEM_PROMPT, MAX_OUTPUT_LENGTH, MAX_STEPS
+        ValidationError, VibeShellError
     )
     HAS_VIBE_SHELL = True
 except ImportError as e:

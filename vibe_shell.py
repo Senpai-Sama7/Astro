@@ -80,20 +80,40 @@ MAX_STEPS = 6
 CHUNK_SIZE = 8192
 
 
-# Setup logger
+# Setup logger with structured JSON format for auditability
 def _setup_logger() -> logging.Logger:
-    """Setup and configure the vibe_shell logger."""
+    """Setup and configure the vibe_shell logger with structured JSON output."""
     logger = logging.getLogger("vibe_shell")
     if not logger.handlers:
         handler = logging.StreamHandler()
-        handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+        # Use JSON formatter for structured logging
+        class JSONFormatter(logging.Formatter):
+            def format(self, record):
+                import json
+                log_entry = {
+                    "timestamp": self.formatTime(record),
+                    "level": record.levelname,
+                    "logger": record.name,
+                    "message": record.getMessage(),
+                    "user": getattr(record, "user", os.getenv("USER", "unknown")),
+                    "action": getattr(record, "action", None),
+                    "outcome": getattr(record, "outcome", None),
+                }
+                return json.dumps(log_entry)
+        handler.setFormatter(JSONFormatter())
         logger.addHandler(handler)
     logger.setLevel(logging.INFO)
     return logger
 
 
-logger = _setup_logger()
+def log_audit(logger, level, message, action=None, outcome=None, **kwargs):
+    """Log an audit event with context."""
+    extra = {"user": os.getenv("USER", "unknown"), "action": action, "outcome": outcome}
+    extra.update(kwargs)
+    logger.log(level, message, extra=extra)
 
+
+logger = _setup_logger()
 
 
 SYSTEM_PROMPT = """You are ASTRO, an AI assistant with direct access to the user's Linux environment.
@@ -428,19 +448,32 @@ class VibeShell:
         if not cmd:
             return "(no command)"
         
-        # Security: Block dangerous commands
+        # Security: Block dangerous commands (comprehensive blacklist)
         dangerous_patterns = [
-            (r";\s*rm\s+-rf\s+/(\s|$)", "recursive root deletion"),
+            (r";\s*rm\s+-rf\s+/", "recursive root deletion"),
             (r">\s*/dev/null.*rm.*-rf", "masked deletion"),
             (r":\(\)\s*\{\s*:\|:&\s*\};:", "fork bomb"),
             (r"rm\s+-rf\s+/\s*\*", "wildcard root deletion"),
-            (r"dd\s+if=\S+\s+of=/dev/[sh]d[a-z]*", "disk destruction"),
+            (r"dd\s+if=\S+\s+of=/dev/[sh]d", "disk destruction"),
+            (r"mkfs\.\w+\s+/dev/[sh]d", "filesystem destruction"),
+            (r">\s*/dev/[sh]d[a-z]?\b", "direct disk write"),
+            (r"curl\s+.*\|\s*sh", "pipe to shell"),
+            (r"wget\s+.*\|\s*sh", "pipe to shell"),
+            (r"bash\s+-c\s+.*\$\(", "command substitution"),
+            (r"eval\s*\$", "eval with variable"),
+            (r"sudo\s+rm\s+-rf", "sudo recursive deletion"),
         ]
         
         for pattern, description in dangerous_patterns:
             if re.search(pattern, cmd, re.IGNORECASE):
-                logger.warning("Blocked dangerous command (%s): %s", description, cmd[:50])
+                log_audit(logger, logging.WARNING,
+                         f"Blocked dangerous command ({description}): {cmd[:50]}",
+                         action="shell", outcome="blocked")
                 return f"(blocked: potentially dangerous command - {description})"
+        
+        # Audit log shell execution attempt
+        log_audit(logger, logging.INFO, f"Shell execution: {cmd[:100]}",
+                 action="shell", outcome="attempted")
         
         try:
             proc = await asyncio.create_subprocess_shell(
@@ -495,6 +528,15 @@ class VibeShell:
             if not p.is_absolute():
                 p = Path(self.cwd) / p
             
+            # Security: Resolve and validate path is within working directory
+            try:
+                p.resolve().relative_to(Path(self.cwd).resolve())
+            except ValueError:
+                log_audit(logger, logging.WARNING, 
+                         f"Attempted path traversal blocked: {path}",
+                         action="read_file", outcome="blocked")
+                return "(access denied: path outside working directory)"
+            
             if not p.exists():
                 return f"(file not found: {p})"
             
@@ -504,6 +546,8 @@ class VibeShell:
             # Read file asynchronously
             async with aiofiles.open(p, 'r', encoding='utf-8', errors='replace') as f:
                 content = await f.read()
+                log_audit(logger, logging.INFO, f"File read: {p}",
+                         action="read_file", outcome="success")
                 if len(content) > MAX_OUTPUT_LENGTH:
                     return content[:MAX_OUTPUT_LENGTH] + f"\n... (truncated, {len(content)} total chars)"
                 return content
@@ -546,11 +590,23 @@ class VibeShell:
             if not p.is_absolute():
                 p = Path(self.cwd) / p
             
+            # Security: Resolve and validate path is within working directory
+            try:
+                p.resolve().relative_to(Path(self.cwd).resolve())
+            except ValueError:
+                log_audit(logger, logging.WARNING,
+                         f"Attempted path traversal blocked: {path}",
+                         action="write_file", outcome="blocked")
+                return "(access denied: path outside working directory)"
+            
             # Create parent directories if needed
             p.parent.mkdir(parents=True, exist_ok=True)
             
             async with aiofiles.open(p, 'w', encoding='utf-8') as f:
                 await f.write(content)
+            
+            log_audit(logger, logging.INFO, f"File written: {p}",
+                     action="write_file", outcome="success")
                 
             return f"✓ Written {len(content)} chars to {p}"
             
@@ -590,10 +646,10 @@ class VibeShell:
         if not pattern.strip():
             return "(empty search pattern)"
         
-        # Sanitize inputs
+        # Sanitize inputs - use -- to prevent patterns starting with - from being interpreted as options
         safe_pattern = shlex.quote(pattern)
         safe_path = shlex.quote(path)
-        cmd = f"grep -rn {safe_pattern} {safe_path} 2>/dev/null | head -30"
+        cmd = f"grep -rn -- {safe_pattern} {safe_path} 2>/dev/null | head -30"
         
         return await self.tool_shell(cmd, timeout=20)
     
