@@ -1,0 +1,51 @@
+#!/bin/bash
+# ASTRO Desktop Launcher
+# Launches the ASTRO AI Assistant with the bundled environment
+
+ASTRO_DIR=/opt/astro-ai
+CONFIG_DIR=$HOME/.config/astro
+LOG_DIR=$HOME/.local/share/astro/logs
+
+# Create user directories
+mkdir -p "$CONFIG_DIR"
+mkdir -p "$LOG_DIR"
+
+# Set environment
+export ASTRO_HOME="$ASTRO_DIR"
+export PATH="$ASTRO_DIR/bin:$PATH"
+export NODE_ENV=production
+
+# Load user config if exists
+if [ -f "$CONFIG_DIR/config.env" ]; then
+    source "$CONFIG_DIR/config.env"
+fi
+
+# Check for GPU acceleration
+if command -v nvidia-smi > /dev/null 2>&1; then
+    export ASTRO_GPU=nvidia
+elif [ -d /dev/dri ]; then
+    export ASTRO_GPU=mesa
+fi
+
+# Launch based on preference
+MODE="${1:-auto}"
+
+case "$MODE" in
+    web)
+        exec "$ASTRO_DIR/bin/astro-launcher" --mode=web
+        ;;
+    tui)
+        exec "$ASTRO_DIR/bin/astro-launcher" --mode=tui
+        ;;
+    cli)
+        exec "$ASTRO_DIR/bin/astro-launcher" --mode=cli
+        ;;
+    auto|*)
+        # Auto-detect: try web first, fall back to TUI
+        if command -v xdg-open > /dev/null 2>&1 || command -v google-chrome > /dev/null 2>&1; then
+            exec "$ASTRO_DIR/bin/astro-launcher" --mode=web
+        else
+            exec "$ASTRO_DIR/bin/astro-launcher" --mode=tui
+        fi
+        ;;
+esac

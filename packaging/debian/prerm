@@ -1,0 +1,26 @@
+#!/bin/bash
+set -e
+
+ASTRO_USER=astro
+
+case "$1" in
+    remove|upgrade|deconfigure)
+        # Stop any running astro processes
+        if pgrep -u "$ASTRO_USER" -f "astro" > /dev/null 2>&1; then
+            pkill -u "$ASTRO_USER" -f "astro" 2>/dev/null || true
+            sleep 2
+        fi
+        ;;
+
+    failed-upgrade)
+        ;;
+
+    *)
+        echo "prerm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

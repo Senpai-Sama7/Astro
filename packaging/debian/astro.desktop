@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Name=ASTRO AI Assistant
+Comment=AI-powered assistant for task automation
+Exec=/usr/bin/astro-desktop
+Icon=/opt/astro-ai/assets/astro-icon.png
+Terminal=false
+Type=Application
+Categories=Utility;Development;System;AI;
+Keywords=AI;assistant;automation;chat;cli;shell;
+StartupNotify=true
+StartupWMClass=astro
+MimeType=text/plain;
+X-GNOME-SingleWindow=true
