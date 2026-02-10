@@ -586,9 +586,7 @@ class AstroShell:
             try:
                 p.resolve().relative_to(self.cwd.resolve())
             except ValueError:
-                # Path is outside cwd - still allow but log warning
-                logger.warning("Attempting to read file outside cwd: %s", p)
-            
+                raise ToolExecutionError(f"Attempted to read file outside working directory: {p}")
             if not p.exists():
                 return f"(file not found: {p})"
             
