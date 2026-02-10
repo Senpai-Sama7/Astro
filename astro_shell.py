@@ -461,7 +461,7 @@ class AstroShell:
             True
         """
         if not isinstance(action, dict):
-            return {"success": False, "error": "Action must be a dictionary"}
+            raise ValidationError("Action must be a dictionary")
         
         tool = action.get("tool")
         if not tool:
