@@ -93,6 +93,7 @@ class AstroShell:
         self.token: Optional[str] = None
         self.session_id: Optional[str] = None
         self.cwd = Path.cwd()
+        self._auth_attempted = False  # Track if auth was already attempted
         self.load_session()
         self.setup_readline()
 
@@ -159,8 +160,10 @@ class AstroShell:
         
         Lazily triggers authentication only when needed,
         avoiding network I/O during object construction.
+        Only attempts auth once per session to avoid repeated delays.
         """
-        if not self.token:
+        if not self.token and not self._auth_attempted:
+            self._auth_attempted = True
             self.authenticate()
 
     def save_session(self) -> None:
@@ -374,13 +377,23 @@ class AstroShell:
 
         # Look for file path hints: path in quotes or after 'read'
         # Match patterns like: read "file.txt", show README.md, cat 'file.txt'
+        # Also supports quoted paths with spaces: read "notes 2026-02-10.txt"
         # Avoid capturing words like "me" in "show me file.txt"
+        # First try quoted paths (supports spaces)
         m2 = re.search(
-            r"(?:read|show|cat)\s+(?:me\s+)?['\"]?([a-zA-Z0-9_./~+-]+\.?[a-zA-Z0-9_]*)['\"]?",
+            r"(?:read|show|cat)\s+(?:me\s+)?['\"]([^'\"]+)['\"]",
             query, re.IGNORECASE
         )
         if m2:
             flags["file_path"] = m2.group(1).strip()
+        else:
+            # Fall back to unquoted path (no spaces)
+            m3 = re.search(
+                r"(?:read|show|cat)\s+(?:me\s+)?([a-zA-Z0-9_./~+-]+\.?[a-zA-Z0-9_]*)",
+                query, re.IGNORECASE
+            )
+            if m3:
+                flags["file_path"] = m3.group(1).strip()
 
         return flags
 

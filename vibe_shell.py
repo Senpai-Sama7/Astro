@@ -86,10 +86,10 @@ def _setup_logger() -> logging.Logger:
     logger = logging.getLogger("vibe_shell")
     if not logger.handlers:
         handler = logging.StreamHandler()
+
         # Use JSON formatter for structured logging
         class JSONFormatter(logging.Formatter):
             def format(self, record):
-                import json
                 log_entry = {
                     "timestamp": self.formatTime(record),
                     "level": record.levelname,
@@ -99,6 +99,13 @@ def _setup_logger() -> logging.Logger:
                     "action": getattr(record, "action", None),
                     "outcome": getattr(record, "outcome", None),
                 }
+                # Include any additional context from kwargs
+                for key, value in getattr(record, "context", {}).items():
+                    if key not in log_entry:
+                        log_entry[key] = value
+                # Include exception info if present
+                if record.exc_info:
+                    log_entry["exception"] = self.formatException(record.exc_info)
                 return json.dumps(log_entry)
         handler.setFormatter(JSONFormatter())
         logger.addHandler(handler)
@@ -108,8 +115,8 @@ def _setup_logger() -> logging.Logger:
 
 def log_audit(logger, level, message, action=None, outcome=None, **kwargs):
     """Log an audit event with context."""
-    extra = {"user": os.getenv("USER", "unknown"), "action": action, "outcome": outcome}
-    extra.update(kwargs)
+    extra = {"user": os.getenv("USER", "unknown"), "action": action,
+             "outcome": outcome, "context": kwargs}
     logger.log(level, message, extra=extra)
 
 
@@ -467,13 +474,14 @@ class VibeShell:
         for pattern, description in dangerous_patterns:
             if re.search(pattern, cmd, re.IGNORECASE):
                 log_audit(logger, logging.WARNING,
-                         f"Blocked dangerous command ({description}): {cmd[:50]}",
-                         action="shell", outcome="blocked")
+                          f"Blocked dangerous command ({description}): {cmd[:50]}",
+                          action="shell", outcome="blocked")
                 return f"(blocked: potentially dangerous command - {description})"
-        
-        # Audit log shell execution attempt
-        log_audit(logger, logging.INFO, f"Shell execution: {cmd[:100]}",
-                 action="shell", outcome="attempted")
+
+        # Audit log shell execution attempt (log cmd hash only for security)
+        cmd_hash = hash(cmd) & 0xFFFFFFFF
+        log_audit(logger, logging.INFO, f"Shell execution attempted (cmd_hash: {cmd_hash})",
+                  action="shell", outcome="attempted", cmd_hash=cmd_hash)
         
         try:
             proc = await asyncio.create_subprocess_shell(
@@ -490,15 +498,22 @@ class VibeShell:
                 )
                 output = (stdout.decode('utf-8', errors='replace') +
                           stderr.decode('utf-8', errors='replace')).strip()
-                return output[:MAX_OUTPUT_LENGTH] if output else "(no output)"
+                result = output[:MAX_OUTPUT_LENGTH] if output else "(no output)"
+                log_audit(logger, logging.INFO, f"Shell execution completed (cmd_hash: {cmd_hash})",
+                          action="shell", outcome="success", cmd_hash=cmd_hash)
+                return result
             except asyncio.TimeoutError:
                 proc.kill()
                 await proc.wait()
+                log_audit(logger, logging.WARNING, f"Shell execution timed out (cmd_hash: {cmd_hash})",
+                          action="shell", outcome="timeout", cmd_hash=cmd_hash, timeout=timeout)
                 return f"(timed out after {timeout}s)"
-                
+
         except Exception as e:
             logger.debug("Shell execution error: %s", e)
-            return f"(error: {e})"
+            log_audit(logger, logging.ERROR, f"Shell execution failed (cmd_hash: {cmd_hash})",
+                      action="shell", outcome="error", cmd_hash=cmd_hash, error_type=type(e).__name__)
+            return "(error executing command)"
     
     async def tool_read_file(self, path: str) -> str:
         """
