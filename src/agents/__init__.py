@@ -1,18 +1,10 @@
-# Autonomous Agent Ecosystem Package
-from .base_agent import BaseAgent, AgentCapability, AgentContext, TaskResult, AgentState
-from .git_agent import GitAgent
-from .test_agent import TestAgent
-from .analysis_agent import AnalysisAgent
-from .knowledge_agent import KnowledgeAgent
+"""
+Sub-agent orchestration for ASTRO.
 
-__all__ = [
-    "BaseAgent",
-    "AgentCapability",
-    "AgentContext",
-    "TaskResult",
-    "AgentState",
-    "GitAgent",
-    "TestAgent",
-    "AnalysisAgent",
-    "KnowledgeAgent",
-]
+Enables spawning specialized sub-agents for parallel task execution.
+"""
+
+from .orchestrator import AgentOrchestrator, SubAgent
+from .task import Task, TaskResult
+
+__all__ = ['AgentOrchestrator', 'SubAgent', 'Task', 'TaskResult']
