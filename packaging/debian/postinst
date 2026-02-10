@@ -1,0 +1,76 @@
+#!/bin/bash
+set -e
+
+ASTRO_DIR=/opt/astro-ai
+ASTRO_USER=astro
+ASTRO_GROUP=astro
+
+case "$1" in
+    configure)
+        # Create astro system user if it doesn't exist
+        if ! getent group "$ASTRO_GROUP" > /dev/null 2>&1; then
+            groupadd --system "$ASTRO_GROUP"
+        fi
+        
+        if ! getent passwd "$ASTRO_USER" > /dev/null 2>&1; then
+            useradd --system --gid "$ASTRO_GROUP" \
+                    --home-dir "$ASTRO_DIR" \
+                    --shell /bin/false \
+                    --comment "ASTRO AI Assistant" \
+                    "$ASTRO_USER"
+        fi
+        
+        # Set up directories
+        mkdir -p /var/lib/astro
+        mkdir -p /var/log/astro
+        mkdir -p /etc/astro
+        
+        # Set ownership
+        chown -R "$ASTRO_USER:$ASTRO_GROUP" "$ASTRO_DIR"
+        chown -R "$ASTRO_USER:$ASTRO_GROUP" /var/lib/astro
+        chown -R "$ASTRO_USER:$ASTRO_GROUP" /var/log/astro
+        
+        # Set permissions
+        chmod 755 "$ASTRO_DIR"
+        chmod 750 /var/lib/astro
+        chmod 750 /var/log/astro
+        
+        # Create config file if it doesn't exist
+        if [ ! -f /etc/astro/config.env ]; then
+            cat > /etc/astro/config.env << 'EOF'
+# ASTRO Configuration
+NODE_ENV=production
+PORT=5000
+WORKSPACE_DIR=/var/lib/astro
+LOG_DIR=/var/log/astro
+EOF
+            chmod 640 /etc/astro/config.env
+            chown root:$ASTRO_GROUP /etc/astro/config.env
+        fi
+        
+        # Update desktop database
+        if command -v update-desktop-database > /dev/null 2>&1; then
+            update-desktop-database /usr/share/applications
+        fi
+        
+        # Update icon cache
+        if command -v gtk-update-icon-cache > /dev/null 2>&1; then
+            gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
+        fi
+        
+        echo "ASTRO AI Assistant installed successfully!"
+        echo "Launch from Applications menu or run: astro-desktop"
+        ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+        ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0

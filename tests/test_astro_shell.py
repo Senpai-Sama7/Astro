@@ -41,4 +41,5 @@ def test_tool_shell_timeout():
     cmd = f'{sys.executable} -c "import time; time.sleep(2); print(\'done\')"'
     # call with a very small timeout to trigger timeout behavior
     res = shell._tool_shell(cmd, timeout=1)
-    assert "timed out" in res.lower()
+    # Must specifically verify timeout occurred, not just any outcome
+    assert "timed out after 1s" in res, f"Expected timeout message, got: {res}"
