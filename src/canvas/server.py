@@ -43,8 +43,12 @@ class CanvasServer:
         self._running = False
         
         # Close all client connections
-        for client in self.clients:
-            await client.close()
+        # Use list(self.clients) to avoid "set changed size during iteration"
+        for client in list(self.clients):
+            try:
+                await client.close()
+            except Exception:
+                pass
         
         if self.server:
             self.server.close()
@@ -139,10 +143,10 @@ class CanvasServer:
                     # Handle user interactions (button clicks, form submissions)
                     canvas.emit("user_interaction", data)
             
-            except Exception as e:
+            except Exception:
                 await websocket.send(json.dumps({
                     "type": "error",
-                    "message": str(e)
+                    "message": "An internal error occurred while processing the request."
                 }))
     
     async def _send_updates(self, websocket: WebSocketServerProtocol, queue: asyncio.Queue):

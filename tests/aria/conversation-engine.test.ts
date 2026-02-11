@@ -293,10 +293,12 @@ describe('ARIA Conversation Engine', () => {
     });
 
     it('should load pending approvals', async () => {
+      const context = ariaWithStorage.startConversation('user1', 'analyst');
+
       mockStorage.getApprovals.mockResolvedValueOnce([
         {
           approvalId: 'test-approval',
-          sessionId: 'test-session',
+          sessionId: context.sessionId,
           toolName: 'echo',
           agentId: 'echo-agent',
           parameters: {},
@@ -305,17 +307,18 @@ describe('ARIA Conversation Engine', () => {
         },
       ]);
 
-      const context = ariaWithStorage.startConversation('user1', 'analyst');
       await ariaWithStorage.chat(context.sessionId, 'yes');
 
       expect(mockStorage.getApprovals).toHaveBeenCalled();
     });
 
     it('should handle deny with pending approval', async () => {
+      const context = ariaWithStorage.startConversation('user1', 'analyst');
+
       mockStorage.getApprovals.mockResolvedValueOnce([
         {
           approvalId: 'test-approval',
-          sessionId: 'test-session',
+          sessionId: context.sessionId,
           toolName: 'echo',
           agentId: 'echo-agent',
           parameters: {},
@@ -324,7 +327,6 @@ describe('ARIA Conversation Engine', () => {
         },
       ]);
 
-      const context = ariaWithStorage.startConversation('user1', 'analyst');
       const result = await ariaWithStorage.chat(context.sessionId, 'no');
 
       expect(result.response).toContain('denied');

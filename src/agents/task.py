@@ -91,7 +91,8 @@ class Task:
     
     @property
     def is_ready(self) -> bool:
-        """Check if task is ready to run (dependencies completed)."""
+        """Check if task is ready to run (pending status)."""
+        # Note: actual dependency readiness is managed by the orchestrator
         return self.status == TaskStatus.PENDING
     
     @property

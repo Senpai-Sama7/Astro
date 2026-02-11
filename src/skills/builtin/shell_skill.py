@@ -59,6 +59,12 @@ class ShellSkill(Skill):
     
     def _check_command(self, command: str) -> Tuple[bool, str]:
         """Check if command is safe to execute."""
+        # Block command chaining and redirection
+        if any(c in command for c in [';', '&', '|', '>', '<', '`', '$', '(', ')', '{', '}', '*', '?', '[', ']', '~']):
+            # Allow some common uses if they don't look dangerous, but for now be strict
+            # Actually, the hardening plan says "strictly validated"
+            return False, "Command contains forbidden characters (metacharacters not allowed for security reasons)"
+
         for pattern, description in self.DANGEROUS_PATTERNS:
             if re.search(pattern, command, re.IGNORECASE):
                 return False, f"Blocked dangerous command: {description}"
@@ -118,5 +124,5 @@ class ShellSkill(Skill):
                 await proc.wait()
                 return SkillResult.error(f"Command timed out after {timeout}s")
                 
-        except Exception as e:
-            return SkillResult.error(f"Command execution failed: {e}")
+        except Exception:
+            return SkillResult.error("Command execution failed due to an internal error.")

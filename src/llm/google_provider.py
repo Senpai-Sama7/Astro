@@ -1,6 +1,7 @@
 """Google Gemini provider implementation."""
 
 import os
+import asyncio
 from typing import AsyncIterator, Dict, List, Optional
 
 try:
@@ -69,14 +70,20 @@ class GoogleProvider(LLMProvider):
             # Get last user message
             if chat_history:
                 last_message = chat_history[-1]["parts"][0]
-                response = await model.generate_content_async(
-                    last_message,
-                    generation_config=generation_config
+                response = await asyncio.wait_for(
+                    model.generate_content_async(
+                        last_message,
+                        generation_config=generation_config
+                    ),
+                    timeout=self.config.timeout
                 )
             else:
-                response = await model.generate_content_async(
-                    "Hello",
-                    generation_config=generation_config
+                response = await asyncio.wait_for(
+                    model.generate_content_async(
+                        "Hello",
+                        generation_config=generation_config
+                    ),
+                    timeout=self.config.timeout
                 )
             
             return LLMResponse(

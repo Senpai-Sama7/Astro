@@ -15,6 +15,7 @@ This module integrates:
 
 import asyncio
 import os
+import logging
 from pathlib import Path
 from typing import Optional, Dict, Any
 
@@ -26,6 +27,8 @@ from .channels import TelegramBot
 from .mcp import MCPClient
 from .agents import AgentOrchestrator
 
+
+logger = logging.getLogger("ASTRO.Core")
 
 class AstroCore:
     """
@@ -76,7 +79,7 @@ class AstroCore:
         if self._initialized:
             return
         
-        print("🚀 Initializing ASTRO Core...")
+        logger.info("🚀 Initializing ASTRO Core...")
         
         # 1. Initialize LLM provider
         await self._init_llm()
@@ -100,16 +103,16 @@ class AstroCore:
         await self._init_telegram()
         
         self._initialized = True
-        print("✅ ASTRO Core initialized successfully!")
+        logger.info("✅ ASTRO Core initialized successfully!")
     
     async def _init_llm(self):
         """Initialize LLM provider."""
         try:
             preferred = self.config.get("llm_priority")
             self.llm = await LLMFactory.create_with_fallback(preferred)
-            print(f"  🤖 LLM: {self.llm.name}")
-        except Exception as e:
-            print(f"  ⚠️  LLM initialization failed: {e}")
+            logger.info(f"  🤖 LLM: {self.llm.name}")
+        except Exception:
+            logger.exception("  ⚠️  LLM initialization failed")
     
     async def _init_skills(self):
         """Initialize skills system."""
@@ -124,7 +127,7 @@ class AstroCore:
         if scheduler:
             scheduler.set_skill_manager(self.skills)
         
-        print(f"  🔧 Skills: {len(self.skills.registry.list_skills())} loaded")
+        logger.info(f"  🔧 Skills: {len(self.skills.registry.list_skills())} loaded")
     
     async def _init_canvas(self):
         """Initialize canvas system."""
@@ -135,7 +138,7 @@ class AstroCore:
         self.canvas_server = CanvasServer(self.canvas, port=canvas_port)
         await self.canvas_server.start()
         
-        print(f"  🎨 Canvas: ws://localhost:{canvas_port}")
+        logger.info(f"  🎨 Canvas: ws://localhost:{canvas_port}")
     
     async def _init_computer(self):
         """Initialize computer control."""
@@ -143,16 +146,16 @@ class AstroCore:
         self.vision = ScreenVision()
         
         if self.computer.is_available():
-            print("  💻 Computer control: Available")
+            logger.info("  💻 Computer control: Available")
         else:
-            print("  💻 Computer control: Install pyautogui for full features")
+            logger.info("  💻 Computer control: Install pyautogui for full features")
     
     async def _init_mcp(self):
         """Initialize MCP client."""
         self.mcp = MCPClient()
         
         if self.mcp.is_available():
-            print("  🔌 MCP: Available")
+            logger.info("  🔌 MCP: Available")
             
             # Auto-connect to configured MCP servers
             mcp_servers = self.config.get("mcp_servers", {})
@@ -164,10 +167,10 @@ class AstroCore:
                         server_config.get("args", []),
                         server_config.get("env")
                     )
-                except Exception as e:
-                    print(f"    ⚠️  Failed to connect to MCP server '{server_id}': {e}")
+                except Exception:
+                    logger.exception(f"    ⚠️  Failed to connect to MCP server '{server_id}'")
         else:
-            print("  🔌 MCP: Install mcp package for MCP support")
+            logger.info("  🔌 MCP: Install mcp package for MCP support")
     
     async def _init_agents(self):
         """Initialize sub-agent orchestration."""
@@ -192,23 +195,26 @@ class AstroCore:
             system_prompt="You are a file management expert. Organize, search, and manage files efficiently."
         )
         
-        print(f"  🤖 Sub-agents: {len(self.agents.agents)} created")
+        logger.info(f"  🤖 Sub-agents: {len(self.agents.agents)} created")
     
     async def _init_telegram(self):
         """Initialize Telegram bot."""
         if os.getenv("TELEGRAM_BOT_TOKEN"):
             self.telegram = TelegramBot(
+                allowed_users=self.config.get("telegram_allowed_users"),
                 skill_manager=self.skills,
-                llm_provider=self.llm
+                llm_provider=self.llm,
+                canvas_manager=self.canvas,
+                canvas_port=self.config.get("canvas_port", 8765)
             )
             await self.telegram.start()
-            print("  💬 Telegram bot: Active")
+            logger.info("  💬 Telegram bot: Active")
         else:
-            print("  💬 Telegram bot: Set TELEGRAM_BOT_TOKEN to enable")
+            logger.info("  💬 Telegram bot: Set TELEGRAM_BOT_TOKEN to enable")
     
     async def shutdown(self):
         """Shutdown all components."""
-        print("🛑 Shutting down ASTRO Core...")
+        logger.info("🛑 Shutting down ASTRO Core...")
         
         if self.canvas_server:
             await self.canvas_server.stop()
@@ -220,7 +226,7 @@ class AstroCore:
             await self.mcp.disconnect_all()
         
         self._initialized = False
-        print("✅ Shutdown complete")
+        logger.info("✅ Shutdown complete")
     
     # ==================== High-Level API ====================
     
@@ -256,8 +262,9 @@ class AstroCore:
                 params = json.loads(skill_input) if skill_input.startswith("{") else {"text": skill_input}
                 result = await self.skills.execute_skill(skill_name, params, context)
                 return result.message
-            except Exception as e:
-                return f"Skill error: {e}"
+            except Exception:
+                logger.exception("An error occurred while executing a skill in chat.")
+                return "❌ An error occurred while executing the skill. Please try again later."
         
         # Use LLM for general conversation
         if self.llm:
@@ -266,8 +273,8 @@ class AstroCore:
                     {"role": "user", "content": message}
                 ])
                 return response.content
-            except Exception as e:
-                return f"LLM error: {e}"
+            except Exception:
+                return "❌ An error occurred while generating a response. Please try again later."
         
         return "No LLM available. Please configure an LLM provider."
     

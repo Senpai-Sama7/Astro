@@ -31,7 +31,7 @@ jobs:
         run: npm run type-check
       
       - name: Lint
-        run: npm run lint || true
+        run: npm run lint
       
       - name: Run tests
         run: npm test -- --coverage --testTimeout=30000
@@ -109,7 +109,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Run security audit
-        run: npm audit --audit-level=moderate || true
+        run: npm audit --audit-level=high
       
       - name: Run Snyk security scan
         uses: snyk/actions/node@master
@@ -117,7 +117,11 @@ jobs:
           SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
         with:
           args: --severity-threshold=high
-        continue-on-error: true
+
+      - name: Run OSV-Scanner
+        uses: google/osv-scanner-action/scan@v1
+        with:
+          scan-args: --recursive ./
 
   docker:
     runs-on: ubuntu-latest

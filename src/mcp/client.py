@@ -25,6 +25,7 @@ class MCPClient:
     
     def __init__(self):
         self.sessions: Dict[str, 'ClientSession'] = {}
+        self._exit_stacks: Dict[str, Any] = {} # Store AsyncExitStack for each server
         self.tools: Dict[str, MCPTool] = {}
         self.resources: Dict[str, Any] = {}
     
@@ -43,32 +44,41 @@ class MCPClient:
         if not HAS_MCP:
             raise ImportError("mcp package required. Run: pip install mcp")
         
+        from contextlib import AsyncExitStack
+
         try:
+            exit_stack = AsyncExitStack()
+            self._exit_stacks[server_id] = exit_stack
+
             server_params = StdioServerParameters(
                 command=command,
                 args=args or [],
                 env=env
             )
             
-            async with stdio_client(server_params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    await session.initialize()
-                    self.sessions[server_id] = session
-                    
-                    # List available tools
-                    tools_response = await session.list_tools()
-                    for tool in tools_response.tools:
-                        self.tools[f"{server_id}:{tool.name}"] = MCPTool(
-                            name=tool.name,
-                            description=tool.description,
-                            input_schema=tool.inputSchema
-                        )
-                    
-                    print(f"Connected to MCP server '{server_id}' with {len(tools_response.tools)} tools")
-                    return True
+            read, write = await exit_stack.enter_async_context(stdio_client(server_params))
+            session = await exit_stack.enter_async_context(ClientSession(read, write))
+
+            await session.initialize()
+            self.sessions[server_id] = session
+
+            # List available tools
+            tools_response = await session.list_tools()
+            for tool in tools_response.tools:
+                self.tools[f"{server_id}:{tool.name}"] = MCPTool(
+                    name=tool.name,
+                    description=tool.description,
+                    input_schema=tool.inputSchema
+                )
+
+            print(f"Connected to MCP server '{server_id}' with {len(tools_response.tools)} tools")
+            return True
                     
         except Exception as e:
             print(f"Failed to connect to MCP server '{server_id}': {e}")
+            if server_id in self._exit_stacks:
+                await self._exit_stacks[server_id].aclose()
+                del self._exit_stacks[server_id]
             return False
     
     async def connect_sse(
@@ -128,12 +138,16 @@ class MCPClient:
     
     async def disconnect(self, server_id: str):
         """Disconnect from a server."""
-        if server_id in self.sessions:
-            # Remove tools from this server
-            prefix = f"{server_id}:"
-            self.tools = {k: v for k, v in self.tools.items() if not k.startswith(prefix)}
+        # Remove tools from this server
+        prefix = f"{server_id}:"
+        self.tools = {k: v for k, v in self.tools.items() if not k.startswith(prefix)}
+
+        # Close session and transport
+        if server_id in self._exit_stacks:
+            await self._exit_stacks[server_id].aclose()
+            del self._exit_stacks[server_id]
             
-            # Close session
+        if server_id in self.sessions:
             del self.sessions[server_id]
     
     async def disconnect_all(self):
