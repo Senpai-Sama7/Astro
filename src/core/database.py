@@ -1071,12 +1071,12 @@ if __name__ == "__main__":
             print(f"✅ Backup created: {args.file}")
             sys.exit(0)
         else:
-            print(f"❌ Backup failed")
+            print("❌ Backup failed")
             sys.exit(1)
     elif args.command == "restore":
         if db.restore(args.file):
             print(f"✅ Database restored from: {args.file}")
             sys.exit(0)
         else:
-            print(f"❌ Restore failed")
+            print("❌ Restore failed")
             sys.exit(1)

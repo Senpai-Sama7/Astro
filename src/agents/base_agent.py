@@ -135,7 +135,7 @@ class BaseAgent:
                 })
             else:
                 self._consecutive_failures += 1
-                logger.warning(f"Task failed", extra={
+                logger.warning("Task failed", extra={
                     'agent_id': self.agent_id,
                     'task_id': task_id,
                     'error': result.error_message
@@ -153,7 +153,7 @@ class BaseAgent:
                 retryable=True
             )
             self.record_task_result(result)
-            logger.error(f"Task timed out", extra={
+            logger.error("Task timed out", extra={
                 'agent_id': self.agent_id,
                 'task_id': task_id,
                 'timeout': timeout
@@ -170,7 +170,7 @@ class BaseAgent:
                 retryable=self._is_retryable_error(e)
             )
             self.record_task_result(result)
-            logger.error(f"Task exception", extra={
+            logger.error("Task exception", extra={
                 'agent_id': self.agent_id,
                 'task_id': task_id,
                 'error': str(e),

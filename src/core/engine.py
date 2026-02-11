@@ -741,8 +741,6 @@ class AgentEngine:
 
     async def _handle_task_failure(self, task: Task, agent_id: str, error: str = ""):
         """Handle task failure with recovery strategies"""
-        config = self.agents[agent_id]
-
         # Update agent status to failed
         self.agent_status[agent_id] = AgentStatus.FAILED
         logger.warning(
@@ -768,9 +766,6 @@ class AgentEngine:
 
     async def _attempt_agent_recovery(self, agent_id: str) -> bool:
         """Attempt to recover a failed agent"""
-        config = self.agents[agent_id]
-        start_time = time.time()
-
         logger.info(f"Starting recovery for agent {agent_id}")
         self.agent_status[agent_id] = AgentStatus.RECOVERING
 
