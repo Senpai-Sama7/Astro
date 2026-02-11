@@ -138,12 +138,18 @@ async def main():
     cli = AstroCoreCLI()
     
     try:
-        await cli.initialize()
-        
-        if len(sys.argv) > 1:
-            # Single command mode
-            command = ' '.join(sys.argv[1:])
-            await cli.run_single(command)
+async def run_single(self, command: str):
+    """Run a single command."""
+    
+    context = SkillContext(
+        user_id="cli_user",
+        session_id=self.session_id,
+        working_directory=str(Path.cwd()),
+        llm_provider=self.astro.llm
+    )
+    
+    response = await self.astro.chat(command, context)
+    print(response)
         else:
             # Interactive mode
             await cli.run_interactive()
