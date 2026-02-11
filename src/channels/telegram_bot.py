@@ -1,8 +1,7 @@
 """Telegram bot integration for ASTRO."""
 
-import asyncio
 import os
-from typing import Optional, Callable, Dict, Any
+from typing import Optional, Callable
 
 try:
     from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup

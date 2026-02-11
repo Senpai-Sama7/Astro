@@ -2,10 +2,9 @@
 
 import asyncio
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Any, List, Optional
-from functools import wraps
 
 # Structured logging and metrics
 from src.utils.structured_logger import get_logger, log_performance
@@ -128,7 +127,7 @@ class BaseAgent:
 
             if result.success:
                 self._consecutive_failures = 0
-                logger.info(f"Task completed", extra={
+                logger.info("Task completed", extra={
                     'agent_id': self.agent_id,
                     'task_id': task_id,
                     'duration_ms': result.execution_time * 1000

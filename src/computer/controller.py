@@ -1,6 +1,5 @@
 """Computer controller for mouse and keyboard automation."""
 
-import asyncio
 from dataclasses import dataclass
 from typing import Optional, Tuple, List, Dict, Any
 from enum import Enum

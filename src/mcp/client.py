@@ -1,12 +1,10 @@
 """MCP (Model Context Protocol) client implementation."""
 
-import asyncio
-import json
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 
 try:
-    import mcp
+    import mcp  # noqa: F401
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
     HAS_MCP = True
@@ -153,7 +151,7 @@ class MCPSkillAdapter:
     
     def register_mcp_tools_as_skills(self):
         """Register all MCP tools as ASTRO skills."""
-        from ..skills import Skill, SkillConfig, SkillContext, SkillResult, SkillPermission
+        from ..skills import Skill, SkillConfig, SkillResult, SkillPermission
         
         for full_name, mcp_tool in self.mcp_client.tools.items():
             server_id, tool_name = full_name.split(":", 1)
@@ -185,7 +183,7 @@ class MCPSkillAdapter:
                             params
                         )
                         return SkillResult.ok(
-                            f"Tool executed successfully",
+                            "Tool executed successfully",
                             data={"result": result}
                         )
                     except Exception as e:

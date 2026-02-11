@@ -1,7 +1,7 @@
 """OpenAI provider implementation."""
 
 import os
-from typing import AsyncIterator, Dict, List, Optional, Any
+from typing import AsyncIterator, Dict, List, Optional
 
 try:
     from openai import AsyncOpenAI, OpenAIError

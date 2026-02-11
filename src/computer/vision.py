@@ -2,11 +2,10 @@
 
 import base64
 import io
-from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple
 
 try:
-    from PIL import Image
+    from PIL import Image  # noqa: F401
     HAS_PIL = True
 except ImportError:
     HAS_PIL = False

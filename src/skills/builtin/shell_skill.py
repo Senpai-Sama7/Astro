@@ -2,7 +2,6 @@
 
 import asyncio
 import re
-from pathlib import Path
 from typing import Dict, Any, List, Tuple
 
 from ..skill import Skill, SkillConfig, SkillContext, SkillResult, SkillPermission
@@ -105,7 +104,7 @@ class ShellSkill(Skill):
                 
                 if proc.returncode == 0:
                     return SkillResult.ok(
-                        f"Command executed successfully",
+                        "Command executed successfully",
                         data=result
                     )
                 else:

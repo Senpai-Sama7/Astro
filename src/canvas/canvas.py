@@ -1,6 +1,5 @@
 """Live Canvas for visual AI interaction."""
 
-import json
 import asyncio
 from dataclasses import dataclass, asdict
 from typing import Dict, List, Optional, Any, Callable

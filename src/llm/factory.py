@@ -129,7 +129,6 @@ class LLMFactory:
     @classmethod
     def _check_ollama_running(cls) -> bool:
         """Check if Ollama is running on default port."""
-        import asyncio
         try:
             # Quick check - don't block
             return True  # Assume available, health check will verify
@@ -171,7 +170,6 @@ class MultiProviderRouter:
     async def _round_robin_complete(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
         """Rotate between providers."""
         attempts = 0
-        start_index = self.current_index
         
         while attempts < len(self.providers):
             provider = self.providers[self.current_index]

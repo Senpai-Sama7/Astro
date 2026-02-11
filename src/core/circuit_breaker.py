@@ -8,7 +8,7 @@ import asyncio
 import time
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Callable, Any, Optional, TypeVar, Generic
+from typing import Callable, Optional, TypeVar
 from functools import wraps
 
 from src.utils.structured_logger import get_logger

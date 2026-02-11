@@ -1,10 +1,9 @@
 """Skill that can create and modify other skills - enables self-modification."""
 
-import json
 from pathlib import Path
 from typing import Dict, Any
 
-from ..skill import Skill, SkillConfig, SkillContext, SkillResult, SkillPermission, SelfModifyingSkill
+from ..skill import SkillConfig, SkillContext, SkillResult, SkillPermission, SelfModifyingSkill
 
 
 class SkillCreatorSkill(SelfModifyingSkill):
@@ -79,7 +78,7 @@ class {class_name}(Skill):
     
     async def execute(self, params: Dict[str, Any], context: SkillContext) -> SkillResult:
         action = params.get("action")
-        name = params.get("name")
+        _name = params.get("name")
         
         if action == "create":
             return await self._create_skill(params, context)

@@ -49,7 +49,7 @@ class LlamaCppProvider(LLMProvider):
     
     async def complete(self, messages: List[Dict[str, str]], **kwargs) -> LLMResponse:
         """Send completion request to llama.cpp server."""
-        model = kwargs.get('model', self.config.model)
+        _model = kwargs.get('model', self.config.model)
         temperature = kwargs.get('temperature', self.config.temperature)
         max_tokens = kwargs.get('max_tokens', self.config.max_tokens)
         
@@ -82,7 +82,7 @@ class LlamaCppProvider(LLMProvider):
                 
                 return LLMResponse(
                     content=data.get("content", ""),
-                    model=model,
+                    model=self.config.model,
                     provider="llamacpp",
                     usage={
                         "prompt_tokens": data.get("tokens_evaluated", 0),
@@ -95,7 +95,6 @@ class LlamaCppProvider(LLMProvider):
     
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Stream completion from llama.cpp server."""
-        model = kwargs.get('model', self.config.model)
         temperature = kwargs.get('temperature', self.config.temperature)
         max_tokens = kwargs.get('max_tokens', self.config.max_tokens)
         

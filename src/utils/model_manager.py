@@ -459,7 +459,7 @@ class ModelManager:
 
                     # Parse capabilities
                     input_token_limit = model_data.get("inputTokenLimit", 0)
-                    output_token_limit = model_data.get("outputTokenLimit", 0)
+                    _output_token_limit = model_data.get("outputTokenLimit", 0)
 
                     models.append(
                         ModelInfo(

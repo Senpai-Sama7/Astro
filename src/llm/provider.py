@@ -2,7 +2,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import AsyncIterator, Dict, List, Optional, Any, Callable
+from typing import AsyncIterator, Dict, List, Optional, Any
 import asyncio
 import time
 

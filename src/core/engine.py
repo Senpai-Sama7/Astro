@@ -29,19 +29,15 @@ from src.utils.structured_logger import get_logger, LogContext, log_performance
 from src.monitoring.metrics import get_metrics_collector
 
 # Advanced systems integration
-from .self_healing import get_self_healing_system, SelfHealingSystem, HealthStatus
+from .self_healing import get_self_healing_system, SelfHealingSystem
 from .circuit_breaker import (
     get_circuit_breaker,
     CircuitBreaker,
     CircuitBreakerConfig,
-    CircuitBreakerError,
 )
 from .a2a_protocol import (
     get_a2a_coordinator,
     A2ACoordinator,
-    AgentCard,
-    A2ATask,
-    A2ATaskState,
 )
 from .mcp_integration import MCPRegistry, MCPToolExecutor
 
@@ -58,7 +54,9 @@ def _get_recursive_learner():
 
             RecursiveLearner = get_recursive_learner
         except ImportError:
-            RecursiveLearner = lambda: None
+            def _noop():
+                return None
+            RecursiveLearner = _noop
     return RecursiveLearner()
 
 
@@ -380,7 +378,7 @@ class AgentEngine:
                 if self._learner and hasattr(self._learner, "learn_batch"):
                     result = await self._learner.learn_batch(batch_size=32)
                     if result.get("patterns_added", 0) > 0:
-                        logger.debug(f"Learning iteration completed", extra=result)
+                        logger.debug("Learning iteration completed", extra=result)
                 await asyncio.sleep(60.0)  # Learn every minute
             except asyncio.CancelledError:
                 break

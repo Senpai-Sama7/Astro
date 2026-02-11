@@ -29,8 +29,8 @@ class TaskResult:
         return cls(success=True, output=output, metadata=metadata)
     
     @classmethod
-    def error(cls, error: str, **metadata):
-        return cls(success=False, output=None, error=error, metadata=metadata)
+    def failure(cls, error_msg: str, **metadata):
+        return cls(success=False, output=None, error=error_msg, metadata=metadata)
 
 
 @dataclass

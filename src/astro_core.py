@@ -16,14 +16,14 @@ This module integrates:
 import asyncio
 import os
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
-from .llm import LLMFactory, LLMProvider, LLMConfig
-from .skills import SkillManager, SkillContext, SkillResult
+from .llm import LLMFactory, LLMProvider
+from .skills import SkillManager, SkillContext
 from .canvas import CanvasManager, CanvasServer
 from .computer import ComputerController, ScreenVision
 from .channels import TelegramBot
-from .mcp import MCPClient, MCPSkillAdapter
+from .mcp import MCPClient
 from .agents import AgentOrchestrator
 
 

@@ -4,7 +4,7 @@ import importlib.util
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from .skill import Skill, SkillConfig, SkillContext, SkillResult
 from .registry import SkillRegistry

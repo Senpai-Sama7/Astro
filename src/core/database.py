@@ -650,11 +650,6 @@ class DatabaseManager:
             rows = await asyncio.to_thread(_sync_read)
             return [_parse_row(row) for row in rows]
 
-    def close(self):
-        """Cleanup resources and mark as closed"""
-        self._closed = True
-        logger.info("Database manager closed")
-
     async def prune_old_metrics_async(self, days: int = 30) -> int:
         """Remove metrics older than specified days. Returns count of deleted rows."""
         await self._ensure_async_init()

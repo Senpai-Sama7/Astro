@@ -130,7 +130,7 @@ class GoogleProvider(LLMProvider):
         """Check if Google API is accessible."""
         try:
             model = self.genai.GenerativeModel(self.DEFAULT_MODEL)
-            response = await model.generate_content_async("test", generation_config=GenerationConfig(max_output_tokens=1))
+            _response = await model.generate_content_async("test", generation_config=GenerationConfig(max_output_tokens=1))
             return True
         except Exception:
             return False
