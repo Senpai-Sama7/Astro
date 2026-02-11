@@ -8,6 +8,7 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![Tests](https://img.shields.io/badge/tests-248%20passing-brightgreen.svg)]()
 [![Security](https://img.shields.io/badge/security-hardened-success.svg)]()
+[![Code Style](https://img.shields.io/badge/code%20style-ruff-purple.svg)]()
 
 **No coding required. Just talk to your computer like a person.**
 
@@ -76,6 +77,58 @@ ASTRO provides a **secure, auditable, AI-powered command layer** over your syste
 | Your data stays on your machine | No learning curve - just chat | Handles complex multi-step tasks |
 
 </div>
+
+---
+
+## 🆕 What's New: ASTRO Core
+
+ASTRO Core is a comprehensive AI agent platform with advanced capabilities:
+
+### 🤖 Universal LLM Provider System
+- **6 Providers**: Anthropic Claude, OpenAI GPT, Google Gemini, OpenRouter, Ollama, llama.cpp
+- **Automatic Fallback**: Seamlessly switches between providers
+- **Local Models**: Works offline with Ollama and llama.cpp
+
+### 🔧 Self-Modifying Skills System
+- **Built-in Skills**: File, shell, browser, scheduler operations
+- **Custom Skills**: Create your own skills with Python
+- **Self-Modification**: Skills can create and modify other skills
+- **Permission System**: Fine-grained access control
+
+### 🌐 Browser Automation
+- **Playwright Integration**: Control browsers programmatically
+- **Actions**: Navigate, click, type, screenshot, extract data
+- **Headless Mode**: Run without GUI
+
+### 💻 Computer Use & Vision
+- **Screen Control**: Mouse and keyboard automation
+- **Vision**: Screen understanding and analysis
+- **Safety Guards**: Confirmation prompts for sensitive operations
+
+### 🎨 Live Canvas UI
+- **Real-time Updates**: WebSocket-based visual interface
+- **Multiple Elements**: Text, markdown, code, images, charts
+- **Multi-client Sync**: Share canvas across devices
+
+### ⏰ Task Scheduler
+- **Cron Support**: Standard cron expressions
+- **Natural Language**: "@daily", "@hourly"
+- **Async Execution**: Non-blocking task scheduling
+
+### 💬 Telegram Bot
+- **Full Integration**: Control ASTRO via Telegram
+- **Authentication**: Access control for authorized users
+- **Commands**: /skills, /canvas, /help
+
+### 🔌 MCP Client
+- **Model Context Protocol**: Connect to external tool servers
+- **Auto-discovery**: MCP tools become ASTRO skills
+- **Multiple Transports**: Stdio and SSE support
+
+### 🤖 Sub-Agent Orchestration
+- **Parallel Execution**: Run multiple agents simultaneously
+- **Task Distribution**: Intelligent workload balancing
+- **Result Aggregation**: Combine results from multiple agents
 
 ---
 
@@ -224,7 +277,8 @@ ASTRO uses a **4-layer architecture** that keeps you safe while getting things d
                               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  3️⃣ CORE - The Orchestrator ⚙️                                     │
-│  Picks the right tool • Executes safely • Returns results           │
+│  Multi-provider LLM • Skills system • Sub-agent orchestration       │
+│  Browser automation • Computer use • Task scheduling                │
 └─────────────────────────────────────────────────────────────────────┘
                               │
                               ▼
@@ -237,7 +291,7 @@ ASTRO uses a **4-layer architecture** that keeps you safe while getting things d
 **Think of it like a smart office:**
 - **ARIA** is your helpful receptionist who understands what you need
 - **OTIS** is security, checking badges and logging who goes where
-- **CORE** is the operations team that actually does the work
+- **CORE** is the operations team with multi-provider AI, skills, and automation
 - **C0Di3** is the security guard watching for threats
 
 ---
@@ -254,6 +308,7 @@ We built ASTRO with security as the foundation, not an afterthought:
 | 🔐 **RBAC** | Different users get different permissions |
 | 🚫 **Command Blacklist** | Dangerous operations like `rm -rf /` are blocked |
 | 🔍 **Input Validation** | All inputs checked before processing |
+| 🔧 **Bandit Scanned** | Code scanned for security vulnerabilities |
 
 **Your data stays yours.** ASTRO works locally by default. Cloud AI features are optional and require explicit API keys.
 
@@ -261,7 +316,7 @@ We built ASTRO with security as the foundation, not an afterthought:
 
 ## 🖥️ Command Line Interfaces
 
-For power users, ASTRO includes two specialized shells:
+For power users, ASTRO includes specialized shells:
 
 ### `astro_shell` - Local AI (No Internet Needed!)
 
@@ -300,6 +355,24 @@ $ astro_vibe
 
 **Perfect for:** Complex analysis, code reviews, research tasks
 
+### `astro_core_cli` - Full Platform Access
+
+```bash
+$ python astro_core_cli.py
+
+🚀 ASTRO Core Interactive Shell
+Type 'help' for commands, 'exit' to quit.
+
+astro> status
+🟢 ASTRO Core Status:
+  🤖 LLM: claude-3-sonnet-20240229
+  🔧 Skills: 12 loaded
+  📅 Scheduler: Running
+  🎨 Canvas: ws://localhost:8765
+```
+
+**Perfect for:** Full platform access, skills management, automation
+
 ---
 
 ## 📊 System Requirements
@@ -325,6 +398,10 @@ npm test
 # Python shell tests
 python -m pytest tests/test_astro_shell.py tests/test_vibe_shell.py -v
 
+# Code quality checks
+ruff check src/
+bandit -r src/ -x tests/ -ll -ii -s B101
+
 # With coverage
 npm run coverage
 ```
@@ -334,6 +411,8 @@ npm run coverage
 - ✅ Security hardened with path traversal protection
 - ✅ Dangerous command filtering
 - ✅ Comprehensive audit logging
+- ✅ Ruff code style compliance
+- ✅ Bandit security scanning
 
 ---
 
@@ -356,16 +435,19 @@ npm run coverage
 ### Technical Questions
 
 **Q: What LLMs does ASTRO support?**
-> **A:** Local mode uses rule-based AI (no LLM needed). Advanced mode supports Anthropic Claude and OpenAI GPT models with automatic fallback.
+> **A:** ASTRO Core supports 6 providers: Anthropic Claude, OpenAI GPT, Google Gemini, OpenRouter (100+ models), Ollama (local), and llama.cpp (custom models). Local mode uses rule-based AI (no LLM needed).
 
 **Q: Can I add my own tools?**
-> **A:** Yes! ASTRO has a plugin system. You can register custom tools in JavaScript or Python.
+> **A:** Yes! ASTRO has a powerful skills system. You can create custom skills in Python that can self-modify and create other skills. See `src/skills/builtin/skill_creator.py` for examples.
 
 **Q: Is there an API?**
-> **A:** Yes, a full REST API is available at `/api/v1/` with WebSocket support for real-time features.
+> **A:** Yes, a full REST API is available at `/api/v1/` with WebSocket support for real-time features. There's also a programmatic Python API via `AstroCore`.
 
 **Q: How do I deploy to production?**
 > **A:** Use Docker: `docker-compose up` or see our [Deployment Guide](./docs/deployment.md).
+
+**Q: What is MCP?**
+> **A:** MCP (Model Context Protocol) allows ASTRO to connect to external tool servers. MCP tools are automatically discovered and become available as ASTRO skills.
 
 ---
 
@@ -374,10 +456,10 @@ npm run coverage
 | Version | Features | Status |
 |---------|----------|--------|
 | **1.0.0-alpha** | Core platform, basic agents, CLI shells | ✅ Current |
-| **1.0.0-beta** | Web UI improvements, more integrations | 🚧 In Progress |
-| **1.0.0** | Stable release, full documentation | 📅 Planned |
-| **1.1.0** | Voice commands, mobile app | 📅 Planned |
-| **1.2.0** | Team collaboration features | 📅 Planned |
+| **1.0.0-beta** | ASTRO Core: Multi-provider LLM, skills system, browser automation | ✅ Completed |
+| **1.0.0** | Stable release, full documentation | 🚧 In Progress |
+| **1.1.0** | Voice commands, mobile app, WhatsApp integration | 📅 Planned |
+| **1.2.0** | Team collaboration features, advanced analytics | 📅 Planned |
 
 ---
 
@@ -400,6 +482,8 @@ git checkout -b feature/amazing-feature
 # 4. Make changes and test
 npm test
 python -m pytest tests/
+ruff check src/
+bandit -r src/ -x tests/ -ll -ii -s B101
 
 # 5. Submit a PR
 ```
@@ -441,7 +525,8 @@ ASTRO builds on amazing open-source projects:
 - **Node.js & Express** — Web foundation
 - **Socket.IO** — Real-time communication
 - **Python & asyncio** — Shell architecture
-- **Anthropic & OpenAI** — LLM providers
+- **Anthropic, OpenAI, Google** — LLM providers
+- **Playwright** — Browser automation
 - **And 100+ more** — See [package.json](./package.json)
 
 ---
