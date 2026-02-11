@@ -73,8 +73,15 @@ class SkillRegistry:
     
     def save_workspace_skill(self, config: SkillConfig, code: str) -> Path:
         """Save a new skill to workspace."""
+        # Basic path traversal validation
+        if ".." in config.name or "/" in config.name or "\\" in config.name:
+            raise ValueError(f"Invalid skill name: {config.name}")
+
         # Save code
-        skill_file = self.workspace_dir / f"{config.name}.py"
+        skill_file = (self.workspace_dir / f"{config.name}.py").resolve()
+        if not str(skill_file).startswith(str(self.workspace_dir.resolve())):
+            raise ValueError(f"Skill path outside workspace: {skill_file}")
+
         skill_file.write_text(code)
         
         # Save config

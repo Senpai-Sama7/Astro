@@ -137,12 +137,16 @@ export class ARIAConversationEngine extends EventEmitter {
         case 'config':
           response = `⚙️ Configuration management coming soon. Current settings:\n• Profile: ${context.metadata.profile}\n• Role: ${context.userRole}`;
           break;
-        case 'approve':
-          ({ response, result, toolExecuted } = await this.handleApproval(context, true));
+        case 'approve': {
+          const approvalId = userTurn.content.match(/\bapproval_\d+\b/)?.[0];
+          ({ response, result, toolExecuted } = await this.handleApproval(context, true, approvalId));
           break;
-        case 'deny':
-          response = (await this.handleApproval(context, false)).response;
+        }
+        case 'deny': {
+          const approvalId = userTurn.content.match(/\bapproval_\d+\b/)?.[0];
+          response = (await this.handleApproval(context, false, approvalId)).response;
           break;
+        }
         default:
           // Try LLM for unknown intents if available
           if (llmManager) {
@@ -434,7 +438,7 @@ Just type what you need - no special commands required!`;
 ⏳ Pending approvals: ${this.pendingApprovals.size}`;
   }
 
-  private async handleApproval(context: ConversationContext, approved: boolean): Promise<{
+  private async handleApproval(context: ConversationContext, approved: boolean, requestedId?: string): Promise<{
     response: string; result?: unknown; toolExecuted: boolean;
   }> {
     // Load from storage if empty
@@ -449,12 +453,25 @@ Just type what you need - no special commands required!`;
       }
     }
 
-    const entry = Array.from(this.pendingApprovals.entries())
-      .find(([, t]) => t.sessionId === context.sessionId) || this.pendingApprovals.entries().next().value;
-    
-    if (!entry) return { response: `Nothing pending to ${approved ? 'approve' : 'deny'}. No pending approvals.`, toolExecuted: false };
+    let approvalId: string | undefined;
+    let turn: ConversationTurn | undefined;
 
-    const [approvalId, turn] = entry;
+    if (requestedId && this.pendingApprovals.has(requestedId)) {
+      approvalId = requestedId;
+      turn = this.pendingApprovals.get(requestedId);
+    } else {
+      // Fallback to first for this session
+      const entry = Array.from(this.pendingApprovals.entries())
+        .find(([, t]) => t.sessionId === context.sessionId);
+      if (entry) {
+        [approvalId, turn] = entry;
+      }
+    }
+    
+    if (!approvalId || !turn) {
+      return { response: `Nothing pending to ${approved ? 'approve' : 'deny'}. No pending approvals.`, toolExecuted: false };
+    }
+
     this.pendingApprovals.delete(approvalId);
     if (this.storage) await this.storage.deleteApproval(approvalId);
 

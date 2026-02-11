@@ -28,12 +28,16 @@ class TelegramBot:
         token: Optional[str] = None,
         allowed_users: Optional[list] = None,
         skill_manager=None,
-        llm_provider=None
+        llm_provider=None,
+        canvas_manager=None,
+        canvas_port: int = 8765
     ):
         self.token = token or os.getenv("TELEGRAM_BOT_TOKEN")
         self.allowed_users = set(allowed_users or [])
         self.skill_manager = skill_manager
         self.llm_provider = llm_provider
+        self.canvas_manager = canvas_manager
+        self.canvas_port = canvas_port
         
         self.application: Optional['Application'] = None
         self._running = False
@@ -88,7 +92,7 @@ class TelegramBot:
     def _check_auth(self, user_id: int) -> bool:
         """Check if user is authorized."""
         if not self.allowed_users:
-            return True
+            return False
         return str(user_id) in self.allowed_users
     
     async def _cmd_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -165,16 +169,17 @@ Use /canvas to create a visual workspace
     
     async def _cmd_canvas(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /canvas command."""
+        if not self.canvas_manager:
+            await update.message.reply_text("⚠️ Canvas manager not available")
+            return
+
         # Create a new canvas
-        from ..canvas import CanvasManager
-        
-        canvas_manager = CanvasManager()
-        canvas = canvas_manager.create(title="Telegram Canvas")
+        canvas = self.canvas_manager.create(title="Telegram Canvas")
         
         await update.message.reply_text(
             f"🎨 **Canvas Created!**\n\n"
             f"ID: `{canvas.id}`\n"
-            f"Open in browser: http://localhost:5000/canvas/{canvas.id}",
+            f"Connect via WebSocket: ws://localhost:{self.canvas_port}/canvas/{canvas.id}",
             parse_mode="Markdown"
         )
     
@@ -220,8 +225,8 @@ Use /canvas to create a visual workspace
                 else:
                     await thinking_msg.edit_text("⚠️ No message handler configured")
         
-        except Exception as e:
-            await thinking_msg.edit_text(f"❌ Error: {e}")
+        except Exception:
+            await thinking_msg.edit_text("❌ Error: An internal error occurred while processing your message.")
     
     async def send_message(self, user_id: str, text: str):
         """Send message to user."""

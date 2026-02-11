@@ -36,14 +36,14 @@ class {class_name}(Skill):
 {implementation}
 '''
     
-    def __init__(self):
+    def __init__(self, skill_manager=None):
         config = SkillConfig(
             name="skill_creator",
             description="Create, modify, and manage skills",
             permissions=[SkillPermission.SELF_MODIFY, SkillPermission.FILE_SYSTEM],
             icon="✨"
         )
-        super().__init__(config)
+        super().__init__(config, skill_manager=skill_manager)
     
     def get_parameter_schema(self) -> Dict[str, Any]:
         return {
@@ -96,6 +96,11 @@ class {class_name}(Skill):
     async def _create_skill(self, params: Dict, context: SkillContext) -> SkillResult:
         """Create a new skill."""
         name = params.get("name")
+
+        # Validate name
+        if not name or not all(c.isalnum() or c in "_-" for c in name):
+            return SkillResult.error("Invalid skill name. Only alphanumeric, underscore, and hyphen allowed.")
+
         description = params.get("description", f"Skill: {name}")
         code = params.get("code")
         permissions = params.get("permissions", ["read_only"])
@@ -120,7 +125,7 @@ class {class_name}(Skill):
         
         # Save and load
         try:
-            skill_path = self.registry.save_workspace_skill(config, code)
+            skill_path = self.skill_manager.registry.save_workspace_skill(config, code)
             skill = await self.skill_manager.load_skill_from_file(skill_path)
             
             return SkillResult.ok(
@@ -139,7 +144,7 @@ class {class_name}(Skill):
             return SkillResult.error("Code required for modification")
         
         # Check if skill exists
-        skill = self.registry.get(name)
+        skill = self.skill_manager.registry.get(name)
         if not skill:
             return SkillResult.error(f"Skill '{name}' not found")
         
@@ -158,7 +163,7 @@ class {class_name}(Skill):
             Path(skill_path).write_text(new_code)
             
             # Reload skill
-            self.registry.unregister(name)
+            self.skill_manager.registry.unregister(name)
             await self.skill_manager.load_skill_from_file(Path(skill_path))
             
             return SkillResult.ok(
@@ -170,7 +175,7 @@ class {class_name}(Skill):
     
     def _list_skills(self, context: SkillContext) -> SkillResult:
         """List all skills."""
-        skills = self.registry.list_skills()
+        skills = self.skill_manager.registry.list_skills()
         return SkillResult.ok(
             f"Found {len(skills)} skills",
             data={"skills": skills}
@@ -180,7 +185,7 @@ class {class_name}(Skill):
         """Delete a skill."""
         name = params.get("name")
         
-        skill = self.registry.get(name)
+        skill = self.skill_manager.registry.get(name)
         if not skill:
             return SkillResult.error(f"Skill '{name}' not found")
         
@@ -194,7 +199,7 @@ class {class_name}(Skill):
                 Path(skill.config.source_path).with_suffix('.json').unlink(missing_ok=True)
             
             # Unregister
-            self.registry.unregister(name)
+            self.skill_manager.registry.unregister(name)
             
             return SkillResult.ok(f"Deleted skill '{name}'")
         except Exception as e:
@@ -204,11 +209,11 @@ class {class_name}(Skill):
         """Get skill source code."""
         name = params.get("name")
         
-        code = self.registry.load_skill_code(name)
+        code = self.skill_manager.registry.load_skill_code(name)
         if not code:
             return SkillResult.error(f"Could not load code for skill '{name}'")
         
-        metadata = self.registry.get_skill_metadata(name)
+        metadata = self.skill_manager.registry.get_skill_metadata(name)
         
         return SkillResult.ok(
             f"Loaded code for '{name}'",

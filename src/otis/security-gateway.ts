@@ -179,11 +179,15 @@ export class OTISSecurityGateway {
     }
 
     // Sensitive tools are higher risk
-    const sensitiveTool = ['http_request', 'math_eval'].includes(
-      params.toolName || ''
-    );
-    if (sensitiveTool) {
-      baseScore += 0.15;
+    const sensitiveTools = [
+      'http_request', 'content_extract', 'web_search',
+      'write_file', 'read_file', 'list_dir',
+      'git_status', 'git_diff', 'run_tests', 'lint_code',
+      'system_info', 'save_knowledge'
+    ];
+
+    if (params.toolName && sensitiveTools.includes(params.toolName)) {
+      baseScore += 0.25;
     }
 
     // Cap at 1.0

@@ -58,10 +58,19 @@ class SecurityConfig:
 
     # Exempt paths (no auth required)
     exempt_paths: Set[str] = field(default_factory=lambda: {
-        "/", "/health", "/ready", "/metrics",
-        "/styles.css", "/app.js", "/static",
-        "/chat", "/workflows", "/vault", "/files",  # SPA routes
+        "/health", "/ready", "/metrics",
         "/docs", "/redoc", "/openapi.json",
+    })
+
+    # Exempt prefixes
+    exempt_prefixes: Tuple[str, ...] = ("/static/", "/styles.css", "/app.js")
+
+    # Allowed WebSocket Origins
+    allowed_ws_origins: Set[str] = field(default_factory=lambda: {
+        "http://localhost:8000",
+        "http://localhost:3000",
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:3000",
     })
 
     # WebSocket paths
@@ -207,6 +216,9 @@ def verify_api_key(api_key: str) -> bool:
 
     Uses hmac.compare_digest to prevent timing attacks.
     """
+    if not security_config.api_key_enabled:
+        return True
+
     if not security_config.api_keys:
         return False
 
@@ -245,6 +257,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
+        # Generate nonce for CSP
+        import secrets
+        nonce = secrets.token_urlsafe(16)
+        request.state.csp_nonce = nonce
+
         response = await call_next(request)
 
         # Security headers
@@ -252,6 +269,18 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+        # Content Security Policy with nonce
+        csp = (
+            f"default-src 'self'; "
+            f"script-src 'self' 'nonce-{nonce}'; "
+            f"style-src 'self' 'unsafe-inline'; "
+            f"img-src 'self' data:; "
+            f"connect-src 'self' ws: wss:; "
+            f"frame-ancestors 'none'; "
+            f"form-action 'self';"
+        )
+        response.headers["Content-Security-Policy"] = csp
 
         # Don't cache API responses
         if request.url.path.startswith("/api/"):
@@ -285,6 +314,11 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """Rate limiting middleware using sliding window algorithm."""
 
+    def _is_exempt(self, path: str) -> bool:
+        if path in security_config.exempt_paths:
+            return True
+        return any(path.startswith(prefix) for prefix in security_config.exempt_prefixes)
+
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
@@ -294,7 +328,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # Skip for exempt paths
         path = request.url.path
-        if any(path.startswith(exempt) for exempt in security_config.exempt_paths):
+        if self._is_exempt(path):
             return await call_next(request)
 
         # Get client identifier
@@ -324,6 +358,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 class AuthenticationMiddleware(BaseHTTPMiddleware):
     """API key authentication middleware with audit logging."""
 
+    def _is_exempt(self, path: str) -> bool:
+        if path in security_config.exempt_paths:
+            return True
+        return any(path.startswith(prefix) for prefix in security_config.exempt_prefixes)
+
     async def dispatch(
         self, request: Request, call_next: RequestResponseEndpoint
     ) -> Response:
@@ -338,7 +377,7 @@ class AuthenticationMiddleware(BaseHTTPMiddleware):
 
         # Skip for exempt paths
         path = request.url.path
-        if any(path.startswith(exempt) for exempt in security_config.exempt_paths):
+        if self._is_exempt(path):
             return await call_next(request)
 
         # Skip for WebSocket upgrade requests (handled separately)
@@ -412,21 +451,38 @@ async def authenticate_websocket(
     """
     Authenticate WebSocket connection.
 
-    Checks API key from query parameter or first message.
-    Returns True if authenticated or auth is disabled.
+    Checks API key from query parameter, headers or subprotocol.
+    Validates Origin header for browser-based clients.
     """
+    # 1. Validate Origin
+    origin = websocket.headers.get("origin")
+    if origin and origin not in security_config.allowed_ws_origins:
+        logger.warning(f"Blocked WebSocket connection from unauthorized origin: {origin}")
+        return False
+
     if not security_config.api_key_enabled:
         return True
 
-    # Check query parameter first
+    # 2. Check API key in query parameters
+    if not api_key:
+        api_key = websocket.query_params.get("token") or websocket.query_params.get("api_key")
+
+    # 3. Check API key in headers
+    if not api_key:
+        api_key = websocket.headers.get(security_config.api_key_header)
+
+    # 4. Check API key in Sec-WebSocket-Protocol (browser-friendly)
+    if not api_key:
+        proto = websocket.headers.get("sec-websocket-protocol")
+        if proto:
+            parts = [p.strip() for p in proto.split(",")]
+            if len(parts) >= 2 and parts[0].lower() == "bearer":
+                api_key = parts[1]
+
     if api_key and verify_api_key(api_key):
         return True
 
-    # Check header (some WebSocket clients support this)
-    header_key = websocket.headers.get(security_config.api_key_header)
-    if header_key and verify_api_key(header_key):
-        return True
-
+    logger.warning(f"WebSocket authentication failed for {websocket.url.path}")
     return False
 
 

@@ -38,6 +38,11 @@ jobs:
       - name: Lint with ruff
         run: ruff check src/ tests/ --ignore E501
 
+      - name: Dependency vulnerability scan
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+
       - name: Run unit tests
         run: pytest tests/test_security.py tests/test_advanced_systems.py -v --tb=short
 

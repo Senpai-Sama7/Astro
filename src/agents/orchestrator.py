@@ -185,11 +185,17 @@ class AgentOrchestrator:
         for task in self.tasks.values():
             if task.status == TaskStatus.PENDING and completed_task.id in task.dependencies:
                 # Check if all dependencies are done
-                all_done = all(
-                    self.tasks[dep_id].is_done
-                    for dep_id in task.dependencies
-                    if dep_id in self.tasks
-                )
+                # Must check if ALL dependency IDs are present in self.tasks AND are done
+                all_dependencies_present = all(dep_id in self.tasks for dep_id in task.dependencies)
+
+                if not all_dependencies_present:
+                    # If some dependencies are missing, the task can never run properly
+                    task.status = TaskStatus.FAILED
+                    task.result = TaskResult.failure("Task has missing dependencies")
+                    self._notify_callbacks(task)
+                    continue
+
+                all_done = all(self.tasks[dep_id].is_done for dep_id in task.dependencies)
                 
                 if all_done:
                     asyncio.create_task(self._execute_task(task))

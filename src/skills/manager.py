@@ -24,7 +24,7 @@ class SkillManager:
             return
         
         from .builtin import register_builtin_skills
-        register_builtin_skills(self.registry)
+        register_builtin_skills(self)
         
         # Load workspace skills
         await self.load_workspace_skills()
@@ -104,7 +104,15 @@ class SkillManager:
                 source_path=str(skill_path)
             )
         
-        skill = skill_class(config)
+        # Create instance
+        try:
+            # Try with config first
+            skill = skill_class(config)
+        except TypeError:
+            # Fallback to no-arg constructor
+            skill = skill_class()
+            skill.config = config
+
         await skill.initialize()
         
         self.registry.register(skill)
@@ -121,11 +129,43 @@ class SkillManager:
         
         if not skill:
             return SkillResult.error(f"Skill '{name}' not found")
+
+        # Permission check
+        # For now, we assume context.metadata might contain allowed_permissions
+        # or we might need a more robust policy.
+        # The prompt suggests: Make default policy deny SYSTEM/SELF_MODIFY unless explicitly enabled by config.
+        allowed_permissions = context.metadata.get("allowed_permissions", []) if context.metadata else []
         
+        from .skill import SkillPermission
+        for perm in skill.permissions:
+            if perm in [SkillPermission.SYSTEM, SkillPermission.SELF_MODIFY]:
+                if perm.value not in allowed_permissions:
+                    return SkillResult.error(f"Permission denied: Skill requires {perm.value}")
+
+        # Audit logging before execution
+        if context.log_action:
+            context.log_action(f"execute_skill:{name}", {
+                "params": params,
+                "user_id": context.user_id,
+                "session_id": context.session_id
+            })
+
         try:
-            return await skill.execute(params, context)
-        except Exception as e:
-            return SkillResult.error(f"Skill execution failed: {e}")
+            result = await skill.execute(params, context)
+
+            # Audit logging after execution
+            if context.log_action:
+                context.log_action(f"skill_result:{name}", {
+                    "success": result.success,
+                    "message": result.message
+                })
+
+            return result
+        except Exception:
+            error_msg = "Skill execution failed due to an internal error."
+            if context.log_action:
+                context.log_action(f"skill_error:{name}", {"error": error_msg})
+            return SkillResult.error(error_msg)
     
     async def create_skill_from_description(
         self,
