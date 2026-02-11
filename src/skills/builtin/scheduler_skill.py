@@ -249,7 +249,7 @@ class SchedulerSkill(Skill):
         
         # Generate ID
         import hashlib
-        task_id = hashlib.md5(f"{name}:{schedule}".encode()).hexdigest()[:8]
+        task_id = hashlib.md5(f"{name}:{schedule}".encode(), usedforsecurity=False).hexdigest()[:8]
         
         # Calculate next run
         next_run = self._get_next_run(cron)
