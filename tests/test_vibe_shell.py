@@ -6,7 +6,6 @@ Run with: python3 -m pytest tests/test_vibe_shell.py -v
 
 import os
 import pytest
-from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
 # We need to import the module - handle import errors gracefully
@@ -422,7 +421,6 @@ class TestBuiltinCommands:
     async def test_builtin_cd(self, tmp_path):
         """Test cd built-in command."""
         shell = VibeShell()
-        original_cwd = shell.cwd
         
         # Change to temp directory
         result = await shell.handle_builtin(f"cd {tmp_path}")

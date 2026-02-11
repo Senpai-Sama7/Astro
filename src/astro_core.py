@@ -263,7 +263,6 @@ class AstroCore:
                 result = await self.skills.execute_skill(skill_name, params, context)
                 return result.message
             except Exception:
-                logger.exception("An error occurred while executing a skill in chat.")
                 return "❌ An error occurred while executing the skill. Please try again later."
         
         # Use LLM for general conversation

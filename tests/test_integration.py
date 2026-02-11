@@ -15,15 +15,12 @@ Usage:
     python tests/test_integration.py  # Direct execution
 """
 
-import asyncio
-import json
 import os
 import sys
 import tempfile
 import time
 from pathlib import Path
-from typing import Dict, Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -267,7 +264,6 @@ class TestSecurityMiddleware:
     async def test_rate_limiter(self):
         """Test rate limiting functionality."""
         from api.middleware import SlidingWindowRateLimiter
-        import asyncio
 
         limiter = SlidingWindowRateLimiter(
             requests_per_window=10,
@@ -318,7 +314,6 @@ class TestFileSystemAgent:
     async def test_safe_path_validation(self, temp_workspace):
         """Test path traversal prevention."""
         from agents.filesystem_agent import FileSystemAgent
-        from agents.base_agent import AgentContext
 
         agent = FileSystemAgent(agent_id="fs_test", config={"root_dir": temp_workspace})
 
