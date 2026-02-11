@@ -1,8 +1,5 @@
 """Tests for skills system."""
 
-import pytest
-import asyncio
-from pathlib import Path
 from src.skills import Skill, SkillConfig, SkillContext, SkillResult, SkillPermission
 
 

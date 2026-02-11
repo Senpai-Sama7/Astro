@@ -1,6 +1,5 @@
 """Tests for astro_shell.py."""
 import sys
-import pytest
 from astro_shell import AstroShell
 
 

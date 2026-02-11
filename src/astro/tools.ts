@@ -311,21 +311,38 @@ export async function contentExtractTool(
 
 function isPathSafe(filePath: string): boolean {
   try {
-    const rootReal = fs.realpathSync.native(WORKSPACE_DIR);
+    // Use realpathSync to resolve symlinks. Fallback to resolve if dir doesn't exist.
+    let rootReal: string;
+    try {
+      rootReal = fs.realpathSync(WORKSPACE_DIR);
+    } catch {
+      rootReal = path.resolve(WORKSPACE_DIR);
+    }
+
     const absCandidate = path.resolve(rootReal, filePath);
 
-    // Check if it's a new file (parent must exist and be safe)
+    // If candidate is exactly the root, it's safe
+    if (absCandidate === rootReal) return true;
+
+    // Check if it's a new file (parent must be safe)
     if (!fs.existsSync(absCandidate)) {
       const parent = path.dirname(absCandidate);
-      const parentReal = fs.realpathSync.native(parent);
+      let parentReal: string;
+      try {
+        parentReal = fs.realpathSync(parent);
+      } catch {
+        parentReal = path.resolve(parent);
+      }
       return parentReal === rootReal || parentReal.startsWith(rootReal + path.sep);
     }
 
-    const resolved = fs.realpathSync.native(absCandidate);
+    const resolved = fs.realpathSync(absCandidate);
     return resolved === rootReal || resolved.startsWith(rootReal + path.sep);
   } catch {
-    // If anything fails, it's unsafe
-    return false;
+    // Basic resolution as last resort
+    const resolved = path.resolve(WORKSPACE_DIR, filePath);
+    const rootResolved = path.resolve(WORKSPACE_DIR);
+    return resolved === rootResolved || resolved.startsWith(rootResolved + path.sep);
   }
 }
 

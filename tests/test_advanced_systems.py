@@ -36,8 +36,8 @@ async def test_mcp_integration():
 
     try:
         from core.mcp_integration import (
-            MCPRegistry, MCPServerConfig, MCPClient, MCPTool,
-            MCPResource, MCPToolExecutor
+            MCPRegistry, MCPServerConfig, MCPTool,
+            MCPToolExecutor
         )
 
         # Test MCPTool creation
@@ -86,7 +86,7 @@ async def test_a2a_protocol():
 
     try:
         from core.a2a_protocol import (
-            A2ACoordinator, A2AAgent, A2AMessage, A2ATask,
+            A2AMessage, A2ATask,
             AgentCard, MessageBus, A2AMessageType, A2ATaskState,
             get_a2a_coordinator
         )
@@ -173,9 +173,9 @@ async def test_self_healing():
 
     try:
         from core.self_healing import (
-            SelfHealingSystem, CircuitBreaker, RetryPolicy,
+            CircuitBreaker, RetryPolicy,
             HealthMonitor, RecoveryManager, HealthStatus,
-            FailureType, RecoveryStrategy, get_self_healing_system
+            get_self_healing_system
         )
 
         # Test CircuitBreaker
@@ -249,9 +249,8 @@ async def test_zero_reasoning():
 
     try:
         from core.zero_reasoning import (
-            AbsoluteZeroReasoner, ChainOfThought, TreeOfThought,
-            KnowledgeBase, MetaCognition, Premise, Conclusion,
-            ReasoningMode, create_reasoner
+            ChainOfThought, TreeOfThought,
+            KnowledgeBase, MetaCognition, ReasoningMode, create_reasoner
         )
 
         # Test KnowledgeBase
@@ -315,9 +314,8 @@ async def test_recursive_learning():
 
     try:
         from core.recursive_learning import (
-            RecursiveLearner, ExperienceBuffer, PatternExtractor,
-            SkillBuilder, Experience, Pattern, Skill,
-            ExperienceType, LearningSignal, get_recursive_learner
+            ExperienceBuffer, PatternExtractor,
+            SkillBuilder, Experience, ExperienceType, LearningSignal, get_recursive_learner
         )
 
         # Test Experience
@@ -379,7 +377,7 @@ async def test_recursive_learning():
         assert summary["total_experiences"] >= 5
 
         # Test suggestion
-        suggestion = learner.suggest_action({"task_type": "research"})
+        learner.suggest_action({"task_type": "research"})
         # May or may not have suggestion depending on patterns
 
         result.passed = True
@@ -400,9 +398,8 @@ async def test_refactory_loop():
 
     try:
         from core.refactory_loop import (
-            RefactoryFeedbackLoop, CodeAnalyzer, RefactorEngine,
-            FeedbackCollector, CodeMetrics, RefactorSuggestion,
-            RefactorType, QualityDimension, get_feedback_loop
+            CodeAnalyzer, RefactorEngine,
+            FeedbackCollector, get_feedback_loop
         )
 
         # Test code
@@ -450,7 +447,7 @@ def another_function(a, b, c, d, e):
             return []
 
         collector.register_source("custom", custom_analyzer)
-        feedback = await collector.collect(test_code)
+        await collector.collect(test_code)
         summary = collector.get_feedback_summary()
         assert "total" in summary
 
@@ -485,8 +482,7 @@ async def test_adaptive_jit():
     try:
         from core.adaptive_jit import (
             AdaptiveJIT, AdaptiveCache, HotPathDetector,
-            ExecutionProfile, OptimizationLevel, CacheStrategy,
-            get_adaptive_jit
+            ExecutionProfile, CacheStrategy
         )
 
         # Test AdaptiveCache
@@ -540,7 +536,6 @@ async def test_adaptive_jit():
         # First call
         r1 = counted_func(5)
         assert r1 == 25
-        c1 = call_count
 
         # Second call (should be cached)
         r2 = counted_func(5)

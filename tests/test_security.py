@@ -10,7 +10,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from core.nl_interface import (
-    SecurityException, HOSTILE_PATTERNS, INJECTION_KEYWORDS
+    HOSTILE_PATTERNS, INJECTION_KEYWORDS
 )
 
 

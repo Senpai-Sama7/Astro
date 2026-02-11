@@ -259,7 +259,7 @@ class TestInputValidation:
 
         # Import from server
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src', 'api'))
-        from server import CommandRequest, ChatMessageRequest
+        from server import CommandRequest
 
         # Empty command should fail
         with pytest.raises(ValidationError):
