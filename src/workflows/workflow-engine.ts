@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as fs from 'fs';
 import * as path from 'path';
+import Joi from 'joi';
 import { authenticateRequest } from '../middleware/auth';
 import { AstroOrchestrator } from '../astro/orchestrator';
 import { logger } from '../services/logger';
@@ -110,6 +111,47 @@ export class WorkflowEngine {
   }
 }
 
+const workflowStepSchema = Joi.object({
+  id: Joi.string().trim().min(1).required(),
+  tool: Joi.string().trim().min(1).required(),
+  input: Joi.object().required(),
+  dependsOn: Joi.array().items(Joi.string().trim().min(1)).optional(),
+});
+
+const workflowCreateSchema = Joi.object({
+  name: Joi.string().trim().min(1).required(),
+  description: Joi.string().trim().min(1).required(),
+  steps: Joi.array().items(workflowStepSchema).min(1).required(),
+});
+
+const workflowUpdateSchema = Joi.object({
+  name: Joi.string().trim().min(1).optional(),
+  description: Joi.string().trim().min(1).optional(),
+  steps: Joi.array().items(workflowStepSchema).min(1).optional(),
+}).min(1);
+
+function validateWorkflowSteps(steps: WorkflowStep[]): string | null {
+  const ids = new Set<string>();
+  for (const step of steps) {
+    if (ids.has(step.id)) {
+      return `Duplicate step id '${step.id}'`;
+    }
+    ids.add(step.id);
+  }
+  for (const step of steps) {
+    const deps = step.dependsOn || [];
+    for (const dep of deps) {
+      if (!ids.has(dep)) {
+        return `Step '${step.id}' depends on unknown step '${dep}'`;
+      }
+      if (dep === step.id) {
+        return `Step '${step.id}' cannot depend on itself`;
+      }
+    }
+  }
+  return null;
+}
+
 export function createWorkflowRouter(engine: WorkflowEngine, orchestrator: AstroOrchestrator): Router {
   const router = Router();
   router.use(authenticateRequest);
@@ -119,9 +161,29 @@ export function createWorkflowRouter(engine: WorkflowEngine, orchestrator: Astro
     const w = engine.get(req.params.id);
     w ? res.json(w) : res.status(404).json({ error: 'Not found' });
   });
-  router.post('/', (req, res) => res.status(201).json(engine.create(req.body)));
+  router.post('/', (req, res) => {
+    const { error, value } = workflowCreateSchema.validate(req.body, { stripUnknown: true });
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+    const validationError = validateWorkflowSteps(value.steps as WorkflowStep[]);
+    if (validationError) {
+      return res.status(400).json({ error: validationError });
+    }
+    return res.status(201).json(engine.create(value));
+  });
   router.put('/:id', (req, res) => {
-    const w = engine.update(req.params.id, req.body);
+    const { error, value } = workflowUpdateSchema.validate(req.body, { stripUnknown: true });
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (value.steps) {
+      const validationError = validateWorkflowSteps(value.steps as WorkflowStep[]);
+      if (validationError) {
+        return res.status(400).json({ error: validationError });
+      }
+    }
+    const w = engine.update(req.params.id, value);
     w ? res.json(w) : res.status(404).json({ error: 'Not found' });
   });
   router.delete('/:id', (req, res) => {
