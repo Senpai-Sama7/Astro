@@ -1,0 +1,23 @@
+Package: astro-ai-assistant
+Version: 1.0.0-alpha.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: libc6 (>= 2.28), libstdc++6 (>= 8), zlib1g (>= 1:1.2.0), libssl3 | libssl1.1, libicu72 | libicu70 | libicu67 | libicu66 | libicu65 | libicu63, libffi8 | libffi7
+Recommends: python3 (>= 3.11)
+Maintainer: Douglas Mitchell <senpai-sama7@proton.me>
+Homepage: https://github.com/Senpai-Sama7/Astro
+Description: AI-powered assistant for task automation
+ ASTRO (Autonomous System for Task and Resource Orchestration)
+ is an AI-powered assistant that helps automate tasks through
+ natural conversation. It features:
+ .
+ - Natural language command processing
+ - Multi-layer security architecture
+ - File and system management
+ - Web search capabilities
+ - Code analysis and execution
+ - Both sync (astro_shell) and async (vibe_shell) CLI interfaces
+ .
+ This package includes the complete ASTRO system with all
+ dependencies bundled for standalone operation.

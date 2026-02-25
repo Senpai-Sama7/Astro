@@ -4,7 +4,7 @@ ASTRO Client - Shared agent for TUI and CLI
 
 import os
 import sys
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 # Try to import HTTP clients
 try:
@@ -12,7 +12,7 @@ try:
     HTTP_CLIENT = "httpx"
 except ImportError:
     try:
-        import requests
+        import requests  # noqa: F401
         HTTP_CLIENT = "requests"
     except ImportError:
         HTTP_CLIENT = None

@@ -2,10 +2,9 @@
 
 import asyncio
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Dict, Any, List, Optional
-from functools import wraps
 
 # Structured logging and metrics
 from src.utils.structured_logger import get_logger, log_performance
@@ -128,14 +127,14 @@ class BaseAgent:
 
             if result.success:
                 self._consecutive_failures = 0
-                logger.info(f"Task completed", extra={
+                logger.info("Task completed", extra={
                     'agent_id': self.agent_id,
                     'task_id': task_id,
                     'duration_ms': result.execution_time * 1000
                 })
             else:
                 self._consecutive_failures += 1
-                logger.warning(f"Task failed", extra={
+                logger.warning("Task failed", extra={
                     'agent_id': self.agent_id,
                     'task_id': task_id,
                     'error': result.error_message
@@ -153,7 +152,7 @@ class BaseAgent:
                 retryable=True
             )
             self.record_task_result(result)
-            logger.error(f"Task timed out", extra={
+            logger.error("Task timed out", extra={
                 'agent_id': self.agent_id,
                 'task_id': task_id,
                 'timeout': timeout
@@ -170,7 +169,7 @@ class BaseAgent:
                 retryable=self._is_retryable_error(e)
             )
             self.record_task_result(result)
-            logger.error(f"Task exception", extra={
+            logger.error("Task exception", extra={
                 'agent_id': self.agent_id,
                 'task_id': task_id,
                 'error': str(e),

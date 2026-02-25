@@ -12,7 +12,7 @@ import json
 import uuid
 import asyncio
 import re
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from core.engine import AgentEngine, Workflow, Task, WorkflowPriority
 
 try:

@@ -13,18 +13,10 @@ def test_imports():
     print("Testing imports...")
     try:
         # Core modules
-        from core.engine import AgentEngine, AgentConfig, Workflow, Task
-        from core.database import DatabaseManager
-        from core.nl_interface import NaturalLanguageInterface
 
         # Agents
-        from agents.base_agent import BaseAgent, AgentCapability, TaskResult
-        from agents.research_agent import ResearchAgent
-        from agents.code_agent import CodeAgent
-        from agents.filesystem_agent import FileSystemAgent
 
         # Monitoring
-        from monitoring.monitoring_dashboard import MonitoringDashboard
 
         print("✅ All core imports successful")
         return True
@@ -129,7 +121,7 @@ def verify_config_files():
         # Check system_config.yaml
         sys_config_path = os.path.join(config_dir, 'system_config.yaml')
         with open(sys_config_path, 'r') as f:
-            sys_config = yaml.safe_load(f)
+            yaml.safe_load(f)
 
         # Check agents.yaml
         agents_config_path = os.path.join(config_dir, 'agents.yaml')

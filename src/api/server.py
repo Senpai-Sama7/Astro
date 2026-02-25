@@ -22,9 +22,9 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 from enum import Enum
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query, Depends
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -33,7 +33,6 @@ from api.middleware import (
     add_security_middleware,
     get_allowed_origins,
     security_config,
-    authenticate_websocket,
 )
 
 # Add src to path for imports
@@ -356,7 +355,7 @@ async def telemetry_broadcaster():
     while True:
         try:
             cpu_percent = psutil.cpu_percent(interval=1)
-            memory = psutil.virtual_memory()
+            _memory = psutil.virtual_memory()
             net_io = psutil.net_io_counters()
 
             telemetry = {

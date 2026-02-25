@@ -6,8 +6,6 @@ import json
 import logging
 import sys
 import os
-import time
-from io import StringIO
 
 import pytest
 

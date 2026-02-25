@@ -3,7 +3,7 @@ Workflows Router - API endpoints for workflow management
 """
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 

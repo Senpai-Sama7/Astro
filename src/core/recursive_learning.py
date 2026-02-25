@@ -18,19 +18,14 @@ suggest actions based on past successes WITHOUT modifying the underlying LLM.
 The term "learning" here refers to accumulating experience data, not machine
 learning in the SGD sense.
 """
-import asyncio
 import logging
 import json
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple, TypeVar
+from typing import Any, Dict, List, Optional, Tuple
 from enum import Enum
-from datetime import datetime, timedelta
+from datetime import datetime
 from collections import deque
 import hashlib
-import statistics
-import pickle
-import pickle
 from pathlib import Path
 
 try:
@@ -535,7 +530,7 @@ class RecursiveLearner:
 
             for action, patterns in by_action.items():
                 if len(patterns) >= 2:
-                    skill = self.skill_builder.create_skill(
+                    self.skill_builder.create_skill(
                         name=f"skill_{action}",
                         description=f"Learned skill for {action}",
                         patterns=patterns

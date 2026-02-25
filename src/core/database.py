@@ -650,11 +650,6 @@ class DatabaseManager:
             rows = await asyncio.to_thread(_sync_read)
             return [_parse_row(row) for row in rows]
 
-    def close(self):
-        """Cleanup resources and mark as closed"""
-        self._closed = True
-        logger.info("Database manager closed")
-
     async def prune_old_metrics_async(self, days: int = 30) -> int:
         """Remove metrics older than specified days. Returns count of deleted rows."""
         await self._ensure_async_init()
@@ -1071,12 +1066,12 @@ if __name__ == "__main__":
             print(f"✅ Backup created: {args.file}")
             sys.exit(0)
         else:
-            print(f"❌ Backup failed")
+            print("❌ Backup failed")
             sys.exit(1)
     elif args.command == "restore":
         if db.restore(args.file):
             print(f"✅ Database restored from: {args.file}")
             sys.exit(0)
         else:
-            print(f"❌ Restore failed")
+            print("❌ Restore failed")
             sys.exit(1)

@@ -9,7 +9,6 @@ from typing import Optional
 import logging
 
 from prometheus_client import Counter, Gauge, Histogram, Info, REGISTRY, generate_latest
-from prometheus_client.registry import CollectorRegistry
 
 logger = logging.getLogger(__name__)
 

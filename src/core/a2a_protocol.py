@@ -4,16 +4,13 @@ Enterprise-grade implementation for direct agent communication and collaboration
 Based on Google's Agent-to-Agent protocol specifications.
 """
 import asyncio
-import json
 import logging
 import uuid
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Set, Union
+from typing import Any, Callable, Dict, List, Optional, Set
 from enum import Enum
 from datetime import datetime
-import hashlib
-import aiohttp
 
 logger = logging.getLogger(__name__)
 

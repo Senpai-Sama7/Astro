@@ -1,15 +1,23 @@
 # Python dependencies for Astro
 # Main dependencies are in astro_os/requirements.txt
 
-textual>=0.47.0
-rich>=13.7.0
-openai>=1.12.0
-anthropic>=0.18.0
+# CLI Shell Dependencies
+textual>=0.47.0       # Terminal UI framework
+rich>=13.7.0          # Terminal formatting
+
+# vibe_shell.py - Async LLM Shell Dependencies
+openai>=1.12.0        # OpenAI API client (async)
+anthropic>=0.18.0     # Anthropic API client (async)
+aiofiles>=23.2.0      # Async file operations
+aiohttp>=3.9.0        # Async HTTP client for auth
+
+# Browser Automation
 playwright>=1.41.0
 browser-use>=0.1.0
 playwright-stealth>=1.0.0
 pillow>=10.2.0
-aiofiles>=23.2.0
+
+# Data Validation
 pydantic>=2.6.0
 
 # Pin protobuf to avoid CVE-2026-0994 in 6.33.4

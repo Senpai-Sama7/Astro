@@ -7,13 +7,10 @@ with user confirmation and result feedback.
 """
 
 import os
-import sys
 import json
 import subprocess
 import platform
 import getpass
-import readline
-from pathlib import Path
 from typing import Optional, Dict, Any, List
 
 # Try to import colorama for cross-platform colors
@@ -42,7 +39,6 @@ except ImportError:
 from .prompts import CLI_AGENT_SYSTEM_PROMPT, RESULT_INJECTION_TEMPLATE
 
 # Import shared agent
-from src.client.agent import AstroAgent
 
 
 class AstroCLI:
@@ -66,7 +62,7 @@ class AstroCLI:
                     for line in f:
                         if line.startswith("PRETTY_NAME="):
                             return line.split("=")[1].strip().strip('"')
-            except:
+            except Exception:
                 pass
             return f"Linux {platform.release()}"
         return f"{system} {platform.release()}"
@@ -168,7 +164,7 @@ class AstroCLI:
                 lines = response.split("\n")
                 response = "\n".join(lines[1:-1] if lines[-1] == "```" else lines[1:])
             return json.loads(response)
-        except json.JSONDecodeError as e:
+        except json.JSONDecodeError:
             print(f"{Fore.YELLOW}Warning: Could not parse JSON response{Style.RESET_ALL}")
             print(f"{Fore.DIM}{response[:500]}{Style.RESET_ALL}")
             return None

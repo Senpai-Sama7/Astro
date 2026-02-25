@@ -12,7 +12,7 @@ import time
 from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Optional
 
 # Context variables for request tracing
 request_id_var: ContextVar[str] = ContextVar('request_id', default='')

@@ -13,13 +13,15 @@ REFACTORED: Real telemetry integration.
 """
 
 import asyncio
+import base64
 import json
 import logging
+import os
 import time
-import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, Any, List, Optional, Callable
+from io import BytesIO
+from typing import Dict, Any, List, Optional
 
 try:
     import psutil
@@ -29,6 +31,13 @@ except ImportError:
     logging.warning("psutil not installed. System metrics will be estimated.")
 
 logger = logging.getLogger("MonitoringDashboard")
+
+try:
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    HAS_MATPLOTLIB = False
+    plt = None  # type: ignore
 
 class AlertSeverity(Enum):
     """Severity levels for alerts"""
@@ -416,7 +425,7 @@ class MonitoringDashboard:
             await self._create_alert(
                 severity=AlertSeverity.CRITICAL,
                 source=agent_id,
-                message=f"Agent failing repeatedly - requires intervention",
+                message="Agent failing repeatedly - requires intervention",
                 metrics={'agent_state': self.active_agents[agent_id].get('state'), 'failure_count': self.active_agents[agent_id].get('failure_count', 0)}
             )
 

@@ -78,7 +78,9 @@ export function createMetricsRouter(): Router {
     res.json({
       requests: m.requests.total,
       toolExecutions: m.tools.executions,
-      errorRate: m.tools.executions ? (m.tools.errors / m.tools.executions * 100).toFixed(2) + '%' : '0%',
+      errorRate: m.tools.executions
+        ? ((m.tools.errors / m.tools.executions) * 100).toFixed(2) + '%'
+        : '0%',
       avgLatency: m.latency.avg.toFixed(2) + 'ms',
       uptime: Math.floor(m.system.uptime / 1000) + 's',
     });
@@ -93,28 +95,37 @@ export function createMetricsRouter(): Router {
 
 // Dashboard HTML
 export const dashboardHtml = `<!DOCTYPE html>
-<html><head><title>Astro Metrics</title>
+<html lang="en"><head><meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Astro Metrics</title>
 <style>
-  body { font-family: system-ui; background: #1a1a2e; color: #eee; padding: 20px; }
+  body { font-family: system-ui; background: #1a1a2e; color: #eee; padding: 20px; line-height: 1.5; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
-  .card { background: #16213e; border-radius: 12px; padding: 20px; }
-  .card h3 { margin: 0 0 15px; color: #0f4c75; }
-  .stat { font-size: 2em; font-weight: bold; color: #3282b8; }
-  .label { color: #888; font-size: 0.9em; }
-  canvas { max-height: 200px; }
+  .card { background: #16213e; border-radius: 12px; padding: 20px; border: 1px solid #27365d; }
+  .card h2 { margin: 0 0 15px; color: #8bd3ff; font-size: 1.1rem; }
+  .stat { font-size: 2em; font-weight: bold; color: #90e0ef; }
+  .label { color: #c9d6df; font-size: 0.95em; }
+  .error { color: #ffb4a2; }
+  canvas { max-height: 220px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; border: 0; overflow: hidden; clip: rect(0, 0, 0, 0); }
 </style>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head><body>
-<h1>📊 Astro Metrics Dashboard</h1>
-<div class="grid">
-  <div class="card"><h3>Requests</h3><div class="stat" id="requests">-</div><div class="label">Total API Requests</div></div>
-  <div class="card"><h3>Tool Executions</h3><div class="stat" id="tools">-</div><div class="label">Total Executions</div></div>
-  <div class="card"><h3>Error Rate</h3><div class="stat" id="errors">-</div><div class="label">Tool Errors</div></div>
-  <div class="card"><h3>Avg Latency</h3><div class="stat" id="latency">-</div><div class="label">Response Time</div></div>
-  <div class="card"><h3>Uptime</h3><div class="stat" id="uptime">-</div><div class="label">Since Start</div></div>
-  <div class="card"><h3>Memory</h3><div class="stat" id="memory">-</div><div class="label">Heap Usage</div></div>
-</div>
-<div class="card" style="margin-top:20px"><h3>Latency History</h3><canvas id="chart"></canvas></div>
+<main>
+  <h1>Astro Metrics Dashboard</h1>
+  <p id="status" role="status" aria-live="polite">Loading metrics…</p>
+  <div class="grid" role="list" aria-label="System metrics">
+    <section class="card" role="listitem" aria-labelledby="requests-title"><h2 id="requests-title">Requests</h2><div class="stat" id="requests" aria-live="polite">-</div><div class="label">Total API Requests</div></section>
+    <section class="card" role="listitem" aria-labelledby="tools-title"><h2 id="tools-title">Tool Executions</h2><div class="stat" id="tools" aria-live="polite">-</div><div class="label">Total Executions</div></section>
+    <section class="card" role="listitem" aria-labelledby="errors-title"><h2 id="errors-title">Error Rate</h2><div class="stat" id="errors" aria-live="polite">-</div><div class="label">Tool Errors</div></section>
+    <section class="card" role="listitem" aria-labelledby="latency-title"><h2 id="latency-title">Avg Latency</h2><div class="stat" id="latency" aria-live="polite">-</div><div class="label">Response Time</div></section>
+    <section class="card" role="listitem" aria-labelledby="uptime-title"><h2 id="uptime-title">Uptime</h2><div class="stat" id="uptime" aria-live="polite">-</div><div class="label">Since Start</div></section>
+    <section class="card" role="listitem" aria-labelledby="memory-title"><h2 id="memory-title">Memory</h2><div class="stat" id="memory" aria-live="polite">-</div><div class="label">Heap Usage</div></section>
+  </div>
+  <section class="card" style="margin-top:20px" aria-labelledby="latency-history-title">
+    <h2 id="latency-history-title">Latency History</h2>
+    <p class="sr-only" id="chart-description">Line chart showing recent API latency measurements in milliseconds.</p>
+    <canvas id="chart" role="img" aria-describedby="chart-description"></canvas>
+  </section>
+</main>
 <script>
 let chart;
 function getToken(): string | null {
@@ -144,18 +155,45 @@ async function update() {
   const m = await res.json();
   document.getElementById('requests').textContent = m.requests.total;
   document.getElementById('tools').textContent = m.tools.executions;
-  document.getElementById('errors').textContent = m.tools.executions ? (m.tools.errors/m.tools.executions*100).toFixed(1)+'%' : '0%';
+  document.getElementById('errors').textContent = m.tools.executions ? (m.tools.errors/m.tools.executions*100).toFixed(2)+'%' : '0%';
   document.getElementById('latency').textContent = m.latency.avg.toFixed(1)+'ms';
   document.getElementById('uptime').textContent = Math.floor(m.system.uptime/1000)+'s';
   document.getElementById('memory').textContent = (m.system.memory.used/1024/1024).toFixed(1)+'MB';
+
   const labels = m.latency.history.map(p => new Date(p.timestamp).toLocaleTimeString());
   const data = m.latency.history.map(p => p.value);
+
   if (!chart) {
     chart = new Chart(document.getElementById('chart'), {
-      type: 'line', data: { labels, datasets: [{ label: 'Latency (ms)', data, borderColor: '#3282b8', tension: 0.3 }] },
-      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+      type: 'line',
+      data: { labels, datasets: [{ label: 'Latency (ms)', data, borderColor: '#90e0ef', tension: 0.3 }] },
+      options: {
+        responsive: true,
+        animation: false,
+        scales: { y: { beginAtZero: true } },
+      }
     });
-  } else { chart.data.labels = labels; chart.data.datasets[0].data = data; chart.update(); }
+  } else {
+    chart.data.labels = labels;
+    chart.data.datasets[0].data = data;
+    chart.update();
+  }
 }
-update(); setInterval(update, 5000);
+
+async function update() {
+  try {
+    const res = await fetch('/api/v1/metrics', { headers: { 'Accept': 'application/json' } });
+    if (!res.ok) {
+      throw new Error('Unable to fetch metrics (' + res.status + ')');
+    }
+    const m = await res.json();
+    updateDom(m);
+    setStatus('Metrics updated at ' + new Date().toLocaleTimeString());
+  } catch (error) {
+    setStatus(error instanceof Error ? error.message : 'Failed to update metrics.', true);
+  }
+}
+
+update();
+setInterval(update, 5000);
 </script></body></html>`;

@@ -5,26 +5,17 @@ Rich, beautiful TUI with full capabilities
 """
 
 import asyncio
-import os
-import sys
 from datetime import datetime
-from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict
 
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, Vertical, ScrollableContainer
+from textual.containers import Container, Horizontal, ScrollableContainer
 from textual.widgets import (
     Header, Footer, Static, Input, Button, 
-    Label, LoadingIndicator, Markdown, Tree, DirectoryTree
+    LoadingIndicator, Markdown
 )
 from textual.binding import Binding
-from textual.screen import Screen, ModalScreen
-from textual import events
-from rich.console import Console
-from rich.markdown import Markdown as RichMarkdown
-from rich.syntax import Syntax
-from rich.panel import Panel
-from rich.text import Text
+from textual.screen import ModalScreen
 
 from src.client.agent import AstroAgent
 
