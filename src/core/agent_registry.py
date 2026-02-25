@@ -6,7 +6,6 @@ from agents.git_agent import GitAgent
 from agents.test_agent import TestAgent
 from agents.analysis_agent import AnalysisAgent
 from agents.knowledge_agent import KnowledgeAgent
-from agents.base_agent import AgentCapability
 from core.engine import AgentConfig
 
 logger = logging.getLogger(__name__)

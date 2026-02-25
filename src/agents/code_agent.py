@@ -20,12 +20,11 @@ import re
 import shutil
 import sys
 import ast
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from .base_agent import BaseAgent, AgentCapability, AgentContext, TaskResult, AgentState
-from core.llm_factory import LLMFactory
 
 # Structured logging
-from src.utils.structured_logger import get_logger, log_performance
+from src.utils.structured_logger import get_logger
 
 # Try to import openai with async support
 try:

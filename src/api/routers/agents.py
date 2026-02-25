@@ -1,7 +1,7 @@
 """
 Agents Router - API endpoints for agent management
 """
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 

@@ -19,11 +19,9 @@ capabilities the underlying LLM doesn't already have.
 Reference: Wei et al., "Chain-of-Thought Prompting Elicits Reasoning in Large
 Language Models" (2022)
 """
-import asyncio
 import logging
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from enum import Enum
 from datetime import datetime
 import json
@@ -228,7 +226,7 @@ class ChainOfThought:
                 # Fallback: structured decomposition
                 step.thought = f"Analyzing aspect {i+1} of: {current_thought}"
                 step.action = "decompose"
-                step.observation = f"Sub-component identified"
+                step.observation = "Sub-component identified"
                 step.confidence = 0.7
 
             steps.append(step)
@@ -439,7 +437,7 @@ Return only a number between 0 and 1."""
                 )
                 content = response.choices[0].message.content.strip()
                 return float(re.search(r'[\d.]+', content).group())
-            except:
+            except Exception:
                 pass
         return branch.score
 
@@ -684,7 +682,7 @@ Return a JSON list of components:"""
                 match = re.search(r'\[.*\]', content, re.DOTALL)
                 if match:
                     return json.loads(match.group())
-            except:
+            except Exception:
                 pass
 
         # Fallback decomposition

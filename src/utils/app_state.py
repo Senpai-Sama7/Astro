@@ -1,10 +1,9 @@
 """
 App State Manager - Handles first-run detection, user preferences, and app state
 """
-import os
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 
 class AppState:
     """Manage application state and user preferences"""

@@ -7,13 +7,10 @@ import logging
 import ast
 import re
 import hashlib
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from enum import Enum
 from datetime import datetime
-from pathlib import Path
-import json
 
 logger = logging.getLogger(__name__)
 
@@ -153,7 +150,7 @@ class CodeAnalyzer:
         metrics = CodeMetrics()
 
         lines = code.split('\n')
-        metrics.lines_of_code = len([l for l in lines if l.strip() and not l.strip().startswith('#')])
+        metrics.lines_of_code = len([line for line in lines if line.strip() and not line.strip().startswith('#')])
 
         try:
             tree = ast.parse(code)
@@ -189,9 +186,6 @@ class CodeAnalyzer:
 
     def _calculate_cognitive(self, tree: ast.AST) -> int:
         """Calculate cognitive complexity"""
-        complexity = 0
-        nesting = 0
-
         class CognitiveVisitor(ast.NodeVisitor):
             def __init__(self):
                 self.complexity = 0
