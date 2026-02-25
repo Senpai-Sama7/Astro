@@ -6,10 +6,15 @@ import cors from 'cors';
 import { createServer } from 'http';
 import rateLimit from 'express-rate-limit';
 import path from 'path';
+import crypto from 'crypto';
 import { logger } from './services/logger';
 import { AstroOrchestrator } from './astro/orchestrator';
 import { createAstroRouter } from './astro/router';
-import { ARIAConversationEngine, setWorkflowEngine, setLLMManager } from './aria/conversation-engine';
+import {
+  ARIAConversationEngine,
+  setWorkflowEngine,
+  setLLMManager,
+} from './aria/conversation-engine';
 import { createConversationRouter } from './aria/router';
 import { OTISSecurityGateway } from './otis/security-gateway';
 import { C0Di3CyberIntelligence } from './codi3/threat-intelligence';
@@ -29,8 +34,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const PROFILE = process.env.PROFILE || 'core';
-const DATA_PATH =
-  process.env.DATA_PATH || path.join(process.cwd(), 'data', 'astro.db');
+const DATA_PATH = process.env.DATA_PATH || path.join(process.cwd(), 'data', 'astro.db');
 
 let orchestrator: AstroOrchestrator;
 let securityGateway: OTISSecurityGateway;
@@ -41,11 +45,52 @@ let wsServer: WebSocketServer;
 let pluginLoader: PluginLoader;
 let workflowEngine: WorkflowEngine;
 
+app.set('trust proxy', 1);
+
+const allowedCorsOrigins = (process.env.SECURITY_CORS_ORIGIN || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 // Middleware
-app.use(helmet({ contentSecurityPolicy: false })); // Allow inline scripts for simple UI
-app.use(cors({ origin: process.env.SECURITY_CORS_ORIGIN }));
-app.use(express.json({ limit: '10mb' }));
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", 'https://cdn.jsdelivr.net'],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:'],
+        connectSrc: ["'self'"],
+      },
+    },
+    hsts: NODE_ENV === 'production' ? undefined : false,
+  })
+);
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedCorsOrigins.length === 0 || allowedCorsOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('CORS origin not allowed'));
+    },
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  })
+);
+app.use(
+  express.json({
+    limit: '10mb',
+    strict: true,
+  })
+);
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+app.use((req, res, next) => {
+  const requestId = req.header('x-request-id') || crypto.randomUUID();
+  res.setHeader('x-request-id', requestId);
+  next();
+});
 
 // Serve the simple web interface
 app.use(express.static(path.join(__dirname, '..', 'public')));
@@ -56,6 +101,13 @@ const apiLimiter = rateLimit({
   max: 60,
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    logger.warn('Rate limit exceeded', { path: req.path, ip: req.ip });
+    res.status(429).json({
+      error: 'Too Many Requests',
+      message: 'Rate limit exceeded. Please retry later.',
+    });
+  },
 });
 app.use('/api/v1/aria', apiLimiter);
 app.use('/api/v1/astro', apiLimiter);
@@ -114,7 +166,7 @@ app.get('/api/v1/version', (req, res) => {
       'WebSocket Real-time Communication',
     ],
     llmProviders: llmManager.list(),
-    plugins: pluginLoader?.listPlugins().map(p => p.manifest.name) || [],
+    plugins: pluginLoader?.listPlugins().map((p) => p.manifest.name) || [],
   });
 });
 
@@ -142,10 +194,18 @@ async function bootstrap() {
   // Initialize Plugin System
   pluginLoader = new PluginLoader();
   const plugins = await pluginLoader.loadAllPlugins();
-  plugins.flatMap(p => p.tools).forEach(tool => {
-    try { orchestrator.registerTool(tool); } catch { /* already registered */ }
-  });
-  logger.info(`Loaded ${plugins.length} plugins with ${plugins.flatMap(p => p.tools).length} tools`);
+  plugins
+    .flatMap((p) => p.tools)
+    .forEach((tool) => {
+      try {
+        orchestrator.registerTool(tool);
+      } catch {
+        /* already registered */
+      }
+    });
+  logger.info(
+    `Loaded ${plugins.length} plugins with ${plugins.flatMap((p) => p.tools).length} tools`
+  );
 
   // Initialize Workflow Engine
   workflowEngine = new WorkflowEngine();
@@ -184,7 +244,9 @@ async function bootstrap() {
       }
       for (const message of messages) {
         if (!message || typeof message.content !== 'string' || typeof message.role !== 'string') {
-          return res.status(400).json({ error: 'Each message must include role and content strings' });
+          return res
+            .status(400)
+            .json({ error: 'Each message must include role and content strings' });
         }
       }
       const response = await llmManager.chat(messages, { provider, model, temperature, maxTokens });
@@ -277,12 +339,10 @@ async function bootstrap() {
 
   // Error handler
   app.use(
-    (
-      err: Error,
-      _req: express.Request,
-      res: express.Response,
-      _next: express.NextFunction
-    ) => {
+    (err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+      if (err instanceof SyntaxError && 'body' in err) {
+        return res.status(400).json({ error: 'Invalid JSON payload' });
+      }
       logger.error('Unhandled error', { error: err.message, stack: err.stack });
       res.status(500).json({
         error: 'Internal Server Error',
@@ -297,21 +357,46 @@ bootstrap().catch((error) => {
   process.exit(1);
 });
 
+process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled promise rejection', {
+    reason: reason instanceof Error ? reason.message : String(reason),
+  });
+});
+
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught exception', { error: error.message, stack: error.stack });
+  process.exit(1);
+});
+
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
+function gracefulShutdown(signal: 'SIGTERM' | 'SIGINT') {
+  logger.info(`${signal} received, shutting down gracefully`);
+
+  const forceExitTimeout = setTimeout(() => {
+    logger.error('Graceful shutdown timed out, forcing exit');
+    process.exit(1);
+  }, 10_000);
+
+  wsServer?.close();
   server?.close(() => {
+    clearTimeout(forceExitTimeout);
     logger.info('Server closed');
     process.exit(0);
   });
-});
+}
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  server?.close(() => {
-    logger.info('Server closed');
-    process.exit(0);
-  });
-});
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
-export { app, server, wsServer, orchestrator, conversationEngine, securityGateway, threatIntelligence, pluginLoader, workflowEngine, llmManager };
+export {
+  app,
+  server,
+  wsServer,
+  orchestrator,
+  conversationEngine,
+  securityGateway,
+  threatIntelligence,
+  pluginLoader,
+  workflowEngine,
+  llmManager,
+};

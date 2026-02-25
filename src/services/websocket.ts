@@ -15,16 +15,17 @@ interface AuthenticatedSocket extends Socket {
 const messageRateLimiter = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
 const RATE_LIMIT_MAX_MESSAGES = 60; // 60 messages per minute
+const MAX_MESSAGE_LENGTH = 4000;
 
 function checkRateLimit(userId: string): boolean {
   const now = Date.now();
   const timestamps = messageRateLimiter.get(userId) || [];
-  const recent = timestamps.filter(t => now - t < RATE_LIMIT_WINDOW_MS);
-  
+  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+
   if (recent.length >= RATE_LIMIT_MAX_MESSAGES) {
     return false;
   }
-  
+
   recent.push(now);
   messageRateLimiter.set(userId, recent);
   return true;
@@ -36,8 +37,21 @@ export class WebSocketServer {
 
   constructor(httpServer: HTTPServer, conversationEngine: ARIAConversationEngine) {
     this.conversationEngine = conversationEngine;
+    const allowedOrigins = (process.env.SECURITY_CORS_ORIGIN || '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+
     this.io = new SocketIOServer(httpServer, {
-      cors: { origin: process.env.SECURITY_CORS_ORIGIN || '*', methods: ['GET', 'POST'] },
+      cors: {
+        origin: (origin, callback) => {
+          if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+            return callback(null, true);
+          }
+          return callback(new Error('CORS origin not allowed'));
+        },
+        methods: ['GET', 'POST'],
+      },
       path: '/ws',
     });
 
@@ -63,7 +77,11 @@ export class WebSocketServer {
           logger.warn('JWT_SECRET not set; using insecure default (dev only)');
         }
         const jwtSecret = secret || 'astro-dev-secret';
-        const payload = jwt.verify(token as string, jwtSecret) as { userId?: string; sub?: string; role?: RoleType };
+        const payload = jwt.verify(token as string, jwtSecret) as {
+          userId?: string;
+          sub?: string;
+          role?: RoleType;
+        };
         socket.userId = payload.userId || payload.sub;
         socket.role = payload.role;
         if (!socket.userId || !socket.role) {
@@ -76,6 +94,16 @@ export class WebSocketServer {
     });
   }
 
+  private validateMessageInput(data: unknown): data is { message: string } {
+    if (!data || typeof data !== 'object') return false;
+    const candidate = data as { message?: unknown };
+    return (
+      typeof candidate.message === 'string' &&
+      candidate.message.trim().length > 0 &&
+      candidate.message.length <= MAX_MESSAGE_LENGTH
+    );
+  }
+
   private setupHandlers() {
     this.io.on('connection', (socket: AuthenticatedSocket) => {
       logger.info('WebSocket connected', { userId: socket.userId, socketId: socket.id });
@@ -86,8 +114,13 @@ export class WebSocketServer {
       socket.emit('session', { sessionId: context.sessionId });
 
       // Chat message
-      socket.on('chat', async (data: { message: string }) => {
+      socket.on('chat', async (data: unknown) => {
         if (!socket.sessionId || !socket.userId) return;
+
+        if (!this.validateMessageInput(data)) {
+          socket.emit('error', { message: 'Invalid message payload' });
+          return;
+        }
 
         if (!checkRateLimit(socket.userId)) {
           socket.emit('error', { message: 'Rate limit exceeded. Please wait.' });
@@ -97,7 +130,7 @@ export class WebSocketServer {
         try {
           socket.emit('typing', { status: 'thinking' });
 
-          const result = await this.conversationEngine.chat(socket.sessionId, data.message);
+          const result = await this.conversationEngine.chat(socket.sessionId, data.message.trim());
 
           socket.emit('response', {
             response: result.response,
@@ -106,13 +139,20 @@ export class WebSocketServer {
             approvalId: result.approvalId,
           });
         } catch (error) {
-          socket.emit('error', { message: error instanceof Error ? error.message : 'Unknown error' });
+          socket.emit('error', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+          });
         }
       });
 
       // Stream chat (for streaming responses)
-      socket.on('chat:stream', async (data: { message: string }) => {
+      socket.on('chat:stream', async (data: unknown) => {
         if (!socket.sessionId || !socket.userId) return;
+
+        if (!this.validateMessageInput(data)) {
+          socket.emit('stream:error', { message: 'Invalid message payload' });
+          return;
+        }
 
         if (!checkRateLimit(socket.userId)) {
           socket.emit('stream:error', { message: 'Rate limit exceeded. Please wait.' });
@@ -123,7 +163,7 @@ export class WebSocketServer {
           socket.emit('stream:start', {});
 
           // Simulate streaming by chunking response
-          const result = await this.conversationEngine.chat(socket.sessionId, data.message);
+          const result = await this.conversationEngine.chat(socket.sessionId, data.message.trim());
           const chunks = this.chunkResponse(result.response);
 
           for (const chunk of chunks) {
@@ -136,21 +176,35 @@ export class WebSocketServer {
             requiresApproval: result.requiresApproval,
           });
         } catch (error) {
-          socket.emit('stream:error', { message: error instanceof Error ? error.message : 'Unknown error' });
+          socket.emit('stream:error', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+          });
         }
       });
 
       // Approval
       socket.on('approve', async (data: { approvalId: string }) => {
-        if (!socket.sessionId) return;
-        const result = await this.conversationEngine.chat(socket.sessionId, 'yes');
-        socket.emit('response', result);
+        if (!socket.sessionId || !data?.approvalId) return;
+        try {
+          const result = await this.conversationEngine.chat(socket.sessionId, 'yes');
+          socket.emit('response', result);
+        } catch (error) {
+          socket.emit('error', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
       });
 
       socket.on('deny', async () => {
         if (!socket.sessionId) return;
-        const result = await this.conversationEngine.chat(socket.sessionId, 'no');
-        socket.emit('response', result);
+        try {
+          const result = await this.conversationEngine.chat(socket.sessionId, 'no');
+          socket.emit('response', result);
+        } catch (error) {
+          socket.emit('error', {
+            message: error instanceof Error ? error.message : 'Unknown error',
+          });
+        }
       });
 
       // Disconnect
@@ -170,7 +224,11 @@ export class WebSocketServer {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+
+  close() {
+    void this.io.close();
   }
 
   // Broadcast to all connected clients
