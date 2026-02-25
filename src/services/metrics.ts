@@ -138,7 +138,7 @@ function setStatus(message, isError = false) {
 function updateDom(m) {
   document.getElementById('requests').textContent = m.requests.total;
   document.getElementById('tools').textContent = m.tools.executions;
-  document.getElementById('errors').textContent = m.tools.executions ? (m.tools.errors/m.tools.executions*100).toFixed(1)+'%' : '0%';
+  document.getElementById('errors').textContent = m.tools.executions ? (m.tools.errors/m.tools.executions*100).toFixed(2)+'%' : '0%';
   document.getElementById('latency').textContent = m.latency.avg.toFixed(1)+'ms';
   document.getElementById('uptime').textContent = Math.floor(m.system.uptime/1000)+'s';
   document.getElementById('memory').textContent = (m.system.memory.used/1024/1024).toFixed(1)+'MB';
