@@ -145,7 +145,7 @@ async function update() {
     return;
   }
   const res = await fetch('/api/v1/metrics', {
-    headers: { Authorization: 'Bearer ' + token },
+    headers: { Authorization: `Bearer ${token}` },
   });
   if (res.status === 401 || res.status === 403) {
     localStorage.removeItem('astro_jwt');
