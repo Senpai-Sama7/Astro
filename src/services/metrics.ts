@@ -128,14 +128,31 @@ export const dashboardHtml = `<!DOCTYPE html>
 </main>
 <script>
 let chart;
-const statusEl = document.getElementById('status');
-
-function setStatus(message, isError = false) {
-  statusEl.textContent = message;
-  statusEl.classList.toggle('error', isError);
+function getToken(): string | null {
+  let token = localStorage.getItem('astro_jwt');
+  if (!token) {
+    token = window.prompt('Enter JWT token to view metrics') || null;
+    if (token) {
+      localStorage.setItem('astro_jwt', token);
+    }
+  }
+  return token;
 }
 
-function updateDom(m) {
+async function update() {
+  const token = getToken();
+  if (!token) {
+    return;
+  }
+  const res = await fetch('/api/v1/metrics', {
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  if (res.status === 401 || res.status === 403) {
+    localStorage.removeItem('astro_jwt');
+    document.getElementById('requests').textContent = 'Auth required';
+    return;
+  }
+  const m = await res.json();
   document.getElementById('requests').textContent = m.requests.total;
   document.getElementById('tools').textContent = m.tools.executions;
   document.getElementById('errors').textContent = m.tools.executions ? (m.tools.errors/m.tools.executions*100).toFixed(2)+'%' : '0%';

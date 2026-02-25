@@ -244,9 +244,7 @@ async function bootstrap() {
       }
       for (const message of messages) {
         if (!message || typeof message.content !== 'string' || typeof message.role !== 'string') {
-          return res
-            .status(400)
-            .json({ error: 'Each message must include role and content strings' });
+          return res.status(400).json({ error: 'Each message must include role and content strings' });
         }
       }
       const response = await llmManager.chat(messages, { provider, model, temperature, maxTokens });

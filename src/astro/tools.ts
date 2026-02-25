@@ -8,6 +8,7 @@ import { ToolInput, ToolResult, ToolContext } from './orchestrator';
 
 // Workspace directory for file operations
 const WORKSPACE_DIR = process.env.WORKSPACE_DIR || path.join(process.cwd(), 'workspace');
+const COMMAND_BASE_DIR = process.env.COMMAND_BASE_DIR || process.cwd();
 
 /**
  * Echo tool - returns input as-is (useful for testing and debugging)
@@ -346,6 +347,12 @@ function isPathSafe(filePath: string): boolean {
   }
 }
 
+function isCwdSafe(cwd: string): boolean {
+  const resolved = path.resolve(cwd);
+  const base = path.resolve(COMMAND_BASE_DIR);
+  return resolved === base || resolved.startsWith(base + path.sep);
+}
+
 /**
  * Read file tool
  * Input: { path: string }
@@ -462,13 +469,14 @@ export async function gitStatusTool(
 ): Promise<ToolResult> {
   const start = Date.now();
   try {
-    // Sandbox: Ensure cwd is within workspace
-    const rawCwd = (input.cwd as string) || '.';
-    if (!isPathSafe(rawCwd)) {
-        return { ok: false, error: 'Path outside workspace not allowed', elapsedMs: Date.now() - start };
+    const cwd = (input.cwd as string) || process.cwd();
+    if (!isCwdSafe(cwd)) {
+      return {
+        ok: false,
+        error: 'cwd is outside the allowed command workspace',
+        elapsedMs: Date.now() - start,
+      };
     }
-    const cwd = path.resolve(WORKSPACE_DIR, rawCwd);
-
     const output = execFileSync('git', ['status', '--porcelain'], { cwd, encoding: 'utf-8', timeout: 5000 });
     const branch = execFileSync('git', ['branch', '--show-current'], { cwd, encoding: 'utf-8', timeout: 5000 }).trim();
     return {
@@ -495,13 +503,14 @@ export async function gitDiffTool(
 ): Promise<ToolResult> {
   const start = Date.now();
   try {
-    // Sandbox: Ensure cwd is within workspace
-    const rawCwd = (input.cwd as string) || '.';
-    if (!isPathSafe(rawCwd)) {
-        return { ok: false, error: 'Path outside workspace not allowed', elapsedMs: Date.now() - start };
+    const cwd = (input.cwd as string) || process.cwd();
+    if (!isCwdSafe(cwd)) {
+      return {
+        ok: false,
+        error: 'cwd is outside the allowed command workspace',
+        elapsedMs: Date.now() - start,
+      };
     }
-    const cwd = path.resolve(WORKSPACE_DIR, rawCwd);
-
     const file = input.file as string;
 
     // Sandbox: Ensure file path is safe and doesn't start with '-'
@@ -541,13 +550,14 @@ export async function runTestsTool(
 ): Promise<ToolResult> {
   const start = Date.now();
   try {
-    // Sandbox: Ensure cwd is within workspace
-    const rawCwd = (input.cwd as string) || '.';
-    if (!isPathSafe(rawCwd)) {
-        return { ok: false, error: 'Path outside workspace not allowed', elapsedMs: Date.now() - start };
+    const cwd = (input.cwd as string) || process.cwd();
+    if (!isCwdSafe(cwd)) {
+      return {
+        ok: false,
+        error: 'cwd is outside the allowed command workspace',
+        elapsedMs: Date.now() - start,
+      };
     }
-    const cwd = path.resolve(WORKSPACE_DIR, rawCwd);
-
     let cmd: string;
     let args: string[];
 
